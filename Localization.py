@@ -4,7 +4,8 @@ from numba import njit
 
 from ImageModule import read_tif
 
-images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 print(images[0].shape)
 
 
@@ -22,46 +23,47 @@ def gauss_psf(cropped_img, window_size):
 
 
 def background_likelihood(img: np.ndarray, window_size=(7, 7)):
+    shift = 1
     surface_window = window_size[0] * window_size[1]
-    crop_imgs = image_cropping(img, window_size)
+    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
     bg_means = np.sum(crop_imgs, axis=1) / surface_window
     squared_sum = np.sum(crop_imgs ** 2, axis=1)
     bg_var = (squared_sum / surface_window) - (bg_means ** 2)
     gauss_grid = gauss_psf(crop_imgs[0], window_size)
     g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).flatten()
-    print(g_bar.shape)
     squared_g = np.sum(g_bar ** 2)
     i_hat = crop_imgs @ g_bar / squared_g
     c = (surface_window / 2.) * np.log(1 - (i_hat**2 * squared_g) / (squared_sum - (surface_window * bg_means)))
-    susms = 0
-    piv = int(512 / 1. + 1)
-    print(int(512 / 1. + 1))
-    for i, val in enumerate(list((i_hat**2 * squared_g) / (squared_sum - (surface_window * bg_means)))):
-        if val >= 0.5:
-            print(i, val)
-            print(i//piv * 7, i%piv * 7, val)
-            susms += 1
+
+    for i, (val, xy) in enumerate(zip(list((i_hat**2 * squared_g) / (squared_sum - (surface_window * bg_means))), xy_coords)):
+        if val >= 0.05:
+            print(xy, val)
             plt.figure()
             plt.imshow(crop_imgs[i].reshape(window_size))
             plt.show()
-    print(susms)
 
     print(c.shape)
     pass
 
 
-def image_cropping(img: np.ndarray, window_size=(7, 7)):
-    img_height = len(img)
-    img_width = len(img[0])
+def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
+    extend = window_size[0] + 1 if window_size[0] % 2 == 1 else window_size[0]
+    mean_val_original_img = np.mean(img)
+    extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + mean_val_original_img
+    extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += img - mean_val_original_img
+    plt.figure()
+    plt.imshow(extended_img)
+    plt.show()
+
+    img_height = len(extended_img)
+    img_width = len(extended_img[0])
     cropped_imgs = []
-    for j in range(0, img_height, 1):
-        if j + window_size[1] > img_height:
-            j -= (j + window_size[1] - img_height)
-        for i in range(0, img_width, 1):
-            if i + window_size[0] > img_width:
-                i -= (i + window_size[0] - img_width)
-            cropped_imgs.append(img[i:i + window_size[0], j:j + window_size[1]].flatten())
-    return np.array(cropped_imgs)
+    cropped_xy = []
+    for j in range(0, img_height-window_size[1]+1, shift):
+        for i in range(0, img_width-window_size[0]+1, shift):
+            cropped_imgs.append(extended_img[j:j + window_size[1], i:i + window_size[0]].flatten())
+            cropped_xy.append([i - int(extend/2), j - int(extend/2)])
+    return np.array(cropped_imgs), np.array(cropped_xy)
 
 
 background_likelihood(images[0], window_size=(7, 7))

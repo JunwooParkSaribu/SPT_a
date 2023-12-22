@@ -4,8 +4,8 @@ from numba import njit
 
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif') / 255.
+#images = read_tif('SimulData/receptor_7_low.tif') / 255.
 print(images[0].shape)
 
 
@@ -27,21 +27,18 @@ def background_likelihood(img: np.ndarray, window_size=(7, 7)):
     surface_window = window_size[0] * window_size[1]
     crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
     bg_means = np.sum(crop_imgs, axis=1) / surface_window
-    squared_sum = np.sum(crop_imgs ** 2, axis=1)
-    bg_var = (squared_sum / surface_window) - (bg_means ** 2)
+    bg_squared_sum = np.sum(crop_imgs ** 2, axis=1)
     gauss_grid = gauss_psf(crop_imgs[0], window_size)
     g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).flatten()
-    squared_g = np.sum(g_bar ** 2)
-    i_hat = crop_imgs @ g_bar / squared_g
-    c = (surface_window / 2.) * np.log(1 - (i_hat**2 * squared_g) / (squared_sum - (surface_window * bg_means)))
-
-    for i, (val, xy) in enumerate(zip(list((i_hat**2 * squared_g) / (squared_sum - (surface_window * bg_means))), xy_coords)):
-        if val >= 0.05:
+    g_squared_sum = np.sum(g_bar ** 2)
+    i_hat = crop_imgs @ g_bar / g_squared_sum
+    c = (surface_window / 2.) * np.log(1 - (i_hat**2 * g_squared_sum) / (bg_squared_sum - (surface_window * bg_means)))
+    for i, (val, xy) in enumerate(zip(c, xy_coords)):
+        if val > 0.5:
             print(xy, val)
             plt.figure()
             plt.imshow(crop_imgs[i].reshape(window_size))
             plt.show()
-
     print(c.shape)
     pass
 
@@ -51,10 +48,6 @@ def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
     mean_val_original_img = np.mean(img)
     extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + mean_val_original_img
     extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += img - mean_val_original_img
-    plt.figure()
-    plt.imshow(extended_img)
-    plt.show()
-
     img_height = len(extended_img)
     img_width = len(extended_img[0])
     cropped_imgs = []

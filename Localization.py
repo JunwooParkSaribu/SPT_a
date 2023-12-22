@@ -4,8 +4,8 @@ from numba import njit
 
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif') / 255.
-#images = read_tif('SimulData/receptor_7_low.tif') / 255.
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 print(images[0].shape)
 
 

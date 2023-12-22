@@ -9,7 +9,6 @@ from PIL import Image
 def read_tif(filepath):
     normalized_imgs = []
     imgs = tifffile.imread(filepath).astype(np.int16)
-
     nb_tif = imgs.shape[0]
     y_size = imgs.shape[1]
     x_size = imgs.shape[2]
@@ -17,15 +16,12 @@ def read_tif(filepath):
     s_mins = np.min(imgs, axis=(1, 2))
     s_maxima = np.max(imgs, axis=(1, 2))
 
-    modes = scipy.stats.mode(imgs.reshape(nb_tif, y_size*x_size), axis=1, keepdims=False)[0]
-    zero_base = np.zeros((y_size, x_size), dtype=np.uint8)
-    one_base = np.ones((y_size, x_size), dtype=np.uint8)
-
-    for i, (img, mode, s_min, s_max) in enumerate(zip(imgs, modes, s_mins, s_maxima)):
+    #modes = scipy.stats.mode(imgs.reshape(nb_tif, y_size*x_size), axis=1, keepdims=False)[0]
+    for i, (img, s_min, s_max) in enumerate(zip(imgs, s_mins, s_maxima)):
         img = (img - s_min) / (s_max - s_min)
-        normalized_imgs.append(img * 255)
+        normalized_imgs.append(img)
 
-    normalized_imgs = np.array(normalized_imgs, dtype=np.uint8)
+    normalized_imgs = np.array(normalized_imgs, dtype=np.double)
     return normalized_imgs
 
 

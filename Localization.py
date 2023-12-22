@@ -47,7 +47,8 @@ def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
     extend = window_size[0] + 1 if window_size[0] % 2 == 1 else window_size[0]
     mean_val_original_img = np.mean(img)
     extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + mean_val_original_img
-    extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += img - mean_val_original_img
+    extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += (
+            img - mean_val_original_img)
     img_height = len(extended_img)
     img_width = len(extended_img[0])
     cropped_imgs = []

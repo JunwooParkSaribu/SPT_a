@@ -4,9 +4,9 @@ from numba import njit
 
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-print(images[0].shape)
+#print(images[0].shape)
 
 
 def gauss_psf(cropped_img, window_size):
@@ -60,4 +60,35 @@ def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
     return np.array(cropped_imgs), np.array(cropped_xy)
 
 
-background_likelihood(images[0], window_size=(7, 7))
+def cov_matrix(observations):
+    obv_mean = np.mean(observations, axis=0)
+    a = observations - obv_mean
+    estimated_cov = a.T @ a / len(observations)
+    #estimated_cov = a.T @ a / (len(observations) - 1)
+    print(estimated_cov)
+
+
+#background_likelihood(images[0], window_size=(7, 7))
+
+kk = np.array([[-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-2, 2], [-1, 2], [1, 2], [2, 2], [-2, 1], [2, 1], [-2, -1], [2, -1],
+               [-2, -2], [-1, -2], [1, -2], [2, -2],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1],
+               [-1, 1], [1, 1], [-1, -1], [1, -1]])
+cov_matrix(kk)

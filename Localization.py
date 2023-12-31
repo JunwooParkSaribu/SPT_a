@@ -6,7 +6,8 @@ from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-#print(images[0].shape)
+images = read_tif('tif_trxyt/receptor_7_low.tif')
+print(images[0].shape)
 
 
 def gauss_psf(cropped_img, window_size):
@@ -49,46 +50,69 @@ def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
     extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + mean_val_original_img
     extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += (
             img - mean_val_original_img)
-    img_height = len(extended_img)
-    img_width = len(extended_img[0])
+
+    img_height = len(img)
+    img_width = len(img[0])
     cropped_imgs = []
     cropped_xy = []
     for j in range(0, img_height-window_size[1]+1, shift):
         for i in range(0, img_width-window_size[0]+1, shift):
-            cropped_imgs.append(extended_img[j:j + window_size[1], i:i + window_size[0]].flatten())
+            cropped_imgs.append(img[j:j + window_size[1], i:i + window_size[0]].flatten())
             cropped_xy.append([i - int(extend/2), j - int(extend/2)])
     return np.array(cropped_imgs), np.array(cropped_xy)
 
 
-def cov_matrix(observations):
-    obv_mean = np.mean(observations, axis=0)
-    a = observations - obv_mean
-    estimated_cov = a.T @ a / len(observations)
-    #estimated_cov = a.T @ a / (len(observations) - 1)
-    print(estimated_cov)
+def cov_matrix(grid, qt):
+    observations = qt * grid
+    nbs = np.sum(qt, axis=1)
+    obv_mean = (np.sum(observations, axis=1) / nbs).reshape(observations.shape[0], 1, -1)
+    obv_mean = np.ones(observations.shape) * obv_mean
+    a = np.sqrt(qt) * grid - (obv_mean * np.sqrt(qt))
+    estimated_cov = (a.transpose(0, 2, 1) @ a) / list((nbs-1).reshape(nbs.shape[0], 1, 1))
+    return estimated_cov
+
+
+def quantification(imgs, window_size):
+    qt_imgs = (imgs * 100).astype(np.uint8).reshape(imgs.shape[0], -1, 1)
+    x = np.arange(-(window_size[0]-1)/2, (window_size[0]+1)/2)
+    y = np.arange(-(window_size[1]-1)/2, (window_size[1]+1)/2)
+    xv, yv = np.meshgrid(x, y, sparse=True)
+    grid = np.stack(np.meshgrid(xv, yv), -1).reshape(window_size[0] * window_size[1], 2)
+    covariance_mat = cov_matrix(grid, qt=qt_imgs)
+    for img, cov in zip(imgs, covariance_mat):
+        plt.figure()
+        plt.imshow(img.reshape(window_size), cmap='gray')
+        print(np.linalg.eig(cov), cov)
+        plt.show()
+
+
+def ab(img: np.ndarray, window_size=(7, 7)):
+    shift = 1
+    surface_window = window_size[0] * window_size[1]
+    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
+    quantification(crop_imgs, window_size)
+    print(crop_imgs.shape)
 
 
 #background_likelihood(images[0], window_size=(7, 7))
 
-kk = np.array([[-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-2, 2], [-1, 2], [1, 2], [2, 2], [-2, 1], [2, 1], [-2, -1], [2, -1],
-               [-2, -2], [-1, -2], [1, -2], [2, -2],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1],
-               [-1, 1], [1, 1], [-1, -1], [1, -1]])
-cov_matrix(kk)
+"""
+x = np.arange(-(7 - 1) / 2, (7 + 1) / 2)
+y = np.arange(-(7 - 1) / 2, (7 + 1) / 2)
+xv, yv = np.meshgrid(x, y, sparse=True)
+grid = np.stack(np.meshgrid(xv, yv), -1).reshape(7 * 7, 2)
+grid = list(grid)
+grid.extend([[-1, 0]] * 99)
+print(grid)
+grid = np.array(grid)
+print(grid.shape)
+print(np.cov(grid.T), np.linalg.eig(np.cov(grid.T)))
+kk = grid - np.mean(grid, axis=0)
+print(kk)
+print(kk.T @ kk / (len(grid)-1))
+exit(1)
+"""
+
+#images = np.zeros(images.shape) + 0.01
+#images[0][3][3] = 1.0
+ab(images[0])

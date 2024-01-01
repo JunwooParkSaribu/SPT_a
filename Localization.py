@@ -53,13 +53,13 @@ def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1, bg_intensity=No
     extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += (
             img - bg_intensity)
 
-    img_height = len(img)
-    img_width = len(img[0])
+    img_height = len(extended_img)
+    img_width = len(extended_img[0])
     cropped_imgs = []
     cropped_xy = []
     for j in range(0, img_height-window_size[1]+1, shift):
         for i in range(0, img_width-window_size[0]+1, shift):
-            cropped_imgs.append(img[j:j + window_size[1], i:i + window_size[0]].flatten())
+            cropped_imgs.append(extended_img[j:j + window_size[1], i:i + window_size[0]].flatten())
             cropped_xy.append([i - int(extend/2), j - int(extend/2)])
     return np.array(cropped_imgs), np.array(cropped_xy)
 

@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import stats
 from numba import njit
 
 from ImageModule import read_tif
@@ -44,12 +45,13 @@ def background_likelihood(img: np.ndarray, window_size=(7, 7)):
     pass
 
 
-def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1):
+def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1, bg_intensity=None):
+    if bg_intensity is None:
+        bg_intensity = np.mean(img)
     extend = window_size[0] + 1 if window_size[0] % 2 == 1 else window_size[0]
-    mean_val_original_img = np.mean(img)
-    extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + mean_val_original_img
+    extended_img = np.zeros((img.shape[0] + extend, img.shape[1] + extend)) + bg_intensity
     extended_img[int(extend/2):int(extend/2) + img.shape[0], int(extend/2):int(extend/2) + img.shape[1]] += (
-            img - mean_val_original_img)
+            img - bg_intensity)
 
     img_height = len(img)
     img_width = len(img[0])
@@ -72,26 +74,66 @@ def cov_matrix(grid, qt):
     return estimated_cov
 
 
-def quantification(imgs, window_size):
-    qt_imgs = (imgs * 100).astype(np.uint8).reshape(imgs.shape[0], -1, 1)
+def quantification(imgs, window_size, amp):
+    qt_imgs = (imgs * (10**amp)).astype(np.uint8).reshape(imgs.shape[0], -1, 1)
     x = np.arange(-(window_size[0]-1)/2, (window_size[0]+1)/2)
     y = np.arange(-(window_size[1]-1)/2, (window_size[1]+1)/2)
     xv, yv = np.meshgrid(x, y, sparse=True)
     grid = np.stack(np.meshgrid(xv, yv), -1).reshape(window_size[0] * window_size[1], 2)
+    return qt_imgs, grid
+
+
+def bi_variate_normal_pdf(xy, cov, mu=None):
+    if mu is None:
+        mu = np.array([0, 0])
+    else:
+        mu = np.array(mu)
+    a = np.ones((cov.shape[0], xy.shape[0], xy.shape[1])) * (xy - mu)
+    return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
+            / (2 * np.pi * np.sqrt(np.linalg.det(cov).reshape(-1, 1))))
+
+
+def background(imgs, window_size=(7, 7), amp=3):
+    bg_instensity = stats.mode(imgs.flatten(), keepdims=False)[0]
+    bg = np.ones(window_size[0] * window_size[1]) * bg_instensity
+    qt_imgs, grid = quantification(bg, window_size, amp)
+    qt_imgs = qt_imgs.reshape(1, -1, 1)
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
-    for img, cov in zip(imgs, covariance_mat):
-        plt.figure()
-        plt.imshow(img.reshape(window_size), cmap='gray')
-        print(np.linalg.eig(cov), cov)
-        plt.show()
+    return covariance_mat, bg
 
 
-def ab(img: np.ndarray, window_size=(7, 7)):
+def kl_divergence2(cov1, cov2):
+    a = np.linalg.inv(cov2) * cov1
+    return 1./2 * (a[:, 0, 0] + a[:, 1, 1] - 2 + np.log(np.linalg.det(cov2)/np.linalg.det(cov1)))
+
+
+def kl_divergence(base, compares):
+    #base = base / np.sum(base)
+    #compares = compares / np.sum(compares, axis=1).reshape(-1, 1)
+    a = np.sum((compares * np.log(compares / base)), axis=1)
+    return a
+
+
+def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     shift = 1
     surface_window = window_size[0] * window_size[1]
-    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
-    quantification(crop_imgs, window_size)
-    print(crop_imgs.shape)
+    center_i = int((surface_window - 1) / 2)
+    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift, bg_intensity=bg[0])
+    qt_imgs, grid = quantification(crop_imgs, window_size, amp)
+    covariance_mat = cov_matrix(grid, qt=qt_imgs)
+    pdfs = bi_variate_normal_pdf(grid, covariance_mat)
+    alphas = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1) + 1e-7
+
+    pdfs *= alphas
+    kls = kl_divergence(bg, pdfs)
+    for img, cov, pdf, kl in zip(crop_imgs, covariance_mat, pdfs, kls):
+        if kl > 15:
+            plt.figure()
+            plt.imshow(img.reshape(window_size), cmap='gray', vmin=0, vmax=1.)
+            print(np.sum((img - pdf)**2))
+            print(kl)
+            print(np.linalg.eig(cov),'\n', cov)
+            plt.show()
 
 
 #background_likelihood(images[0], window_size=(7, 7))
@@ -102,7 +144,7 @@ y = np.arange(-(7 - 1) / 2, (7 + 1) / 2)
 xv, yv = np.meshgrid(x, y, sparse=True)
 grid = np.stack(np.meshgrid(xv, yv), -1).reshape(7 * 7, 2)
 grid = list(grid)
-grid.extend([[-1, 0]] * 99)
+grid.extend([[0, 0]] * 999)
 print(grid)
 grid = np.array(grid)
 print(grid.shape)
@@ -115,4 +157,5 @@ exit(1)
 
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
-ab(images[0])
+bg_covariance_mat, bg = background(images)
+ab(images[0], bg_covariance_mat, bg)

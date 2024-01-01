@@ -13,11 +13,11 @@ def read_tif(filepath):
     y_size = imgs.shape[1]
     x_size = imgs.shape[2]
 
-    s_mins = np.min(imgs, axis=(1, 2))
-    s_maxima = np.max(imgs, axis=(1, 2))
+    s_min = np.min(np.min(imgs, axis=(1, 2)))
+    s_max = np.max(np.max(imgs, axis=(1, 2)))
 
     #modes = scipy.stats.mode(imgs.reshape(nb_tif, y_size*x_size), axis=1, keepdims=False)[0]
-    for i, (img, s_min, s_max) in enumerate(zip(imgs, s_mins, s_maxima)):
+    for i, img in enumerate(imgs):
         img = (img - s_min) / (s_max - s_min)
         normalized_imgs.append(img)
 

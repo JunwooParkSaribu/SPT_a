@@ -6,8 +6,8 @@ from numba import njit
 from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('tif_trxyt/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('tif_trxyt/receptor_7_low.tif')
 print(images[0].shape)
 
 
@@ -114,6 +114,18 @@ def kl_divergence(base, compares):
     return a
 
 
+def intensity_reg2(img, grid, cov):
+    a = np.ones((cov.shape[0], grid.shape[0], grid.shape[1])) * grid
+    b = np.exp((1. / 2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
+    cov_dets = cov[:, 0, 0] + cov[:, 1, 1]
+    Y = np.sum(img, axis=1)
+    return (2. * np.pi * Y * np.sqrt(cov_dets) * np.sum(b, axis=1)).reshape(-1, 1) / grid.shape[0]
+
+
+def intensity_reg(imgs, pdfs):
+    return np.mean(imgs - pdfs, axis=1).reshape(-1, 1)
+
+
 def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     shift = 1
     surface_window = window_size[0] * window_size[1]
@@ -122,15 +134,19 @@ def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     qt_imgs, grid = quantification(crop_imgs, window_size, amp)
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
-    alphas = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1) + 1e-7
+    alphas1 = intensity_reg(crop_imgs, pdfs)
+    alphas2 = (crop_imgs[:, center_i] - pdfs[:, center_i]).reshape(-1, 1)
+    print(alphas1[:5], alphas2[:5])
 
-    pdfs *= alphas
-    kls = kl_divergence(bg, pdfs)
-    for img, cov, pdf, kl in zip(crop_imgs, covariance_mat, pdfs, kls):
-        if kl > 15:
+    pdfs1 = pdfs + alphas1
+    pdfs2 = pdfs + alphas2
+    kls = kl_divergence(bg, pdfs1)
+    for img, cov, pdf1, pdf2, kl in zip(crop_imgs, covariance_mat, pdfs1, pdfs2, kls):
+        if kl > 5:
             plt.figure()
             plt.imshow(img.reshape(window_size), cmap='gray', vmin=0, vmax=1.)
-            print(np.sum((img - pdf)**2))
+            print(np.sum((img - pdf1) ** 2))
+            print(np.sum((img - pdf2) ** 2))
             print(kl)
             print(np.linalg.eig(cov),'\n', cov)
             plt.show()

@@ -5,8 +5,8 @@ from numba import njit
 
 from ImageModule import read_tif
 
-#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
 print(images[0].shape)
 
@@ -94,12 +94,14 @@ def bi_variate_normal_pdf(xy, cov, mu=None):
 
 
 def background(imgs, window_size=(7, 7), amp=3):
-    bg_instensity = stats.mode(imgs.flatten(), keepdims=False)[0]
-    bg = np.ones(window_size[0] * window_size[1]) * bg_instensity
-    qt_imgs, grid = quantification(bg, window_size, amp)
-    qt_imgs = qt_imgs.reshape(1, -1, 1)
-    covariance_mat = cov_matrix(grid, qt=qt_imgs)
-    return covariance_mat, bg
+    bg_instensity = stats.mode(
+        (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
+    bgs = np.ones((bg_instensity.shape[0], window_size[0] * window_size[1]))
+    bgs *= bg_instensity.reshape(-1, 1)
+    #qt_imgs, grid = quantification(bg, window_size, amp)
+    #qt_imgs = qt_imgs.reshape(1, -1, 1)
+    #covariance_mat = cov_matrix(grid, qt=qt_imgs)
+    return bgs
 
 
 def kl_divergence2(cov1, cov2):
@@ -110,7 +112,7 @@ def kl_divergence2(cov1, cov2):
 def kl_divergence(base, compares):
     #base = base / np.sum(base)
     #compares = compares / np.sum(compares, axis=1).reshape(-1, 1)
-    a = np.sum((compares * np.log(compares / base)), axis=1)
+    a = np.mean((compares * np.log(compares / base)), axis=1)
     return a
 
 
@@ -122,13 +124,13 @@ def intensity_reg2(img, grid, cov):
     return (2. * np.pi * Y * np.sqrt(cov_dets) * np.sum(b, axis=1)).reshape(-1, 1) / grid.shape[0]
 
 
-def intensity_reg(imgs, pdfs):
+def intensity_reg(imgs, pdfs, center_i):
     bg_i = np.min(imgs, axis=1).reshape(-1, 1)
-    intensity = np.mean((imgs - bg_i) / pdfs, axis=1).reshape(-1, 1)
+    intensity = ((imgs - bg_i) / pdfs)[:, center_i].reshape(-1, 1)
     return intensity, bg_i
 
 
-def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
+def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     shift = 1
     surface_window = window_size[0] * window_size[1]
     center_i = int((surface_window - 1) / 2)
@@ -136,7 +138,7 @@ def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     qt_imgs, grid = quantification(crop_imgs, window_size, amp)
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
-    intensity, bg_i = intensity_reg(crop_imgs, pdfs)
+    intensity, bg_i = intensity_reg(crop_imgs, pdfs, center_i)
     alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
 
     pdfs1 = pdfs * intensity + bg_i
@@ -144,7 +146,7 @@ def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     kls1 = kl_divergence(bg, pdfs1)
     kls2 = kl_divergence(bg, pdfs2)
     for img, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, covariance_mat, pdfs1, pdfs2, kls1, kls2):
-        if kl1 > 8:
+        if kl1 > 0.1:
             plt.figure()
             plt.imshow(img.reshape(window_size), cmap='gray', vmin=0, vmax=1.)
             print(pdf1, pdf2)
@@ -176,5 +178,5 @@ exit(1)
 
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
-bg_covariance_mat, bg = background(images)
-ab(images[0], bg_covariance_mat, bg)
+bgs = background(images)
+ab(images[0], bgs[0])

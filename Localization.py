@@ -123,7 +123,9 @@ def intensity_reg2(img, grid, cov):
 
 
 def intensity_reg(imgs, pdfs):
-    return np.mean(imgs - pdfs, axis=1).reshape(-1, 1)
+    bg_i = np.min(imgs, axis=1).reshape(-1, 1)
+    intensity = np.mean((imgs - bg_i) / pdfs, axis=1).reshape(-1, 1)
+    return intensity, bg_i
 
 
 def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
@@ -134,20 +136,21 @@ def ab(img: np.ndarray, bg_cov, bg, window_size=(7, 7), amp=3):
     qt_imgs, grid = quantification(crop_imgs, window_size, amp)
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
-    alphas1 = intensity_reg(crop_imgs, pdfs)
-    alphas2 = (crop_imgs[:, center_i] - pdfs[:, center_i]).reshape(-1, 1)
-    print(alphas1[:5], alphas2[:5])
+    intensity, bg_i = intensity_reg(crop_imgs, pdfs)
+    alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
 
-    pdfs1 = pdfs + alphas1
-    pdfs2 = pdfs + alphas2
-    kls = kl_divergence(bg, pdfs1)
-    for img, cov, pdf1, pdf2, kl in zip(crop_imgs, covariance_mat, pdfs1, pdfs2, kls):
-        if kl > 5:
+    pdfs1 = pdfs * intensity + bg_i
+    pdfs2 = pdfs * alphas2
+    kls1 = kl_divergence(bg, pdfs1)
+    kls2 = kl_divergence(bg, pdfs2)
+    for img, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, covariance_mat, pdfs1, pdfs2, kls1, kls2):
+        if kl1 > 8:
             plt.figure()
             plt.imshow(img.reshape(window_size), cmap='gray', vmin=0, vmax=1.)
+            print(pdf1, pdf2)
             print(np.sum((img - pdf1) ** 2))
             print(np.sum((img - pdf2) ** 2))
-            print(kl)
+            print('kl1=',kl1, ' kl2=',kl2)
             print(np.linalg.eig(cov),'\n', cov)
             plt.show()
 

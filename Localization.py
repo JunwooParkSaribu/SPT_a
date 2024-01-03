@@ -7,8 +7,8 @@ from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('tif_trxyt/receptor_7_low.tif')
-images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
+images = read_tif('tif_trxyt/receptor_7_low.tif')
+#images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
 
@@ -141,21 +141,20 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
     intensity, bg_i = intensity_reg(crop_imgs, pdfs, center_i)
     alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
-
     pdfs1 = pdfs * intensity + bg_i
     pdfs2 = pdfs * alphas2
     kls1 = kl_divergence(bg, pdfs1)
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
-        #if kl1 > 0.1:
+        if kl1 > 0.1:
+            print('xy = ', xy)
+            print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=',np.sum((img - pdf2) ** 2))
+            print('kl1=', kl1, ' kl2=', kl2)
+            print('eigvals=', np.linalg.eig(cov)[0], '\n', 'eigvecs=', list(np.linalg.eig(cov)[1]), '\n', cov)
+            print(np.mean(img), np.std(img))
             plt.figure()
-            plt.imshow(img.reshape(window_size), cmap='gray', vmin=0, vmax=1.)
-            print('xy = ',xy)
-            print(pdf1, pdf2)
-            print(np.sum((img - pdf1) ** 2))
-            print(np.sum((img - pdf2) ** 2))
-            print('kl1=',kl1, ' kl2=',kl2)
-            print(np.linalg.eig(cov),'\n', cov)
+            plt.imshow(np.hstack((img.reshape(window_size), pdf1.reshape(window_size))), cmap='gray', vmin=0, vmax=1.)
+            plt.vlines(x=window_size[0]-.5, ymin=0, ymax=window_size[1]-1, colors='red')
             plt.show()
 
 
@@ -180,5 +179,5 @@ exit(1)
 
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
-bgs = background(images, window_size=(15, 15))
-ab(images[4800], bgs[4800], window_size=(15, 15))
+bgs = background(images, window_size=(7, 7))
+ab(images[0], bgs[0], window_size=(7, 7))

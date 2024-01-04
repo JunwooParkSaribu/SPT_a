@@ -2,12 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 from numba import njit
+from scipy.optimize import curve_fit
 
 from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('tif_trxyt/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 

@@ -7,8 +7,8 @@ from scipy.optimize import curve_fit
 from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('tif_trxyt/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
@@ -148,21 +148,15 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
         if kl1 > 0.1:
-            img = np.ones((7, 7))
-            img[1][3] = 10
-            img[2][3] = 10       
-            img[3][3] = 10
-            img[4][3] = 10
-            img[5][3] = 10
-            img = img / np.sum(img)
             coefs = guo_algorithm(img, window_size)
             x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
             print(x_var, y_var, x0, y0, amp)
             pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64))
             pdfs = amp * pdfs
-            pdfs = pdfs / np.sum(pdfs, axis=1)
+            pdfs /= np.sum(pdfs, axis=1)
             plt.figure()
-            plt.imshow(np.hstack((img.reshape(window_size) / np.sum(img), pdfs[0].reshape(window_size))), cmap='gray')
+            plt.imshow(np.hstack((img.reshape(window_size)/np.sum(img), pdfs[0].reshape(window_size))), cmap='gray',
+                       vmin=0, vmax=1)
             plt.show()
             continue
             exit(1)
@@ -210,7 +204,7 @@ def guo_algorithm(img, window_size=(7, 7)):
     img = img.reshape(window_size)
     yk_2 = img
     x_grid = np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
-    y_grid = np.array([list(np.arange(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1))] * window_size[0])
+    y_grid = np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
     for k in range(0, 20):
         if k != 0:
             yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +

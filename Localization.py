@@ -85,14 +85,17 @@ def quantification(imgs, window_size, amp):
     return qt_imgs, grid
 
 
-def bi_variate_normal_pdf(xy, cov, mu=None):
+def bi_variate_normal_pdf(xy, cov, mu=None, normalization=True):
     if mu is None:
         mu = np.array([0, 0])
     else:
         mu = np.array(mu)
     a = np.ones((cov.shape[0], xy.shape[0], xy.shape[1])) * (xy - mu)
-    return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
-            / (2 * np.pi * np.sqrt(np.linalg.det(cov).reshape(-1, 1))))
+    if normalization:
+        return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
+                / (2 * np.pi * np.sqrt(np.linalg.det(cov).reshape(-1, 1))))
+    else:
+        return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2)))
 
 
 def background(imgs, window_size=(7, 7), amp=3):
@@ -151,11 +154,10 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
             coefs = guo_algorithm(img, window_size)
             x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
             print(x_var, y_var, x0, y0, amp)
-            pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64))
+            pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64), normalization=False)
             pdfs = amp * pdfs
-            pdfs /= np.sum(pdfs, axis=1)
             plt.figure()
-            plt.imshow(np.hstack((img.reshape(window_size)/np.sum(img), pdfs[0].reshape(window_size))), cmap='gray',
+            plt.imshow(np.hstack((img.reshape(window_size), pdfs[0].reshape(window_size))), cmap='gray',
                        vmin=0, vmax=1)
             plt.show()
             continue
@@ -205,10 +207,13 @@ def guo_algorithm(img, window_size=(7, 7)):
     yk_2 = img
     x_grid = np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
     y_grid = np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
-    for k in range(0, 20):
+    for k in range(0, 10):
         if k != 0:
+            x_var, y_var, x0, y0, amp = unpack_coefs(coef_vals)
             yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +
                           coef_vals[2] * y_grid**2 + coef_vals[3] * y_grid + coef_vals[4])
+            if abs(x0) >= 1 or abs(y0) >= 1:
+                return coef_vals
         yk_2 *= yk_2
         coef1 = yk_2 * x_grid**4
         coef2 = yk_2 * x_grid**3

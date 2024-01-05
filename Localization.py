@@ -148,6 +148,24 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
         if kl1 > 0.1:
+            img = np.ones((7, 7))
+            img[1][3] = 10
+            img[2][3] = 10       
+            img[3][3] = 10
+            img[4][3] = 10
+            img[5][3] = 10
+            img = img / np.sum(img)
+            coefs = guo_algorithm(img, window_size)
+            x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
+            print(x_var, y_var, x0, y0, amp)
+            pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64))
+            pdfs = amp * pdfs
+            pdfs = pdfs / np.sum(pdfs, axis=1)
+            plt.figure()
+            plt.imshow(np.hstack((img.reshape(window_size) / np.sum(img), pdfs[0].reshape(window_size))), cmap='gray')
+            plt.show()
+            continue
+            exit(1)
             print('xy = ', xy)
             print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=',np.sum((img - pdf2) ** 2))
             print('kl1=', kl1, ' kl2=', kl2)
@@ -177,6 +195,61 @@ print(kk)
 print(kk.T @ kk / (len(grid)-1))
 exit(1)
 """
+
+def unpack_coefs(coefs):
+    x_var = -1./(2 * coefs[0])
+    y_var = -1./(2 * coefs[2])
+    x0 = coefs[1] * x_var
+    y0 = coefs[3] * y_var
+    amp = np.exp(coefs[4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
+    return x_var, y_var, x0, y0, amp
+
+
+def guo_algorithm(img, window_size=(7, 7)):
+    coef_vals = []
+    img = img.reshape(window_size)
+    yk_2 = img
+    x_grid = np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
+    y_grid = np.array([list(np.arange(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1))] * window_size[0])
+    for k in range(0, 20):
+        if k != 0:
+            yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +
+                          coef_vals[2] * y_grid**2 + coef_vals[3] * y_grid + coef_vals[4])
+        yk_2 *= yk_2
+        coef1 = yk_2 * x_grid**4
+        coef2 = yk_2 * x_grid**3
+        coef3 = yk_2 * y_grid**2 * x_grid**2
+        coef4 = yk_2 * y_grid * x_grid**2
+        coef5 = yk_2 * x_grid**2
+        coef6 = yk_2 * y_grid**2 * x_grid
+        coef7 = yk_2 * y_grid * x_grid
+        coef8 = yk_2 * x_grid
+        coef9 = yk_2 * y_grid**4
+        coef10 = yk_2 * y_grid**3
+        coef11 = yk_2 * y_grid**2
+        coef12 = yk_2 * y_grid
+        coef_matrix = np.sum(
+            np.array(
+                [[coef1, coef2, coef3, coef4, coef5],
+                 [coef2, coef5, coef6, coef7, coef8],
+                 [coef3, coef6, coef9, coef10, coef11],
+                 [coef4, coef7, coef10, coef11, coef12],
+                 [coef5, coef8, coef11, coef12, yk_2]]
+            ), axis=(2, 3))
+        ans1 = x_grid ** 2 * yk_2 * np.log(img)
+        ans2 = x_grid * yk_2 * np.log(img)
+        ans3 = y_grid ** 2 * yk_2 * np.log(img)
+        ans4 = y_grid * yk_2 * np.log(img)
+        ans5 = yk_2 * np.log(img)
+        ans_matrix = np.sum(
+            np.array(
+                [[ans1], [ans2], [ans3], [ans4], [ans5]]
+            ), axis=(2, 3))
+        coef_vals = np.linalg.lstsq(coef_matrix, ans_matrix, rcond=None)[0]
+    return coef_vals
+
+
+
 
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0

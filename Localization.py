@@ -8,7 +8,7 @@ from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('tif_trxyt/receptor_7_low.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
@@ -151,11 +151,15 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
         if kl1 > 0.1:
-            coefs = guo_algorithm(img, window_size)
+            coefs = guo_algorithm(img, bg, window_size)
             x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
             print(x_var, y_var, x0, y0, amp)
             pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64), normalization=False)
-            pdfs = amp * pdfs
+            pdfs = amp * pdfs + bg
+            print(kl_divergence(bg, pdfs))
+            plt.figure()
+            plt.imshow((img - bg).reshape(window_size), cmap='gray',
+                       vmin=0, vmax=1)
             plt.figure()
             plt.imshow(np.hstack((img.reshape(window_size), pdfs[0].reshape(window_size))), cmap='gray',
                        vmin=0, vmax=1)
@@ -173,25 +177,6 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
             plt.show()
 
 
-#background_likelihood(images[0], window_size=(7, 7))
-
-"""
-x = np.arange(-(7 - 1) / 2, (7 + 1) / 2)
-y = np.arange(-(7 - 1) / 2, (7 + 1) / 2)
-xv, yv = np.meshgrid(x, y, sparse=True)
-grid = np.stack(np.meshgrid(xv, yv), -1).reshape(7 * 7, 2)
-grid = list(grid)
-grid.extend([[0, 0]] * 999)
-print(grid)
-grid = np.array(grid)
-print(grid.shape)
-print(np.cov(grid.T), np.linalg.eig(np.cov(grid.T)))
-kk = grid - np.mean(grid, axis=0)
-print(kk)
-print(kk.T @ kk / (len(grid)-1))
-exit(1)
-"""
-
 def unpack_coefs(coefs):
     x_var = -1./(2 * coefs[0])
     y_var = -1./(2 * coefs[2])
@@ -201,19 +186,20 @@ def unpack_coefs(coefs):
     return x_var, y_var, x0, y0, amp
 
 
-def guo_algorithm(img, window_size=(7, 7)):
+def guo_algorithm(img, bg, window_size=(7, 7)):
     coef_vals = []
     img = img.reshape(window_size)
-    yk_2 = img
+    img = np.maximum(np.zeros(img.shape), img - bg.reshape(img.shape)) + 1e-2
+    yk_2 = img.astype(np.float64)
     x_grid = np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
     y_grid = np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
-    for k in range(0, 10):
+    for k in range(0, 20):
         if k != 0:
             x_var, y_var, x0, y0, amp = unpack_coefs(coef_vals)
             yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +
                           coef_vals[2] * y_grid**2 + coef_vals[3] * y_grid + coef_vals[4])
-            if abs(x0) >= 1 or abs(y0) >= 1:
-                return coef_vals
+            #if abs(x0) >= 1 or abs(y0) >= 1:
+            #    return coef_vals
         yk_2 *= yk_2
         coef1 = yk_2 * x_grid**4
         coef2 = yk_2 * x_grid**3
@@ -249,8 +235,8 @@ def guo_algorithm(img, window_size=(7, 7)):
 
 
 
-
+#background_likelihood(images[0], window_size=(7, 7))
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
-bgs = background(images, window_size=(7, 7))
-ab(images[0], bgs[0], window_size=(7, 7))
+bgs = background(images, window_size=(15, 15))
+ab(images[0], bgs[0], window_size=(15, 15))

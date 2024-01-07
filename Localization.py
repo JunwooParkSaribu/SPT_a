@@ -151,7 +151,7 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
         if kl1 > 0.1:
-            coefs = guo_algorithm(img, bg, window_size)
+            coefs = guo_algorithm(img, bg, window_size=window_size)
             x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
             print(x_var, y_var, x0, y0, amp)
             pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64), normalization=False)
@@ -183,11 +183,21 @@ def unpack_coefs(coefs):
     x0 = coefs[1] * x_var
     y0 = coefs[3] * y_var
     amp = np.exp(coefs[4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
-    return x_var, y_var, x0, y0, amp
+    return np.array([x_var, y_var, x0, y0, amp])
+
+def pack_vars(vars):
+    coef0 = -1./(2 * vars[0])
+    coef2 = -1. / (2 * vars[1])
+    coef1 = vars[2] / vars[0]
+    coef3 = vars[3] / vars[1]
+    coef4 = np.log(vars[4]) - ((vars[2]**2)/(2 * vars[0])) - ((vars[3]**2)/(2 * vars[1]))
+    return np.array([coef0, coef1, coef2, coef3, coef4])
 
 
-def guo_algorithm(img, bg, window_size=(7, 7)):
-    coef_vals = []
+def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
+    if bound is None:
+        bound = [[-1e5, 1e5], [-1e5, 1e5], [-0.5, 0.5], [-0.5, 0.5], [0, 1e5]]
+    coef_vals = pack_vars([10, 10, 0, 0, 0.5])
     img = img.reshape(window_size)
     img = np.maximum(np.zeros(img.shape), img - bg.reshape(img.shape)) + 1e-2
     yk_2 = img.astype(np.float64)
@@ -230,10 +240,36 @@ def guo_algorithm(img, bg, window_size=(7, 7)):
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5]]
             ), axis=(2, 3))
-        coef_vals = np.linalg.lstsq(coef_matrix, ans_matrix, rcond=None)[0]
+        akz = np.linalg.lstsq(coef_matrix, ans_matrix, rcond=None)[0]
+        print('@', unpack_coefs(akz))
+        coef_vals = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, bound=bound, iter=200)
+        print('#', unpack_coefs(coef_vals))
+        #for val, bd in zip(unpack_coefs(coef_vals), bound):
+        #    if val < bd[0] or val > bd[1]:
+        #        return coef_vals
     return coef_vals
 
 
+def gauss_seidel(a, b, p0, bound, iter=1000, tol=1e-8):
+    x = np.array(p0)
+    for it_count in range(1, iter):
+        x_new = np.zeros_like(x, dtype=np.float_)
+        print(f"Iteration {it_count}: {unpack_coefs(x)}")
+        for i in range(a.shape[0]):
+            s1 = np.dot(a[i, :i], x_new[:i])
+            s2 = np.dot(a[i, i + 1:], x[i + 1:])
+            x_new[i] = (b[i] - s1 - s2) / a[i, i]
+        if np.allclose(x, x_new, rtol=tol):
+            break
+        for val, bd in zip(unpack_coefs(x_new), bound):
+            if val < bd[0] or val > bd[1]:
+                return x_new
+        x = x_new
+
+    print(f"Solution: {x}")
+    error = np.dot(a, x) - b
+    print(f"Error: {error}")
+    return x
 
 #background_likelihood(images[0], window_size=(7, 7))
 #images = np.zeros(images.shape) + 0.01

@@ -197,7 +197,7 @@ def pack_vars(vars):
 def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
     if bound is None:
         bound = [[-1e5, 1e5], [-1e5, 1e5], [-0.5, 0.5], [-0.5, 0.5], [0, 1e5]]
-    coef_vals = pack_vars([10, 10, 0, 0, 0.5])
+    coef_vals = pack_vars([1, 1, 0, 0, 0.1])
     img = img.reshape(window_size)
     img = np.maximum(np.zeros(img.shape), img - bg.reshape(img.shape)) + 1e-2
     yk_2 = img.astype(np.float64)
@@ -242,8 +242,13 @@ def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
             ), axis=(2, 3))
         akz = np.linalg.lstsq(coef_matrix, ans_matrix, rcond=None)[0]
         print('@', unpack_coefs(akz))
-        coef_vals = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, bound=bound, iter=200)
-        print('#', unpack_coefs(coef_vals))
+        new_coef_vals, exit_code = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, bound=bound, iter=200)
+        print('#', unpack_coefs(new_coef_vals))
+        if np.allclose(coef_vals, new_coef_vals, rtol=1e-8):
+            break
+        coef_vals = new_coef_vals
+        #if exit_code == 1:
+        #    return coef_vals
         #for val, bd in zip(unpack_coefs(coef_vals), bound):
         #    if val < bd[0] or val > bd[1]:
         #        return coef_vals
@@ -261,15 +266,15 @@ def gauss_seidel(a, b, p0, bound, iter=1000, tol=1e-8):
             x_new[i] = (b[i] - s1 - s2) / a[i, i]
         if np.allclose(x, x_new, rtol=tol):
             break
-        for val, bd in zip(unpack_coefs(x_new), bound):
-            if val < bd[0] or val > bd[1]:
-                return x_new
+        #for val, bd in zip(unpack_coefs(x_new), bound):
+        #    if val < bd[0] or val > bd[1]:
+        #        return x_new, 1
         x = x_new
 
     print(f"Solution: {x}")
     error = np.dot(a, x) - b
     print(f"Error: {error}")
-    return x
+    return x, 0
 
 #background_likelihood(images[0], window_size=(7, 7))
 #images = np.zeros(images.shape) + 0.01

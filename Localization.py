@@ -8,7 +8,8 @@ from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('tif_trxyt/receptor_7_mid.tif')
+#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
@@ -150,29 +151,18 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     kls1 = kl_divergence(bg, pdfs1)
     kls2 = kl_divergence(bg, pdfs2)
     for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
-        if kl1 > 0.1:
+        if kl1 > 0.03:
             coefs = guo_algorithm(img, bg, window_size=window_size)
             x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
             print(x_var, y_var, x0, y0, amp)
             pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64), normalization=False)
             pdfs = amp * pdfs + bg
-            print(kl_divergence(bg, pdfs))
-            plt.figure()
-            plt.imshow((img - bg).reshape(window_size), cmap='gray',
-                       vmin=0, vmax=1)
-            plt.figure()
-            plt.imshow(np.hstack((img.reshape(window_size), pdfs[0].reshape(window_size))), cmap='gray',
-                       vmin=0, vmax=1)
-            plt.show()
-            continue
-            exit(1)
             print('xy = ', xy)
-            print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=',np.sum((img - pdf2) ** 2))
-            print('kl1=', kl1, ' kl2=', kl2)
+            print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=', np.sum((img - pdf2) ** 2))
+            print('kl1=', kl1, ' kl2=', kl2, ' kl3=', kl_divergence(bg, pdfs) )
             print('eigvals=', np.linalg.eig(cov)[0], '\n', 'eigvecs=', list(np.linalg.eig(cov)[1]), '\n', cov)
-            print(np.mean(img), np.std(img))
             plt.figure()
-            plt.imshow(np.hstack((img.reshape(window_size), pdf1.reshape(window_size))), cmap='gray', vmin=0, vmax=1.)
+            plt.imshow(np.hstack((img.reshape(window_size), pdfs[0].reshape(window_size))), cmap='gray', vmin=0, vmax=1.)
             plt.vlines(x=window_size[0]-.5, ymin=0, ymax=window_size[1]-1, colors='red')
             plt.show()
 
@@ -279,5 +269,5 @@ def gauss_seidel(a, b, p0, bound, iter=1000, tol=1e-8):
 #background_likelihood(images[0], window_size=(7, 7))
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
-bgs = background(images, window_size=(15, 15))
-ab(images[0], bgs[0], window_size=(15, 15))
+bgs = background(images, window_size=(9, 9))
+ab(images[150], bgs[150], window_size=(9, 9))

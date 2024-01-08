@@ -7,9 +7,9 @@ from scipy.optimize import curve_fit
 from ImageModule import read_tif
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
-images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
@@ -143,6 +143,8 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift, bg_intensity=bg[0])
     qt_imgs, grid = quantification(crop_imgs, window_size, amp)
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
+    coefs = guo_algorithm(crop_imgs, bg, window_size=window_size)
+    exit(1)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
     intensity, bg_i = intensity_reg(crop_imgs, pdfs, center_i)
     alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
@@ -175,6 +177,7 @@ def unpack_coefs(coefs):
     amp = np.exp(coefs[4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
     return np.array([x_var, y_var, x0, y0, amp])
 
+
 def pack_vars(vars):
     coef0 = -1./(2 * vars[0])
     coef2 = -1. / (2 * vars[1])
@@ -184,16 +187,28 @@ def pack_vars(vars):
     return np.array([coef0, coef1, coef2, coef3, coef4])
 
 
-def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
-    if bound is None:
-        bound = [[-1e5, 1e5], [-1e5, 1e5], [-0.5, 0.5], [-0.5, 0.5], [0, 1e5]]
-    coef_vals = pack_vars([1, 1, 0, 0, 0.1])
-    img = img.reshape(window_size)
-    img = np.maximum(np.zeros(img.shape), img - bg.reshape(img.shape)) + 1e-2
-    yk_2 = img.astype(np.float64)
-    x_grid = np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
-    y_grid = np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
-    for k in range(0, 20):
+def matrix_decomp(matrix, q):
+    ret_mat = []
+    for x in range(0, len(matrix), q):
+        ret_mat.append(matrix[x: min(x+q, len(matrix))])
+    return ret_mat
+
+
+def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
+    if p0 is not None:
+        coef_vals = pack_vars(p0)
+    else:
+        coef_vals = pack_vars([2, 2, 0, 0, 0.1])
+    imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
+    ## background for each crop image needed rather than background intensity for whole image.
+    imgs = np.maximum(np.zeros(imgs.shape), imgs - bg.reshape(-1, window_size[0], window_size[1])) + 1e-2
+    yk_2 = imgs.astype(np.float64)
+    x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
+              .reshape(-1, window_size[0], window_size[1]))
+    y_grid = (np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
+              .reshape(-1, window_size[0], window_size[1]))
+    print(yk_2.shape, x_grid.shape, y_grid.shape)
+    for k in range(0, 10):
         if k != 0:
             x_var, y_var, x0, y0, amp = unpack_coefs(coef_vals)
             yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +
@@ -220,20 +235,36 @@ def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
                  [coef3, coef6, coef9, coef10, coef11],
                  [coef4, coef7, coef10, coef11, coef12],
                  [coef5, coef8, coef11, coef12, yk_2]]
-            ), axis=(2, 3))
-        ans1 = x_grid ** 2 * yk_2 * np.log(img)
-        ans2 = x_grid * yk_2 * np.log(img)
-        ans3 = y_grid ** 2 * yk_2 * np.log(img)
-        ans4 = y_grid * yk_2 * np.log(img)
-        ans5 = yk_2 * np.log(img)
+            ), axis=(3, 4)).transpose(2, 0, 1)
+        ans1 = x_grid ** 2 * yk_2 * np.log(imgs)
+        ans2 = x_grid * yk_2 * np.log(imgs)
+        ans3 = y_grid ** 2 * yk_2 * np.log(imgs)
+        ans4 = y_grid * yk_2 * np.log(imgs)
+        ans5 = yk_2 * np.log(imgs)
         ans_matrix = np.sum(
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5]]
-            ), axis=(2, 3))
-        akz = np.linalg.lstsq(coef_matrix, ans_matrix, rcond=None)[0]
+            ), axis=(3, 4)).transpose(2, 0, 1)
+        print(coef_matrix.shape, ans_matrix.shape)
+        coef_matrix = matrix_decomp(coef_matrix, 100)
+        ans_matrix = matrix_decomp(ans_matrix, 100)
+        for a_mats, b_mats in zip(coef_matrix, ans_matrix):
+            a_mat = np.zeros((a_mats.shape[0] * a_mats.shape[1], a_mats.shape[0] * a_mats.shape[2]))
+            for x, vals in zip(range(0, a_mat.shape[0], 5), a_mats):
+                a_mat[x:x+5, x:x+5] = vals
+            b_mat = b_mats.flatten().reshape(-1, 1)
+            new_coef_vals, exit_code = gauss_seidel(a_mat, b_mat, p0=coef_vals, iter=200)
+            print(new_coef_vals.shape, new_coef_vals)
+            exit(1)
+        print(b_mat[:10], ans_matrix[0], ans_matrix[1])
+        print(a_mat.shape)
+        akz = np.linalg.lstsq(coef_matrix.reshape(coef_matrix.shape[0], coef_matrix.shape[1] * coef_matrix.shape[2]),
+                              ans_matrix.reshape(ans_matrix.shape[0], ans_matrix.shape[1] * ans_matrix.shape[2]), rcond=None)[0]
+        print(akz.shape)
         print('@', unpack_coefs(akz))
-        new_coef_vals, exit_code = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, bound=bound, iter=200)
+        new_coef_vals, exit_code = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, iter=200)
         print('#', unpack_coefs(new_coef_vals))
+        exit(1)
         if np.allclose(coef_vals, new_coef_vals, rtol=1e-8):
             break
         coef_vals = new_coef_vals
@@ -245,7 +276,7 @@ def guo_algorithm(img, bg, bound=None, window_size=(7, 7)):
     return coef_vals
 
 
-def gauss_seidel(a, b, p0, bound, iter=1000, tol=1e-8):
+def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
     x = np.array(p0)
     for it_count in range(1, iter):
         x_new = np.zeros_like(x, dtype=np.float_)
@@ -270,4 +301,4 @@ def gauss_seidel(a, b, p0, bound, iter=1000, tol=1e-8):
 #images = np.zeros(images.shape) + 0.01
 #images[0][3][3] = 1.0
 bgs = background(images, window_size=(9, 9))
-ab(images[150], bgs[150], window_size=(9, 9))
+ab(images[0], bgs[0], window_size=(9, 9))

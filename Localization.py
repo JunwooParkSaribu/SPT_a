@@ -141,10 +141,18 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     surface_window = window_size[0] * window_size[1]
     center_i = int((surface_window - 1) / 2)
     crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift, bg_intensity=bg[0])
+
+    crop_imgs = np.array([np.zeros((crop_imgs.shape[1]))]) + bg[0]
+    crop_imgs[0][65] = 0.4
+
     qt_imgs, grid = quantification(crop_imgs, window_size, amp)
-    covariance_mat = cov_matrix(grid, qt=qt_imgs)
     coefs = guo_algorithm(crop_imgs, bg, window_size=window_size)
-    exit(1)
+    variables = unpack_coefs(coefs)
+    cov_mat = np.array([variables[:, 0], [0]*variables.shape[0], [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
+    pdfs3 = bi_variate_normal_pdf(grid, cov_mat, normalization=False)
+    pdfs3 = variables[:, 4].reshape(-1, 1) * pdfs3 + bg
+
+    covariance_mat = cov_matrix(grid, qt=qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
     intensity, bg_i = intensity_reg(crop_imgs, pdfs, center_i)
     alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
@@ -152,39 +160,35 @@ def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
     pdfs2 = pdfs * alphas2
     kls1 = kl_divergence(bg, pdfs1)
     kls2 = kl_divergence(bg, pdfs2)
-    for img, xy, cov, pdf1, pdf2, kl1, kl2 in zip(crop_imgs, xy_coords, covariance_mat, pdfs1, pdfs2, kls1, kls2):
-        if kl1 > 0.03:
-            coefs = guo_algorithm(img, bg, window_size=window_size)
-            x_var, y_var, x0, y0, amp = unpack_coefs(coefs)
-            print(x_var, y_var, x0, y0, amp)
-            pdfs = bi_variate_normal_pdf(grid, np.array([[[x_var, 0], [0, y_var]]], dtype=np.float64), normalization=False)
-            pdfs = amp * pdfs + bg
+    kls3 = kl_divergence(bg, pdfs3)
+    for img, xy, vv, pdf1, pdf2, pdf3, kl1, kl2, kl3 in zip(crop_imgs, xy_coords, variables, pdfs1, pdfs2, pdfs3, kls1, kls2, kls3):
+        #if kl1 > 0.03:
             print('xy = ', xy)
-            print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=', np.sum((img - pdf2) ** 2))
-            print('kl1=', kl1, ' kl2=', kl2, ' kl3=', kl_divergence(bg, pdfs) )
-            print('eigvals=', np.linalg.eig(cov)[0], '\n', 'eigvecs=', list(np.linalg.eig(cov)[1]), '\n', cov)
+            print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=', np.sum((img - pdf2) ** 2), ' diff3=', np.sum((img - pdf3) ** 2))
+            print('kl1=', kl1, ' kl2=', kl2, ' kl3=', kl3)
+            print('variables=', vv)
             plt.figure()
-            plt.imshow(np.hstack((img.reshape(window_size), pdfs[0].reshape(window_size))), cmap='gray', vmin=0, vmax=1.)
+            plt.imshow(np.hstack((img.reshape(window_size), pdf3.reshape(window_size))), cmap='gray', vmin=0, vmax=1.)
             plt.vlines(x=window_size[0]-.5, ymin=0, ymax=window_size[1]-1, colors='red')
             plt.show()
 
 
 def unpack_coefs(coefs):
-    x_var = -1./(2 * coefs[0])
-    y_var = -1./(2 * coefs[2])
-    x0 = coefs[1] * x_var
-    y0 = coefs[3] * y_var
-    amp = np.exp(coefs[4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
-    return np.array([x_var, y_var, x0, y0, amp])
+    x_var = -1./(2 * coefs[:, 0])
+    y_var = -1./(2 * coefs[:, 2])
+    x0 = coefs[:, 1] * x_var
+    y0 = coefs[:, 3] * y_var
+    amp = np.exp(coefs[:, 4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
+    return np.array([x_var, y_var, x0, y0, amp]).T
 
 
-def pack_vars(vars):
+def pack_vars(vars, len_img):
     coef0 = -1./(2 * vars[0])
     coef2 = -1. / (2 * vars[1])
     coef1 = vars[2] / vars[0]
     coef3 = vars[3] / vars[1]
     coef4 = np.log(vars[4]) - ((vars[2]**2)/(2 * vars[0])) - ((vars[3]**2)/(2 * vars[1]))
-    return np.array([coef0, coef1, coef2, coef3, coef4])
+    return np.array([[coef0, coef1, coef2, coef3, coef4] for _ in range(len_img)])
 
 
 def matrix_decomp(matrix, q):
@@ -195,10 +199,12 @@ def matrix_decomp(matrix, q):
 
 
 def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
+    nb_imgs = imgs.shape[0]
     if p0 is not None:
-        coef_vals = pack_vars(p0)
+        coef_vals = pack_vars(p0, nb_imgs)
     else:
-        coef_vals = pack_vars([2, 2, 0, 0, 0.1])
+        coef_vals = pack_vars([2, 2, 0, 0, 0.1], nb_imgs)
+
     imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.
     imgs = np.maximum(np.zeros(imgs.shape), imgs - bg.reshape(-1, window_size[0], window_size[1])) + 1e-2
@@ -207,14 +213,12 @@ def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
               .reshape(-1, window_size[0], window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
               .reshape(-1, window_size[0], window_size[1]))
-    print(yk_2.shape, x_grid.shape, y_grid.shape)
-    for k in range(0, 10):
+    for k in range(0, 5):
+        print(k)
         if k != 0:
-            x_var, y_var, x0, y0, amp = unpack_coefs(coef_vals)
-            yk_2 = np.exp(coef_vals[0] * x_grid**2 + coef_vals[1] * x_grid +
-                          coef_vals[2] * y_grid**2 + coef_vals[3] * y_grid + coef_vals[4])
-            #if abs(x0) >= 1 or abs(y0) >= 1:
-            #    return coef_vals
+            yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
+                          coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
+                          coef_vals[:, 4].reshape(-1, 1, 1))
         yk_2 *= yk_2
         coef1 = yk_2 * x_grid**4
         coef2 = yk_2 * x_grid**3
@@ -244,61 +248,44 @@ def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
         ans_matrix = np.sum(
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5]]
-            ), axis=(3, 4)).transpose(2, 0, 1)
-        print(coef_matrix.shape, ans_matrix.shape)
-        coef_matrix = matrix_decomp(coef_matrix, 100)
-        ans_matrix = matrix_decomp(ans_matrix, 100)
-        for a_mats, b_mats in zip(coef_matrix, ans_matrix):
+            ), axis=(3, 4), dtype=np.float64).transpose(2, 0, 1)
+        coef_matrix = matrix_decomp(coef_matrix, 5)
+        ans_matrix = matrix_decomp(ans_matrix, 5)
+        decomp_coef_vals = matrix_decomp(coef_vals, 5)
+        x_matrix = []
+        for (a_mats, b_mats, coef_val) in zip(coef_matrix, ans_matrix, decomp_coef_vals):
             a_mat = np.zeros((a_mats.shape[0] * a_mats.shape[1], a_mats.shape[0] * a_mats.shape[2]))
             for x, vals in zip(range(0, a_mat.shape[0], 5), a_mats):
                 a_mat[x:x+5, x:x+5] = vals
             b_mat = b_mats.flatten().reshape(-1, 1)
-            new_coef_vals, exit_code = gauss_seidel(a_mat, b_mat, p0=coef_vals, iter=200)
-            print(new_coef_vals.shape, new_coef_vals)
-            exit(1)
-        print(b_mat[:10], ans_matrix[0], ans_matrix[1])
-        print(a_mat.shape)
-        akz = np.linalg.lstsq(coef_matrix.reshape(coef_matrix.shape[0], coef_matrix.shape[1] * coef_matrix.shape[2]),
-                              ans_matrix.reshape(ans_matrix.shape[0], ans_matrix.shape[1] * ans_matrix.shape[2]), rcond=None)[0]
-        print(akz.shape)
-        print('@', unpack_coefs(akz))
-        new_coef_vals, exit_code = gauss_seidel(coef_matrix, ans_matrix, p0=coef_vals, iter=200)
-        print('#', unpack_coefs(new_coef_vals))
-        exit(1)
-        if np.allclose(coef_vals, new_coef_vals, rtol=1e-8):
+            #x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
+            x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
+        x_matrix = np.array(x_matrix).reshape(-1, 5)
+        if np.allclose(coef_vals, x_matrix, rtol=1e-7):
             break
-        coef_vals = new_coef_vals
-        #if exit_code == 1:
-        #    return coef_vals
-        #for val, bd in zip(unpack_coefs(coef_vals), bound):
-        #    if val < bd[0] or val > bd[1]:
-        #        return coef_vals
+        coef_vals = x_matrix
     return coef_vals
 
 
+#@njit
 def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
-    x = np.array(p0)
+    x = p0.ravel()
     for it_count in range(1, iter):
-        x_new = np.zeros_like(x, dtype=np.float_)
-        print(f"Iteration {it_count}: {unpack_coefs(x)}")
+        x_new = np.zeros(x.shape, dtype=np.float64)
         for i in range(a.shape[0]):
             s1 = np.dot(a[i, :i], x_new[:i])
             s2 = np.dot(a[i, i + 1:], x[i + 1:])
-            x_new[i] = (b[i] - s1 - s2) / a[i, i]
+            x_new[i] = ((b[i] - s1 - s2) / a[i, i])[0]
         if np.allclose(x, x_new, rtol=tol):
             break
-        #for val, bd in zip(unpack_coefs(x_new), bound):
-        #    if val < bd[0] or val > bd[1]:
-        #        return x_new, 1
         x = x_new
 
-    print(f"Solution: {x}")
-    error = np.dot(a, x) - b
-    print(f"Error: {error}")
-    return x, 0
+    #print(f"Solution: {x}")
+    #error = np.dot(a, x) - b
+    #print(f"Error: {error}")
+    return x
 
 #background_likelihood(images[0], window_size=(7, 7))
-#images = np.zeros(images.shape) + 0.01
-#images[0][3][3] = 1.0
+
 bgs = background(images, window_size=(9, 9))
 ab(images[0], bgs[0], window_size=(9, 9))

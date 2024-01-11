@@ -6,8 +6,8 @@ from scipy.optimize import curve_fit
 
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
@@ -51,7 +51,8 @@ def background_likelihood2(img: np.ndarray, bg, window_size=(7, 7)):
 
 def background_likelihood(img: np.ndarray, bg, window_sizes):
     cs = []
-    h_map = np.zeros(img.shape)
+    h_maps = []
+
     shift = 1
     bg_mean = bg[0][0][0]
     xy_s = []
@@ -78,20 +79,23 @@ def background_likelihood(img: np.ndarray, bg, window_sizes):
         c = (surface_window / 2.) * np.log(1 - (i_hat**2 * g_squared_sum) / (bg_squared_sum - (surface_window * bg_mean)))
         cs.append(c)
 
-    for i, (val0, val1, val2, val3) in enumerate(zip(cs[0], cs[1], cs[2], cs[3])):
-        print(i % img.shape[1], i // img.shape[1])
-        h_map[i // img.shape[1]][i % img.shape[1]] = np.max([val0, val1, val2, val3])
-        """
-        if val0 > 0.5 or val1 > 1 or val2 > 1 or val3 > 1:
-            print(val0, val1, val2, val3)
-            max_argg = np.argmax([val0, val1, val2, val3])
-            print('xy: ', xy_s[max_argg][i])
-            plt.figure()
-            plt.imshow(my_imgs[max_argg][i].reshape(window_sizes[max_argg]), vmin=0, vmax=1., cmap='gray')
-            plt.show()
-        """
-    plt.figure()
-    plt.imshow(h_map)
+    for c in cs:
+        h_map = np.zeros(img.shape)
+        for i, val in enumerate(c):
+            h_map[i // img.shape[1]][i % img.shape[1]] = val
+            """
+            if val0 > 0.5 or val1 > 1 or val2 > 1 or val3 > 1:
+                print(val0, val1, val2, val3)
+                max_argg = np.argmax([val0, val1, val2, val3])
+                print('xy: ', xy_s[max_argg][i])
+                plt.figure()
+                plt.imshow(my_imgs[max_argg][i].reshape(window_sizes[max_argg]), vmin=0, vmax=1., cmap='gray')
+                plt.show()
+            """
+        h_maps.append(h_map)
+
+    plt.figure(figsize=(18, 5))
+    plt.imshow(np.hstack((h_maps[0], h_maps[1], h_maps[2], h_maps[3])))
     plt.show()
     pass
 

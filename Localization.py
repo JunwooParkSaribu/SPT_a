@@ -1,9 +1,9 @@
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 from numba import njit
 from scipy.optimize import curve_fit
-
 from ImageModule import read_tif
 
 images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
@@ -15,7 +15,7 @@ print(images[0].shape)
 
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIS = [1.1, 3, 5, 7]
-IMAGE_N = 2
+IMAGE_N = 0
 
 
 def region_max_filter(map, window_size, threshold):
@@ -33,10 +33,30 @@ def region_max_filter(map, window_size, threshold):
 
 
 def subtract_pdf(img, pdfs, indices, window_size, bg_intensity):
+    ext_img = np.ones((img.shape[0] + window_size[1]-1, img.shape[1] + window_size[0]-1)) * bg_intensity
+    ext_img[int((window_size[1]-1)/2):img.shape[0]+int((window_size[1]-1)/2), int((window_size[0]-1)/2):img.shape[1]+int((window_size[0]-1)/2)] = img
     for pdf, index in zip(pdfs, indices):
-        img[index[0] - int((window_size[1]-1)/2):index[0] + int((window_size[1]-1)/2) + 1,
-        index[1] - int((window_size[0]-1)/2):index[1] + int((window_size[0]-1)/2) + 1] -= pdf.reshape(window_size)
+        row_indice = np.array([index[0] - int((window_size[1]-1)/2), index[0] + int((window_size[1]-1)/2) + 1]) + int((window_size[1]-1)/2)
+        col_indice = np.array([index[1] - int((window_size[0]-1)/2), index[1] + int((window_size[0]-1)/2) + 1]) + int((window_size[0]-1)/2)
+        ext_img[row_indice[0]:row_indice[1], col_indice[0]:col_indice[1]] -= pdf.reshape(window_size)
+        ext_img = boundary_smoothing(ext_img, row_indice, col_indice)
+    img = ext_img[int((window_size[1]-1)/2):img.shape[0]+int((window_size[1]-1)/2), int((window_size[0]-1)/2):img.shape[1]+int((window_size[0]-1)/2)]
     return np.maximum(img, np.ones(img.shape) * bg_intensity)
+
+
+def boundary_smoothing(img, row_indice, col_indice):
+    center_xy = []
+    for col in range(col_indice[0]-1, col_indice[1]+1):
+        center_xy.append([row_indice[0]-1, col])
+    for row in range(row_indice[0]-1, row_indice[1]+1):
+        center_xy.append([row, col_indice[1]])
+    for col in range(col_indice[1], col_indice[0]-2, -1):
+        center_xy.append([row_indice[1], col])
+    for row in range(row_indice[1], row_indice[0]-2, -1):
+        center_xy.append([row, col_indice[0]-1])
+    for r, c in center_xy:
+        img[r][c] = np.mean(img[max(0, r-1):min(img.shape[0], r+2), max(0, c-1):min(img.shape[1], c+2)])
+    return img
 
 
 def gauss_psf(window_size, radius):
@@ -51,20 +71,14 @@ def gauss_psf(window_size, radius):
 
 
 def background_likelihood(img: np.ndarray, bgs, window_sizes):
-    cs = []
-    h_maps = []
+    ans = []
     shift = 1
-    xy_s = []
-    my_imgs = []
-    org_img = img.copy()
 
-    for bg, window_size, radius, threshold in zip(bgs, window_sizes, [1.1, 3, 5, 7], [.1, .1, .1, .1]):
+    for step, (bg, window_size, radius, threshold) in enumerate(zip(bgs, window_sizes, [1, 3, 5, 7], [.5, .3, .3, .3])):
         bg_mean = bg[IMAGE_N][0]
         regress_imgs = []
         surface_window = window_size[0] * window_size[1]
         crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
-        my_imgs.append(crop_imgs)
-        xy_s.append(xy_coords)
         bg_squared_sum = np.sum(window_size[0] * window_size[1] * bg_mean**2)
         bg_variance = (1 / surface_window) * bg_squared_sum - bg_mean**2
         gauss_grid = gauss_psf(window_size, radius)
@@ -76,20 +90,17 @@ def background_likelihood(img: np.ndarray, bgs, window_sizes):
         h_map = np.zeros(img.shape)
         for i, val in enumerate(c):
             h_map[i // img.shape[1]][i % img.shape[1]] = val
-        h_map = h_map * img / np.max(h_map * img)
+        #h_map = h_map * img / np.max(h_map * img)
         indices = region_max_filter(h_map, WINDOW_SIZES[0], threshold)
-        for index in indices:
-            regress_imgs.append(crop_imgs[img.shape[1] * index[0] + index[1]])
-        pdfs, xs, ys = ab(regress_imgs, bg[IMAGE_N], window_size)
-        new_img = subtract_pdf(img, pdfs, indices, window_size)
-        plt.figure()
-        plt.imshow(np.hstack((org_img, new_img)), vmin=0, vmax=1, cmap='gray')
-        plt.show()
-
-    plt.figure(figsize=(18, 5))
-    plt.imshow(np.hstack((h_maps[0], h_maps[1], h_maps[2], h_maps[3])))
-    plt.show()
-    pass
+        if len(indices) != 0:
+            for index in indices:
+                regress_imgs.append(crop_imgs[img.shape[1] * index[0] + index[1]])
+            pdfs, xs, ys = ab(regress_imgs, bg[IMAGE_N], window_size)
+            for index, x, y in zip(indices, xs, ys):
+                ans.append([index[0] + x, index[1] + y])
+            new_img = subtract_pdf(img, pdfs, indices, window_size, bg_mean)
+            img = new_img
+    return ans
 
 
 def image_cropping(img: np.ndarray, window_size=(7, 7), shift=1, bg_intensity=None):
@@ -160,8 +171,6 @@ def kl_divergence2(cov1, cov2):
 
 
 def kl_divergence(base, compares):
-    #base = base / np.sum(base)
-    #compares = compares / np.sum(compares, axis=1).reshape(-1, 1)
     a = np.mean((compares * np.log(compares / base)), axis=1)
     return a
 
@@ -256,7 +265,6 @@ def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
     y_grid = (np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
               .reshape(-1, window_size[0], window_size[1]))
     for k in range(0, 5):
-        print(k)
         if k != 0:
             yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
                           coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
@@ -332,5 +340,17 @@ diff_bgs = []
 for window_size in WINDOW_SIZES:
     bgs = background(images, window_size=window_size)
     diff_bgs.append(bgs)
-background_likelihood(images[IMAGE_N], diff_bgs, window_sizes=WINDOW_SIZES)
+ans = background_likelihood(images[IMAGE_N].copy(), diff_bgs, window_sizes=WINDOW_SIZES)
+
+circle_img = (np.array([images[IMAGE_N].copy(), images[IMAGE_N].copy(), images[IMAGE_N].copy()])).transpose(1, 2, 0)
+print(circle_img.shape)
+for an in ans:
+    circle_img[int(an[0])][int(an[1])][0] = 255
+    circle_img[int(an[0])][int(an[1])][1] = 0
+    circle_img[int(an[0])][int(an[1])][2] = 0
+    #circle_img = cv2.circle(circle_img, (int(an[0]), int(an[1])), 1, (255, 0, 0), -1)
+plt.figure(figsize=(14, 7))
+plt.imshow(np.hstack(((np.array([images[IMAGE_N].copy(), images[IMAGE_N].copy(), images[IMAGE_N].copy()])).transpose(1, 2, 0), circle_img)))
+plt.show()
+
 #ab(images[IMAGE_N], diff_bgs[0][IMAGE_N], window_size=(5, 5))

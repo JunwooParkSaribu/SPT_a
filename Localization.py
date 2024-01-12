@@ -6,8 +6,8 @@ from scipy.optimize import curve_fit
 
 from ImageModule import read_tif
 
-#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
@@ -15,7 +15,28 @@ print(images[0].shape)
 
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIS = [1.1, 3, 5, 7]
-IMAGE_N = 45
+IMAGE_N = 2
+
+
+def region_max_filter(map, window_size, threshold):
+    indices = []
+    r_start_index = int((window_size[1]-1) / 2)
+    col_start_index = int((window_size[0]-1)/2)
+    args_map = map > threshold
+    map = map * args_map
+    row, col = np.where(args_map == True)
+    for r, c in zip(row, col):
+        if map[r][c] == np.max(map[max(0, r-r_start_index):min(map.shape[0]+1, r+r_start_index+1),
+                                   max(0, c-col_start_index):min(map.shape[1]+1, c+col_start_index+1)]):
+            indices.append([r, c])
+    return np.array(indices)
+
+
+def subtract_pdf(img, pdfs, indices, window_size, bg_intensity):
+    for pdf, index in zip(pdfs, indices):
+        img[index[0] - int((window_size[1]-1)/2):index[0] + int((window_size[1]-1)/2) + 1,
+        index[1] - int((window_size[0]-1)/2):index[1] + int((window_size[0]-1)/2) + 1] -= pdf.reshape(window_size)
+    return np.maximum(img, np.ones(img.shape) * bg_intensity)
 
 
 def gauss_psf(window_size, radius):
@@ -29,15 +50,17 @@ def gauss_psf(window_size, radius):
     return gauss_psf_vals
 
 
-def background_likelihood(img: np.ndarray, bg, window_sizes):
+def background_likelihood(img: np.ndarray, bgs, window_sizes):
     cs = []
     h_maps = []
     shift = 1
-    bg_mean = bg[0]
     xy_s = []
     my_imgs = []
+    org_img = img.copy()
 
-    for window_size, radius, threshold in zip(window_sizes, [1.1, 3, 5, 7], [.5, .5, .5, .5]):
+    for bg, window_size, radius, threshold in zip(bgs, window_sizes, [1.1, 3, 5, 7], [.1, .1, .1, .1]):
+        bg_mean = bg[IMAGE_N][0]
+        regress_imgs = []
         surface_window = window_size[0] * window_size[1]
         crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
         my_imgs.append(crop_imgs)
@@ -49,13 +72,19 @@ def background_likelihood(img: np.ndarray, bg, window_sizes):
         g_squared_sum = np.sum(g_bar ** 2)
         i_hat = crop_imgs @ g_bar / g_squared_sum
         c = (surface_window / 2.) * np.log(1 - (i_hat**2 * g_squared_sum) / (bg_squared_sum - (surface_window * bg_mean)))
-        cs.append(c)
 
-    for c in cs:
         h_map = np.zeros(img.shape)
         for i, val in enumerate(c):
             h_map[i // img.shape[1]][i % img.shape[1]] = val
-        h_maps.append(h_map)
+        h_map = h_map * img / np.max(h_map * img)
+        indices = region_max_filter(h_map, WINDOW_SIZES[0], threshold)
+        for index in indices:
+            regress_imgs.append(crop_imgs[img.shape[1] * index[0] + index[1]])
+        pdfs, xs, ys = ab(regress_imgs, bg[IMAGE_N], window_size)
+        new_img = subtract_pdf(img, pdfs, indices, window_size)
+        plt.figure()
+        plt.imshow(np.hstack((org_img, new_img)), vmin=0, vmax=1, cmap='gray')
+        plt.show()
 
     plt.figure(figsize=(18, 5))
     plt.imshow(np.hstack((h_maps[0], h_maps[1], h_maps[2], h_maps[3])))
@@ -151,30 +180,32 @@ def intensity_reg(imgs, pdfs, center_i):
     return intensity, bg_i
 
 
-def ab(img: np.ndarray, bg, window_size=(7, 7), amp=3):
+def ab(imgs, bg, window_size, amp=3):
+    imgs = np.array(imgs)
     shift = 1
     surface_window = window_size[0] * window_size[1]
     center_i = int((surface_window - 1) / 2)
-    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift, bg_intensity=bg[0])
+    #imgs, xy_coords = image_cropping(imgs, window_size, shift=shift, bg_intensity=bg[0])
 
-    qt_imgs, grid = quantification(crop_imgs, window_size, amp)
-    coefs = guo_algorithm(crop_imgs, bg, window_size=window_size)
+    qt_imgs, grid = quantification(imgs, window_size, amp)
+    coefs = guo_algorithm(imgs, bg, window_size=window_size)
     variables = unpack_coefs(coefs)
     cov_mat = np.array([variables[:, 0], [0]*variables.shape[0], [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
     pdfs3 = bi_variate_normal_pdf(grid, cov_mat, normalization=False)
     pdfs3 = variables[:, 4].reshape(-1, 1) * pdfs3 + bg
+    return pdfs3, variables[:, 2], variables[:, 3]
 
     covariance_mat = cov_matrix(grid, qt=qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, covariance_mat)
-    intensity, bg_i = intensity_reg(crop_imgs, pdfs, center_i)
-    alphas2 = (crop_imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
+    intensity, bg_i = intensity_reg(imgs, pdfs, center_i)
+    alphas2 = (imgs[:, center_i] / pdfs[:, center_i]).reshape(-1, 1)
     pdfs1 = pdfs * intensity + bg_i
     pdfs2 = pdfs * alphas2
     kls1 = kl_divergence(bg, pdfs1)
     kls2 = kl_divergence(bg, pdfs2)
     kls3 = kl_divergence(bg, pdfs3)
-    for img, xy, vv, pdf1, pdf2, pdf3, kl1, kl2, kl3 in zip(crop_imgs, xy_coords, variables, pdfs1, pdfs2, pdfs3, kls1, kls2, kls3):
-        #if kl1 > 0.03:
+    for img, xy, vv, pdf1, pdf2, pdf3, kl1, kl2, kl3 in zip(imgs, xy_coords, variables, pdfs1, pdfs2, pdfs3, kls1, kls2, kls3):
+        if kl1 > 0.2:
             print('xy = ', xy)
             print('diff1=', np.sum((img - pdf1) ** 2), ' diff2=', np.sum((img - pdf2) ** 2), ' diff3=', np.sum((img - pdf3) ** 2))
             print('kl1=', kl1, ' kl2=', kl2, ' kl3=', kl3)
@@ -216,7 +247,6 @@ def guo_algorithm(imgs, bg, p0=None, window_size=(7, 7)):
         coef_vals = pack_vars(p0, nb_imgs)
     else:
         coef_vals = pack_vars([2, 2, 0, 0, 0.1], nb_imgs)
-
     imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.
     imgs = np.maximum(np.zeros(imgs.shape), imgs - bg.reshape(-1, window_size[0], window_size[1])) + 1e-2
@@ -302,6 +332,5 @@ diff_bgs = []
 for window_size in WINDOW_SIZES:
     bgs = background(images, window_size=window_size)
     diff_bgs.append(bgs)
-background_likelihood(images[IMAGE_N], diff_bgs[0][IMAGE_N], window_sizes=WINDOW_SIZES)
-
-#ab(images[0], bgs[0], window_size=(9, 9))
+background_likelihood(images[IMAGE_N], diff_bgs, window_sizes=WINDOW_SIZES)
+#ab(images[IMAGE_N], diff_bgs[0][IMAGE_N], window_size=(5, 5))

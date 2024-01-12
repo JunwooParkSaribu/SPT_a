@@ -13,6 +13,10 @@ images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
 
+WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
+RADIS = [1.1, 3, 5, 7]
+IMAGE_N = 19
+
 
 def gauss_psf(window_size, radius):
     x_subpixel = np.arange(window_size[0]) + .5
@@ -25,53 +29,21 @@ def gauss_psf(window_size, radius):
     return gauss_psf_vals
 
 
-def background_likelihood2(img: np.ndarray, bg, window_size=(7, 7)):
-    shift = 1
-    surface_window = window_size[0] * window_size[1]
-    crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
-    bg_means = np.sum(crop_imgs, axis=1) / surface_window
-    bg_squared_sum = np.sum(crop_imgs ** 2, axis=1)
-    cs = []
-    for radius in [1, 5, 9, 15]:
-        gauss_grid = gauss_psf(window_size)
-        g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).flatten()
-        g_squared_sum = np.sum(g_bar ** 2)
-        i_hat = crop_imgs @ g_bar / g_squared_sum
-        c = (surface_window / 2.) * np.log(1 - (i_hat**2 * g_squared_sum) / (bg_squared_sum - (surface_window * bg_means)))
-        cs.append(c)
-    for i, (val0, val1, val2, val3, xy) in enumerate(zip(cs[0], cs[1], cs[2], cs[3], xy_coords)):
-        if val0 > 0.5 or val1 > 0.5 or val2 > 0.5 or val3 > 0.5:
-            print(xy, val0, val1, val2, val3)
-            plt.figure()
-            plt.imshow(crop_imgs[i].reshape(window_size), vmin=0, vmax=1., cmap='gray')
-            plt.show()
-    print(c.shape)
-    pass
-
-
 def background_likelihood(img: np.ndarray, bg, window_sizes):
     cs = []
     h_maps = []
-
     shift = 1
-    bg_mean = bg[0][19][0]
+    bg_mean = bg[0]
     xy_s = []
     my_imgs = []
+
     for window_size, radius in zip(window_sizes, [1.1, 3, 5, 7]):
         surface_window = window_size[0] * window_size[1]
         crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
         my_imgs.append(crop_imgs)
         xy_s.append(xy_coords)
-        #bg_means = np.sum(crop_imgs, axis=1) / surface_window
-        #bg_squared_sum = np.sum(crop_imgs ** 2, axis=1)
         bg_squared_sum = np.sum(window_size[0] * window_size[1] * bg_mean**2)
         bg_variance = (1 / surface_window) * bg_squared_sum - bg_mean**2
-        #c = (surface_window / 2.) * np.log(target_variance**2 / bg_variance**2)
-        #plt.figure()
-        #plt.hist(c, bins=np.arange(np.min(c), np.max(c)+1, 10))
-        #print(c.shape, c[:5])
-        #plt.show()
-
         gauss_grid = gauss_psf(window_size, radius)
         g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).flatten()
         g_squared_sum = np.sum(g_bar ** 2)
@@ -83,15 +55,6 @@ def background_likelihood(img: np.ndarray, bg, window_sizes):
         h_map = np.zeros(img.shape)
         for i, val in enumerate(c):
             h_map[i // img.shape[1]][i % img.shape[1]] = val
-            """
-            if val0 > 0.5 or val1 > 1 or val2 > 1 or val3 > 1:
-                print(val0, val1, val2, val3)
-                max_argg = np.argmax([val0, val1, val2, val3])
-                print('xy: ', xy_s[max_argg][i])
-                plt.figure()
-                plt.imshow(my_imgs[max_argg][i].reshape(window_sizes[max_argg]), vmin=0, vmax=1., cmap='gray')
-                plt.show()
-            """
         h_maps.append(h_map)
 
     plt.figure(figsize=(18, 5))
@@ -336,10 +299,9 @@ def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
 
 
 diff_bgs = []
-for window_size in [(5, 5), (7, 7), (11, 11), (15, 15)]:
+for window_size in WINDOW_SIZES:
     bgs = background(images, window_size=window_size)
     diff_bgs.append(bgs)
+background_likelihood(images[IMAGE_N], diff_bgs[0][IMAGE_N], window_sizes=WINDOW_SIZES)
 
-
-background_likelihood(images[19], diff_bgs, window_sizes=[(5, 5), (7, 7), (11, 11), (15, 15)])
 #ab(images[0], bgs[0], window_size=(9, 9))

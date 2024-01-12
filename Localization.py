@@ -6,8 +6,8 @@ from scipy.optimize import curve_fit
 
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
@@ -15,7 +15,7 @@ print(images[0].shape)
 
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIS = [1.1, 3, 5, 7]
-IMAGE_N = 19
+IMAGE_N = 45
 
 
 def gauss_psf(window_size, radius):
@@ -37,7 +37,7 @@ def background_likelihood(img: np.ndarray, bg, window_sizes):
     xy_s = []
     my_imgs = []
 
-    for window_size, radius in zip(window_sizes, [1.1, 3, 5, 7]):
+    for window_size, radius, threshold in zip(window_sizes, [1.1, 3, 5, 7], [.5, .5, .5, .5]):
         surface_window = window_size[0] * window_size[1]
         crop_imgs, xy_coords = image_cropping(img, window_size, shift=shift)
         my_imgs.append(crop_imgs)

@@ -16,6 +16,7 @@ print(images[0].shape)
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
 THRESHOLDS = [.2, .2, .3, .3]
+GAUSS_SEIDEL_DECOMP = 10
 images = images[:5]
 
 
@@ -304,9 +305,9 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7)):
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5]]
             ), axis=(3, 4), dtype=np.float64).transpose(2, 0, 1)
-        coef_matrix = matrix_decomp(coef_matrix, 5)
-        ans_matrix = matrix_decomp(ans_matrix, 5)
-        decomp_coef_vals = matrix_decomp(coef_vals, 5)
+        coef_matrix = matrix_decomp(coef_matrix, GAUSS_SEIDEL_DECOMP)
+        ans_matrix = matrix_decomp(ans_matrix, GAUSS_SEIDEL_DECOMP)
+        decomp_coef_vals = matrix_decomp(coef_vals, GAUSS_SEIDEL_DECOMP)
         x_matrix = []
         for (a_mats, b_mats, coef_val) in zip(coef_matrix, ans_matrix, decomp_coef_vals):
             a_mat = np.zeros((a_mats.shape[0] * a_mats.shape[1], a_mats.shape[0] * a_mats.shape[2]))

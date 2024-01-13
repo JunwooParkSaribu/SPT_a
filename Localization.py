@@ -14,7 +14,8 @@ images = read_tif('tif_trxyt/receptor_7_mid.tif')
 print(images[0].shape)
 
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
-RADIS = [1.1, 3, 5, 7]
+RADIUS = [1, 3, 5, 7]
+THRESHOLDS = [.5, .3, .3, .3]
 IMAGE_N = 0
 
 
@@ -70,11 +71,11 @@ def gauss_psf(window_size, radius):
     return gauss_psf_vals
 
 
-def background_likelihood(img: np.ndarray, bgs, window_sizes):
+def background_likelihood(img: np.ndarray, bgs):
     ans = []
     shift = 1
 
-    for step, (bg, window_size, radius, threshold) in enumerate(zip(bgs, window_sizes, [1, 3, 5, 7], [.5, .3, .3, .3])):
+    for step, (bg, window_size, radius, threshold) in enumerate(zip(bgs, WINDOW_SIZES, RADIUS, THRESHOLDS)):
         bg_mean = bg[IMAGE_N][0]
         regress_imgs = []
         surface_window = window_size[0] * window_size[1]
@@ -154,14 +155,14 @@ def bi_variate_normal_pdf(xy, cov, mu=None, normalization=True):
         return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2)))
 
 
-def background(imgs, window_size=(7, 7), amp=3):
+def background(imgs, window_sizes):
+    bgs = []
     bg_instensity = stats.mode(
         (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
-    bgs = np.ones((bg_instensity.shape[0], window_size[0] * window_size[1]))
-    bgs *= bg_instensity.reshape(-1, 1)
-    #qt_imgs, grid = quantification(bg, window_size, amp)
-    #qt_imgs = qt_imgs.reshape(1, -1, 1)
-    #covariance_mat = cov_matrix(grid, qt=qt_imgs)
+    for window_size in window_sizes:
+        bg = np.ones((bg_instensity.shape[0], window_size[0] * window_size[1]))
+        bg *= bg_instensity.reshape(-1, 1)
+        bgs.append(bg)
     return bgs
 
 
@@ -336,11 +337,8 @@ def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
     return x
 
 
-diff_bgs = []
-for window_size in WINDOW_SIZES:
-    bgs = background(images, window_size=window_size)
-    diff_bgs.append(bgs)
-ans = background_likelihood(images[IMAGE_N].copy(), diff_bgs, window_sizes=WINDOW_SIZES)
+bgs = background(images, window_sizes=WINDOW_SIZES)
+ans = background_likelihood(images[IMAGE_N].copy(), bgs)
 
 circle_img = (np.array([images[IMAGE_N].copy(), images[IMAGE_N].copy(), images[IMAGE_N].copy()])).transpose(1, 2, 0)
 print(circle_img.shape)

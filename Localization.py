@@ -6,9 +6,9 @@ from numba import njit
 from scipy.optimize import curve_fit
 from ImageModule import read_tif
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 print(images[0].shape)
@@ -95,7 +95,7 @@ def background_likelihood(img: np.ndarray, bgs, window_sizes):
         if len(indices) != 0:
             for index in indices:
                 regress_imgs.append(crop_imgs[img.shape[1] * index[0] + index[1]])
-            pdfs, xs, ys = ab(regress_imgs, bg[IMAGE_N], window_size)
+            pdfs, xs, ys = image_regression(regress_imgs, bg[IMAGE_N], window_size)
             for index, x, y in zip(indices, xs, ys):
                 ans.append([index[0] + x, index[1] + y])
             new_img = subtract_pdf(img, pdfs, indices, window_size, bg_mean)
@@ -189,7 +189,7 @@ def intensity_reg(imgs, pdfs, center_i):
     return intensity, bg_i
 
 
-def ab(imgs, bg, window_size, amp=3):
+def image_regression(imgs, bg, window_size, amp=3):
     imgs = np.array(imgs)
     shift = 1
     surface_window = window_size[0] * window_size[1]

@@ -25,7 +25,6 @@ DIV_Q = 2
 images = images[:10]
 
 
-
 def region_max_filter(maps, window_size, threshold):
     indices = []
     r_start_index = int((window_size[1]-1) / 2)
@@ -340,7 +339,7 @@ def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
     return x
 
 
-ans =[]
+ans = []
 reg_probas = []
 gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 for div_q in range(0, len(images), DIV_Q):

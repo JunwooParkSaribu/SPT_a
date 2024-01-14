@@ -16,11 +16,11 @@ images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 print(images[0].shape)
 
 
-WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
-RADIUS = [1, 3, 5, 7]
 THRESHOLDS = [.2, .2, .3, .3]
 P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 10
+WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
+RADIUS = [1, 3, 5, 7]
 DIV_Q = 2
 images = images[:10]
 

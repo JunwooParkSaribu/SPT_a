@@ -1,6 +1,7 @@
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import tifffile
 from scipy import stats
 from numba import njit
 from numba.typed import List as nbList
@@ -8,21 +9,21 @@ from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
-images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
-print(images[0].shape)
+OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.2, .2, .3, .3]
+THRESHOLDS = [.25, .25, .3, .3]
 P0 = [2., 2., 0., 0., 0.1]
-GAUSS_SEIDEL_DECOMP = 10
+GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
-DIV_Q = 2
-images = images[:10]
+DIV_Q = 1
+images = images[:2]
 
 
 def region_max_filter(maps, window_size, threshold):
@@ -124,6 +125,12 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
+        plt.figure()
+        plt.imshow(extended_imgs[0])
+        plt.show()
+        plt.figure()
+        plt.imshow(h_maps[0])
+        plt.show()
         indices = region_max_filter(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()
@@ -184,15 +191,50 @@ def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
 
 
 def background(imgs, window_sizes):
+    bins = 0.01
     bgs = []
-    bg_instensity = stats.mode(
-        (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
-    for window_size in window_sizes:
-        bg = np.ones((bg_instensity.shape[0], window_size[0] * window_size[1]))
-        bg *= bg_instensity.reshape(-1, 1)
-        bgs.append(bg)
-    return bgs
+    bg_means = []
+    bg_stds = []
+    #bg_instensity = stats.mode(
+    #    (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
+    bg_intensities = (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8) / 100
+    for i in range(len(bg_intensities)):
+        args = np.arange(len(bg_intensities[i]))
+        post_mask_args = args.copy()
+        for _ in range(3):
+            it_data = bg_intensities[i][post_mask_args]
+            print(np.mean(it_data))
+            print(np.std(it_data))
+            it_hist, bin_width = np.histogram(bg_intensities[i][post_mask_args],
+                                              bins=np.arange(0, np.max(bg_intensities[i][post_mask_args]) + bins, bins))
+            mask_sums_mode = (np.argmax(it_hist) * bins + (bins / 2))
+            mask_std = np.std(bg_intensities[i][post_mask_args])
+            post_mask_args = np.array([arg for arg, val in zip(args, bg_intensities[i]) if
+                                       (mask_sums_mode - 3. * mask_std) < val < (mask_sums_mode + 3. * mask_std)])
+        it_data = bg_intensities[i][post_mask_args]
+        bg_means.append(np.mean(it_data))
+        bg_stds.append(np.std(it_data))
+    bg_means = np.array(bg_means)
+    bg_stds = np.array(bg_stds)
 
+    for window_size in window_sizes:
+        bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
+        bg *= bg_means.reshape(-1, 1)
+        bgs.append(bg)
+    return bgs, bg_stds
+
+def post_processing(masks, bins=25):
+    mask_sums = np.array([np.sum(masque) for masque in masks])
+    args = np.arange(len(masks))
+    post_mask_args = args.copy()
+    for _ in range(3):
+        mask_sums_mode = (np.argmax(np.histogram(mask_sums[post_mask_args],
+                                                 bins=np.arange(0, np.max(mask_sums[post_mask_args]) + bins, bins))[0])
+                          * bins + (bins / 2))
+        mask_std = np.std(mask_sums[post_mask_args])
+        post_mask_args = np.array([arg for arg, val in zip(args, mask_sums) if (mask_sums_mode - 3. * mask_std) < val < (mask_sums_mode + 3. * mask_std)])
+        print(mask_sums[post_mask_args])
+    return post_mask_args
 
 def kl_divergence2(cov1, cov2):
     a = np.linalg.inv(cov2) * cov1
@@ -339,23 +381,35 @@ def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
     return x
 
 
-ans = []
-reg_probas = []
+def make_red_circles(original_imgs, circle_imgs, localized_xys):
+    stacked_imgs = nbList()
+    for img_n, coords in enumerate(localized_xys):
+        for center_coord in coords:
+            x, y = int(round(center_coord[0])), int(round(center_coord[1]))
+            circle_imgs[img_n][x][y][0] = 1
+            circle_imgs[img_n][x][y][1] = 0
+            circle_imgs[img_n][x][y][2] = 0
+        stacked_imgs.append(np.hstack((original_imgs[img_n], circle_imgs[img_n])))
+    return stacked_imgs
+
+
+def visualilzation(output_dir, images, localized_xys):
+    orignal_imgs_3ch = np.array([images.copy(), images.copy(), images.copy()])
+    orignal_imgs_3ch = np.ascontiguousarray(np.moveaxis(orignal_imgs_3ch, 0, 3))
+    circle_imgs = orignal_imgs_3ch.copy()
+    stacked_img = np.array(make_red_circles(orignal_imgs_3ch, circle_imgs, localized_xys))
+    tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
+
+
+xy_coords = []
+reg_pdfs = []
 gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
     bgs = background(images[div_q:div_q+DIV_Q], window_sizes=WINDOW_SIZES)
-    a1, a2 = localization(images[div_q:div_q+DIV_Q], bgs, gauss_grids)
-    ans.extend(a1)
-    reg_probas.extend(a2)
+    xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, gauss_grids)
+    xy_coords.extend(xy_coord)
+    reg_pdfs.extend(pdf)
 
-for img_n, (coord_list, reg_pdf) in enumerate(zip(ans, reg_probas)):
-    print([len(coord_list), len(coord_list[0])], [len(reg_pdf), len(reg_pdf[0])])
-    circle_img = (np.array([images[img_n].copy(), images[img_n].copy(), images[img_n].copy()])).transpose(1, 2, 0)
-    for coord in coord_list:
-        circle_img[int(coord[0])][int(coord[1])][0] = 255
-        circle_img[int(coord[0])][int(coord[1])][1] = 0
-        circle_img[int(coord[0])][int(coord[1])][2] = 0
-    plt.figure(figsize=(14, 7))
-    plt.imshow(np.hstack(((np.array([images[img_n].copy(), images[img_n].copy(), images[img_n].copy()])).transpose(1, 2, 0), circle_img)))
-    plt.show()
+visualilzation(OUTPUT_DIR, images, xy_coords)
+

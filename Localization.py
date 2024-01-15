@@ -98,7 +98,27 @@ def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
 
 
 def add_block_noise(imgs, extend):
-    pass
+    center_xy = []
+    gap = int(extend/2)
+    row_indice = [0, 0+gap, len(imgs[0]), len(imgs[0])+gap]
+    col_indice = [0, 0+gap, len(imgs[0][0]), len(imgs[0][0])+gap]
+    print(imgs.shape)
+    print(row_indice)
+    print(col_indice)
+
+    for c in col_indice:
+        imgs[:, row_indice[0]:row_indice[0] + gap, c : c+gap] = imgs[:, row_indice[1]:row_indice[1]+gap:, c: c+gap]
+    for r in row_indice:
+        imgs[:, r:r + gap, col_indice[-1]: col_indice[-1] + gap] = imgs[:, r:r + gap, col_indice[-2]: col_indice[-2] + gap]
+
+    for c in col_indice:
+        print(row_indice[-1], row_indice[-1] + gap)
+        print(imgs[:, row_indice[-1]:row_indice[-1] + gap, c: c + gap].shape)
+        imgs[:, row_indice[-1]:row_indice[-1] + gap, c : c+gap] = imgs[:, row_indice[-2]:row_indice[-2]+gap:, c: c+gap]
+
+    plt.figure()
+    plt.imshow(imgs[0])
+    plt.show()
 
 
 def localization(imgs: np.ndarray, bgs, gauss_grids):
@@ -108,10 +128,13 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
     bg_means = bgs[0][:, 0]
     extend = WINDOW_SIZES[-1][0] - 1 if WINDOW_SIZES[-1][0] % 2 == 1 else WINDOW_SIZES[-1][0]
 
-    extended_imgs = (np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
-                     + bg_means.reshape(-1, 1, 1))
-    extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += (
-            imgs - bg_means.reshape(-1, 1, 1))
+    #extended_imgs = (np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
+    #                 + bg_means.reshape(-1, 1, 1))
+    #extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += (
+    #        imgs - bg_means.reshape(-1, 1, 1))
+    extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
+    extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += (imgs)
+    add_block_noise(extended_imgs, extend)
 
     for step, (bg, gauss_grid, window_size, radius, threshold) in (
             enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):

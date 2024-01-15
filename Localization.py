@@ -243,7 +243,11 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
             print(f'regression : {timer() - start}')
             start = timer()
             for (n, r, c), dx, dy, pdf in zip(indices, xs, ys, pdfs):
-                coords[n].append([r + dx, c + dy])
+                if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                    continue
+                row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                coords[n].append([row_coord, col_coord])
                 reg_pdfs[n].append(pdf)
             new_imgs = subtract_pdf(extended_imgs, pdfs, indices, window_size, bg_means, extend)
             print(f'subtraction : {timer() - start}')
@@ -304,7 +308,6 @@ def background(imgs, window_sizes):
         args = np.arange(len(bg_intensities[i]))
         post_mask_args = args.copy()
         for _ in range(3):
-            it_data = bg_intensities[i][post_mask_args]
             it_hist, bin_width = np.histogram(bg_intensities[i][post_mask_args],
                                               bins=np.arange(0, np.max(bg_intensities[i][post_mask_args]) + bins, bins))
             mask_sums_mode = (np.argmax(it_hist) * bins + (bins / 2))
@@ -473,6 +476,10 @@ def make_red_circles(original_imgs, circle_imgs, localized_xys):
     stacked_imgs = nbList()
     for img_n, coords in enumerate(localized_xys):
         for center_coord in coords:
+            if (center_coord[0] > original_imgs.shape[1] or center_coord[0] < 0
+                    or center_coord[1] > original_imgs.shape[2] or center_coord[1] < 0):
+                print("ERR")
+                print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
             x, y = int(round(center_coord[0])), int(round(center_coord[1]))
             circle_imgs[img_n][x][y][0] = 1
             circle_imgs[img_n][x][y][1] = 0

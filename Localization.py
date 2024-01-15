@@ -56,7 +56,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [-1, 0, 1, 2]
+    borders = [-1, 0, 1]
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)
         row_max = min(img.shape[0]-1, row_indice[1]+1-border)

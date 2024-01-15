@@ -24,7 +24,7 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
 DIV_Q = 10
-images = images
+images = images[12:22]
 
 
 def region_max_filter(maps, window_size, threshold):
@@ -56,7 +56,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [-1, 0, 1, 2, 3]
+    borders = [0, 1, 2, 3]
     erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)

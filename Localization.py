@@ -228,11 +228,11 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
-        plt.figure('img', figsize=(9, 9))
-        plt.imshow(extended_imgs[0])
-        plt.figure('hmap', figsize=(9, 9))
-        plt.imshow(h_maps[0], vmin=0, vmax=.6)
-        plt.show()
+        #plt.figure('img', figsize=(9, 9))
+        #plt.imshow(extended_imgs[0])
+        #plt.figure('hmap', figsize=(9, 9))
+        #plt.imshow(h_maps[0], vmin=0, vmax=.6)
+        #plt.show()
         indices = region_max_filter(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()

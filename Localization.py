@@ -9,9 +9,9 @@ from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/receptor_7_mid.tif')
+images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
@@ -56,7 +56,8 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [-1, 0, 1]
+    borders = [-1, 0, 1, 2, 3]
+    erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)
         row_max = min(img.shape[0]-1, row_indice[1]+1-border)
@@ -72,7 +73,7 @@ def boundary_smoothing(img, row_indice, col_indice):
             center_xy.append([row, col_min])
     for _ in range(repeat_n):
         for r, c in center_xy:
-            img[r][c] = np.mean(img[max(0, r-1):min(img.shape[0], r+2), max(0, c-1):min(img.shape[1], c+2)])
+            img[r][c] = np.mean(img[max(0, r-erase_space):min(img.shape[0], r+erase_space+1), max(0, c-erase_space):min(img.shape[1], c+erase_space+1)])
     return img
 
 
@@ -227,11 +228,11 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
-        #plt.figure('img', figsize=(9, 9))
-        #plt.imshow(extended_imgs[0])
-        #plt.figure('hmap', figsize=(9, 9))
-        #plt.imshow(h_maps[0], vmin=0, vmax=.6)
-        #plt.show()
+        plt.figure('img', figsize=(9, 9))
+        plt.imshow(extended_imgs[0])
+        plt.figure('hmap', figsize=(9, 9))
+        plt.imshow(h_maps[0], vmin=0, vmax=.6)
+        plt.show()
         indices = region_max_filter(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()

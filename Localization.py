@@ -97,13 +97,19 @@ def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
     return L
 
 
+def add_block_noise(imgs, extend):
+    pass
+
+
 def localization(imgs: np.ndarray, bgs, gauss_grids):
     shift = 1
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[0][:, 0]
     extend = WINDOW_SIZES[-1][0] - 1 if WINDOW_SIZES[-1][0] % 2 == 1 else WINDOW_SIZES[-1][0]
-    extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend)) + bg_means.reshape(-1, 1, 1)
+
+    extended_imgs = (np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
+                     + bg_means.reshape(-1, 1, 1))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += (
             imgs - bg_means.reshape(-1, 1, 1))
 
@@ -125,12 +131,12 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
-        plt.figure()
-        plt.imshow(extended_imgs[0])
-        plt.show()
-        plt.figure()
-        plt.imshow(h_maps[0])
-        plt.show()
+        #plt.figure()
+        #plt.imshow(extended_imgs[0])
+        #plt.show()
+        #plt.figure()
+        #plt.imshow(h_maps[0])
+        #plt.show()
         indices = region_max_filter(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()
@@ -203,8 +209,6 @@ def background(imgs, window_sizes):
         post_mask_args = args.copy()
         for _ in range(3):
             it_data = bg_intensities[i][post_mask_args]
-            print(np.mean(it_data))
-            print(np.std(it_data))
             it_hist, bin_width = np.histogram(bg_intensities[i][post_mask_args],
                                               bins=np.arange(0, np.max(bg_intensities[i][post_mask_args]) + bins, bins))
             mask_sums_mode = (np.argmax(it_hist) * bins + (bins / 2))
@@ -223,18 +227,6 @@ def background(imgs, window_sizes):
         bgs.append(bg)
     return bgs, bg_stds
 
-def post_processing(masks, bins=25):
-    mask_sums = np.array([np.sum(masque) for masque in masks])
-    args = np.arange(len(masks))
-    post_mask_args = args.copy()
-    for _ in range(3):
-        mask_sums_mode = (np.argmax(np.histogram(mask_sums[post_mask_args],
-                                                 bins=np.arange(0, np.max(mask_sums[post_mask_args]) + bins, bins))[0])
-                          * bins + (bins / 2))
-        mask_std = np.std(mask_sums[post_mask_args])
-        post_mask_args = np.array([arg for arg, val in zip(args, mask_sums) if (mask_sums_mode - 3. * mask_std) < val < (mask_sums_mode + 3. * mask_std)])
-        print(mask_sums[post_mask_args])
-    return post_mask_args
 
 def kl_divergence2(cov1, cov2):
     a = np.linalg.inv(cov2) * cov1
@@ -406,7 +398,7 @@ reg_pdfs = []
 gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
-    bgs = background(images[div_q:div_q+DIV_Q], window_sizes=WINDOW_SIZES)
+    bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=WINDOW_SIZES)
     xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, gauss_grids)
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)

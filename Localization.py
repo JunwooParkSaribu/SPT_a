@@ -9,16 +9,16 @@ from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/receptor_7_mid.tif')
+images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.3, .3, .3, .3]
+THRESHOLDS = [.3, .25, .3, .3]
 P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]

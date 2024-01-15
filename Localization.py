@@ -9,8 +9,9 @@ from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
@@ -22,7 +23,7 @@ P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
-DIV_Q = 5
+DIV_Q = 10
 images = images
 
 
@@ -54,20 +55,24 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 @njit
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
-    row_min = max(0, row_indice[0]-1)
-    row_max = min(img.shape[0]-1, row_indice[1]+1)
-    col_min = max(0, col_indice[0]-1)
-    col_max = min(img.shape[1]-1, col_indice[1]+1)
-    for col in range(col_min, col_max+1):
-        center_xy.append([row_min, col])
-    for row in range(row_min, row_max+1):
-        center_xy.append([row, col_max])
-    for col in range(col_max, col_min-1, -1):
-        center_xy.append([row_max, col])
-    for row in range(row_max, row_min-1, -1):
-        center_xy.append([row, col_min])
-    for r, c in center_xy:
-        img[r][c] = np.mean(img[max(0, r-1):min(img.shape[0], r+2), max(0, c-1):min(img.shape[1], c+2)])
+    repeat_n = 2
+    borders = [-1, 0, 1, 2]
+    for border in borders:
+        row_min = max(0, row_indice[0]-1+border)
+        row_max = min(img.shape[0]-1, row_indice[1]+1-border)
+        col_min = max(0, col_indice[0]-1+border)
+        col_max = min(img.shape[1]-1, col_indice[1]+1-border)
+        for col in range(col_min, col_max+1):
+            center_xy.append([row_min, col])
+        for row in range(row_min, row_max+1):
+            center_xy.append([row, col_max])
+        for col in range(col_max, col_min-1, -1):
+            center_xy.append([row_max, col])
+        for row in range(row_max, row_min-1, -1):
+            center_xy.append([row, col_min])
+    for _ in range(repeat_n):
+        for r, c in center_xy:
+            img[r][c] = np.mean(img[max(0, r-1):min(img.shape[0], r+2), max(0, c-1):min(img.shape[1], c+2)])
     return img
 
 
@@ -222,6 +227,11 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
+        #plt.figure('img', figsize=(9, 9))
+        #plt.imshow(extended_imgs[0])
+        #plt.figure('hmap', figsize=(9, 9))
+        #plt.imshow(h_maps[0], vmin=0, vmax=.6)
+        #plt.show()
         indices = region_max_filter(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()

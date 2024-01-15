@@ -24,7 +24,7 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
 DIV_Q = 10
-images = images[12:22]
+images = images
 
 
 def region_max_filter(maps, window_size, threshold):

@@ -54,12 +54,13 @@ def region_max_filter(maps, window_sizes, thresholds):
         for n, r, c in zip(img_n, row, col):
             if maps[i][n][r][c] == np.max(maps[i][n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
                                        max(0, c - col_start_index):min(maps[i].shape[2] + 1, c + col_start_index + 1)]):
-                infos[n].append([i, r, c, window_sizes[i][0], hmap[n][r][c]])
+                infos[n].append([i, r, c, hmap[n][r][c]])
     maps = np.moveaxis(maps, 0, 1)
     for img_n, info in enumerate(infos):
         info = np.array(info)
-        info = info[np.argsort(info[:, 4])[::-1]]
+        info = info[np.argsort(info[:, 3])[::-1]]
         print(info)
+
         exit(1)
 
     for i in range(len(thresholds)):

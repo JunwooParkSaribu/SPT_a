@@ -42,7 +42,6 @@ def region_max_filter2(maps, window_size, threshold):
 
 
 def region_max_filter(maps, window_sizes, thresholds):
-    print(maps.shape)
     indices = []
     infos = [[] for _ in range(maps.shape[1])]
     for i, (hmap, threshold, window_size) in enumerate(zip(maps, thresholds, window_sizes)):
@@ -52,36 +51,31 @@ def region_max_filter(maps, window_sizes, thresholds):
         col_start_index = int((window_size[0] - 1) / 2)
         img_n, row, col = np.where(args_map == True)
         for n, r, c in zip(img_n, row, col):
-            if maps[i][n][r][c] == np.max(maps[i][n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
+            if maps[i][n][r][c] == np.max(maps[i, n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
                                        max(0, c - col_start_index):min(maps[i].shape[2] + 1, c + col_start_index + 1)]):
                 infos[n].append([i, r, c, hmap[n][r][c]])
     maps = np.moveaxis(maps, 0, 1)
+
     for img_n, info in enumerate(infos):
+        mask = np.zeros((maps.shape[2], maps.shape[3])).astype(np.uint8)
         info = np.array(info)
         info = info[np.argsort(info[:, 3])[::-1]]
-        print(info)
-
-        exit(1)
-
-    for i in range(len(thresholds)):
-        plt.figure()
-        plt.imshow(maps[0][i])
-        plt.show()
-
-    r_start_index = int((window_size[1]-1) / 2)
-    col_start_index = int((window_size[0]-1) / 2)
-    img_n, row, col = np.where(args_map == True)
-    for n, r, c in zip(img_n, row, col):
-        if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
-                                   max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]):
-            indices.append([n, r, c])
+        for mol_info in info:
+            extend = int((window_sizes[int(mol_info[0])][0] - 1) / 2)
+            row_min = int(max(0, mol_info[1] - extend))
+            row_max = int(min(mask.shape[0] - 1 , mol_info[1] + extend))
+            col_min = int(max(0, mol_info[2] - extend))
+            col_max = int(min(mask.shape[1] - 1, mol_info[2] + extend))
+            if mask[int(mol_info[1])][int(mol_info[2])] != 1:
+                indices.append([img_n, int(mol_info[1]), int(mol_info[2]), int(window_sizes[int(mol_info[0])][0])])
+                mask[row_min:row_max, col_min:col_max] = 1
     return np.array(indices)
 
 
 
 @njit
 def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
-    for pdf, (n, r, c) in zip(pdfs, indices):
+    for pdf, (n, r, c, ws) in zip(pdfs, indices):
         pdf = np.ascontiguousarray(pdf).reshape(window_size)
         row_indice = np.array([r - int((window_size[1]-1)/2), r + int((window_size[1]-1)/2)]) + int(extend/2)
         col_indice = np.array([c - int((window_size[0]-1)/2), c + int((window_size[0]-1)/2)]) + int(extend/2)
@@ -296,57 +290,72 @@ def localization2(imgs: np.ndarray, bgs, gauss_grids):
 def localization(imgs: np.ndarray, bgs, gauss_grids):
     shift = 1
     extend = 30
+    linkage = {5:0, 7:1, 11:2, 15:3}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[0][:, 0]
     h_maps = []
-
+    all_crop_imgs = [[] for _ in range(len(THRESHOLDS))]
     start = timer()
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
     print(f'extension : {timer() - start}')
 
-    for step, (bg, gauss_grid, window_size, radius, threshold) in (
-            enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):
-        print(f'{step} : {imgs.shape}')
-        regress_imgs = []
-        bg_regress = []
-        start = timer()
-        crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
-        crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
-                                                window_size[0] * window_size[1])
-        print(f'cropping : {timer() - start}')
-        crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-        bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
-        start = timer()
-        c = likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size)
-        print(f'likelihood : {timer() - start}')
+    for _ in range(1):
+        win_s_dict = {}
+        for ws in WINDOW_SIZES:
+            win_s_dict[ws[0]] = []
+        for step, (bg, gauss_grid, window_size, radius, threshold) in (
+                enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):
+            print(f'{step} : {imgs.shape}')
+            start = timer()
+            crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
+            crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                                                    window_size[0] * window_size[1])
+            print(f'cropping : {timer() - start}')
+            crop_imgs = np.moveaxis(crop_imgs, 0, 1)
+            all_crop_imgs[step] = crop_imgs
+            bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
+            start = timer()
+            c = likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size)
+            print(f'likelihood : {timer() - start}')
 
-        h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
-    h_maps = np.array(h_maps)
-    indices = region_max_filter(h_maps, WINDOW_SIZES, THRESHOLDS)
-
-    exit(1)
-    for _ in range(111):
+            h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+        h_maps = np.array(h_maps)
+        indices = region_max_filter(h_maps, WINDOW_SIZES, THRESHOLDS)
         if len(indices) != 0:
             start = timer()
-            for n, r, c in indices:
-                regress_imgs.append(crop_imgs[n][imgs.shape[2] * r + c])
-                bg_regress.append(bg[n])
-            pdfs, xs, ys = image_regression(regress_imgs, bg_regress, window_size)
-            print(f'regression : {timer() - start}')
-            start = timer()
-            for (n, r, c), dx, dy, pdf in zip(indices, xs, ys, pdfs):
-                if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
-                    continue
-                row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                col_coord = max(0, min(c+dy, imgs.shape[2]-1))
-                coords[n].append([row_coord, col_coord])
-                reg_pdfs[n].append(pdf)
-            new_imgs = subtract_pdf(extended_imgs, pdfs, indices, window_size, bg_means, extend)
-            print(f'subtraction : {timer() - start}')
-            extended_imgs = new_imgs
+            for n, r, c, ws in indices:
+                win_s_dict[ws].append([all_crop_imgs[linkage[ws]][n][imgs.shape[2] * r + c], bgs[linkage[ws]][n], n, r, c])
+            for ws in win_s_dict:
+                regress_imgs = []
+                bg_regress = []
+                ns = []
+                rs = []
+                cs = []
+                for i1, i2, i3, i4, i5 in win_s_dict[ws]:
+                    regress_imgs.append(i1)
+                    bg_regress.append(i2)
+                    ns.append(i3)
+                    rs.append(i4)
+                    cs.append(i5)
+                pdfs, xs, ys = image_regression(regress_imgs, bg_regress, (ws, ws))
+                print(f'regression : {timer() - start}')
+                start = timer()
+                for n, r, c, dx, dy, pdf in zip(ns, rs, cs, xs, ys, pdfs):
+                    if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                        continue
+                    row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                    col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                    coords[n].append([row_coord, col_coord])
+                    reg_pdfs[n].append(pdf)
+                new_imgs = subtract_pdf(extended_imgs, pdfs, indices[:3], (ws, ws), bg_means, extend)
+                print(f'subtraction : {timer() - start}')
+                extended_imgs = new_imgs
+        plt.figure()
+        plt.imshow(extended_imgs[0])
+        plt.show()
     return coords, reg_pdfs
 
 

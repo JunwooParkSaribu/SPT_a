@@ -11,8 +11,8 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('SimulData/receptor_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+#images = read_tif('SimulData/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
@@ -23,11 +23,11 @@ P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1, 3, 5, 7]
-DIV_Q = 10
-images = images
+DIV_Q = 2
+images = images[:2]
 
 
-def region_max_filter(maps, window_size, threshold):
+def region_max_filter2(maps, window_size, threshold):
     indices = []
     r_start_index = int((window_size[1]-1) / 2)
     col_start_index = int((window_size[0]-1) / 2)
@@ -39,6 +39,43 @@ def region_max_filter(maps, window_size, threshold):
                                    max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]):
             indices.append([n, r, c])
     return np.array(indices)
+
+
+def region_max_filter(maps, window_sizes, thresholds):
+    print(maps.shape)
+    indices = []
+    infos = [[] for _ in range(maps.shape[1])]
+    for i, (hmap, threshold, window_size) in enumerate(zip(maps, thresholds, window_sizes)):
+        args_map = hmap > threshold
+        maps[i] = hmap * args_map
+        r_start_index = int((window_size[1] - 1) / 2)
+        col_start_index = int((window_size[0] - 1) / 2)
+        img_n, row, col = np.where(args_map == True)
+        for n, r, c in zip(img_n, row, col):
+            if maps[i][n][r][c] == np.max(maps[i][n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
+                                       max(0, c - col_start_index):min(maps[i].shape[2] + 1, c + col_start_index + 1)]):
+                infos[n].append([i, r, c, window_sizes[i][0], hmap[n][r][c]])
+    maps = np.moveaxis(maps, 0, 1)
+    for img_n, info in enumerate(infos):
+        info = np.array(info)
+        info = info[np.argsort(info[:, 4])[::-1]]
+        print(info)
+        exit(1)
+
+    for i in range(len(thresholds)):
+        plt.figure()
+        plt.imshow(maps[0][i])
+        plt.show()
+
+    r_start_index = int((window_size[1]-1) / 2)
+    col_start_index = int((window_size[0]-1) / 2)
+    img_n, row, col = np.where(args_map == True)
+    for n, r, c in zip(img_n, row, col):
+        if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
+                                   max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]):
+            indices.append([n, r, c])
+    return np.array(indices)
+
 
 
 @njit
@@ -191,7 +228,7 @@ def add_block_noise(imgs, extend):
     return imgs
 
 
-def localization(imgs: np.ndarray, bgs, gauss_grids):
+def localization2(imgs: np.ndarray, bgs, gauss_grids):
     shift = 1
     extend = 30
     coords = [[] for _ in range(imgs.shape[0])]
@@ -233,7 +270,64 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
         #plt.figure('hmap', figsize=(9, 9))
         #plt.imshow(h_maps[0], vmin=0, vmax=0.5)
         #plt.show()
-        indices = region_max_filter(h_maps, window_size, threshold)
+        indices = region_max_filter2(h_maps, window_size, threshold)
+        if len(indices) != 0:
+            start = timer()
+            for n, r, c in indices:
+                regress_imgs.append(crop_imgs[n][imgs.shape[2] * r + c])
+                bg_regress.append(bg[n])
+            pdfs, xs, ys = image_regression(regress_imgs, bg_regress, window_size)
+            print(f'regression : {timer() - start}')
+            start = timer()
+            for (n, r, c), dx, dy, pdf in zip(indices, xs, ys, pdfs):
+                if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                    continue
+                row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                coords[n].append([row_coord, col_coord])
+                reg_pdfs[n].append(pdf)
+            new_imgs = subtract_pdf(extended_imgs, pdfs, indices, window_size, bg_means, extend)
+            print(f'subtraction : {timer() - start}')
+            extended_imgs = new_imgs
+    return coords, reg_pdfs
+
+
+def localization(imgs: np.ndarray, bgs, gauss_grids):
+    shift = 1
+    extend = 30
+    coords = [[] for _ in range(imgs.shape[0])]
+    reg_pdfs = [[] for _ in range(imgs.shape[0])]
+    bg_means = bgs[0][:, 0]
+    h_maps = []
+
+    start = timer()
+    extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
+    extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
+    extended_imgs = add_block_noise(extended_imgs, extend)
+    print(f'extension : {timer() - start}')
+
+    for step, (bg, gauss_grid, window_size, radius, threshold) in (
+            enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):
+        print(f'{step} : {imgs.shape}')
+        regress_imgs = []
+        bg_regress = []
+        start = timer()
+        crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
+        crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                                                window_size[0] * window_size[1])
+        print(f'cropping : {timer() - start}')
+        crop_imgs = np.moveaxis(crop_imgs, 0, 1)
+        bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
+        start = timer()
+        c = likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size)
+        print(f'likelihood : {timer() - start}')
+
+        h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+    h_maps = np.array(h_maps)
+    indices = region_max_filter(h_maps, WINDOW_SIZES, THRESHOLDS)
+
+    exit(1)
+    for _ in range(111):
         if len(indices) != 0:
             start = timer()
             for n, r, c in indices:

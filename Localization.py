@@ -90,7 +90,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [0, 1, 2, 3]
+    borders = [0, 1, 2, 3, 4, 5, 6, 7]
     erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)
@@ -330,6 +330,8 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         if len(indices) != 0:
             for n, r, c, ws in indices:
+                if r==29 or r==30:
+                    print(n, r, c, ws)
                 win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
                                        bgs[linkage[ws]][n], n, r, c])
             ws = window_sizes[0][0]

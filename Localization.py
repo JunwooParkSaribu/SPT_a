@@ -351,6 +351,8 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                         continue
                     row_coord = max(0, min(r+dx, imgs.shape[1]-1))
                     col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                    if 28 < row_coord < 30:
+                        print(pdf.shape, r, c, dx, dy)
                     coords[n].append([row_coord, col_coord])
                     reg_pdfs[n].append(pdf)
                 del_indices = np.array([ns, rs, cs]).T

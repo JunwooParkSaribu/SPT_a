@@ -23,8 +23,8 @@ P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.3, 3, 5, 7]
-DIV_Q = 1
-images = np.array([images[2]])
+DIV_Q = 5
+images = images[:5]
 
 
 def region_max_filter2(maps, window_size, threshold):
@@ -330,8 +330,6 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
 
         if len(indices) != 0:
             for n, r, c, ws in indices:
-                if r==29 or r==30:
-                    print(n, r, c, ws)
                 win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
                                        bgs[linkage[ws]][n], n, r, c])
             ws = window_sizes[0][0]
@@ -353,8 +351,6 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                         continue
                     row_coord = max(0, min(r+dx, imgs.shape[1]-1))
                     col_coord = max(0, min(c+dy, imgs.shape[2]-1))
-                    if 28 < row_coord < 30:
-                        print(pdf.shape, r, c, dx, dy)
                     coords[n].append([row_coord, col_coord])
                     reg_pdfs[n].append(pdf)
                 del_indices = np.array([ns, rs, cs]).T

@@ -12,19 +12,20 @@ from timeit import default_timer as timer
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
 images = read_tif('SimulData/receptor_7_mid.tif')
+#images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.29, .24, .3, .3]
+THRESHOLDS = [.28, .23, .3, .3]
 P0 = [2., 2., 0., 0., 0.1]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
-RADIUS = [1.3, 3, 5, 7]
+RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images[:20]
+images = images[:5]
 
 
 def region_max_filter2(maps, window_size, threshold):
@@ -129,9 +130,10 @@ def gauss_psf(window_sizes, radiuss):
 def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
     crop_imgs = np.ascontiguousarray(crop_imgs)
     surface_window = window_size[0] * window_size[1]
+    #gauss_grid = gauss_grid / np.sum(gauss_grid)
     g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).reshape(window_size[0]*window_size[1], 1)
     g_squared_sum = np.sum(g_bar ** 2)
-    i_hat = crop_imgs @ g_bar / g_squared_sum
+    i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1)) @ g_bar / g_squared_sum
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
@@ -302,6 +304,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
+    org_ext_imgs = extended_imgs.copy()
     print(f'extension : {timer() - start}')
     index = 0
     while index < len(THRESHOLDS):
@@ -357,6 +360,32 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                 new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                 extended_imgs = new_imgs
         else:
+            return coords, reg_pdfs
+            pdf_diff_distrbution = [[] for _ in range(len(coords))]
+            my_imgs = [[] for _ in range(len(coords))]
+            for img_n, coord in enumerate(coords):
+                for (r, c), reg_pdf in zip(coord, reg_pdfs[img_n]):
+                    reg_pdf = reg_pdf.reshape((int(np.sqrt(reg_pdf.shape[0])), int(np.sqrt(reg_pdf.shape[0]))))
+                    center_r = int(np.round(r + extend/2))
+                    center_c = int(np.round(c + extend/2))
+                    selec_img = org_ext_imgs[img_n,
+                                center_r - int((reg_pdf.shape[0]-1)/2): center_r + int((reg_pdf.shape[0]-1)/2) + 1,
+                                center_c - int((reg_pdf.shape[1]-1)/2): center_c + int((reg_pdf.shape[1]-1)/2) + 1]
+                    pdf_diff_distrbution[img_n].append(np.sum((reg_pdf[int((reg_pdf.shape[0]-1)/2)][int((reg_pdf.shape[1]-1)/2)]
+                                                               - selec_img[int((reg_pdf.shape[0]-1)/2)][int((reg_pdf.shape[1]-1)/2)] )**2))
+                    my_imgs[img_n].append(selec_img)
+            for img_n, distrib in enumerate(pdf_diff_distrbution):
+                sort_args = np.argsort(distrib)[::-1]
+                distrib = np.array(distrib)[sort_args]
+                img_coord = np.array(coords[img_n])[sort_args]
+                my_imgs = np.array(my_imgs[img_n])[sort_args]
+                for val, (r, c), img in zip(distrib, img_coord, my_imgs):
+                    print(val, r, c)
+                    plt.figure()
+                    plt.imshow(img)
+                    plt.show()
+                exit(1)
+
             return coords, reg_pdfs
         if rev_linkage[index] not in indices[:, 3]:
             index += 1

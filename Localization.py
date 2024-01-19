@@ -385,18 +385,19 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                         pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
                         selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
                         loss_vals.append(np.mean((regress_imgs - pdfs.reshape(regress_imgs.shape)) ** 2))
-                selec_arg = np.argmin(loss_vals)
-                pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
-                infos = regress_comp_set[selec_arg]
-                for (n, r, c, ws), dx, dy, pdf, x_var, y_var in zip(infos, xs, ys, pdfs, x_vars, y_vars):
-                    r -= int(extend/2)
-                    c -= int(extend/2)
-                    if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
-                        continue
-                    row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                    col_coord = max(0, min(c+dy, imgs.shape[2]-1))
-                    coords[n].append([row_coord, col_coord])
-                    reg_pdfs[n].append(pdf)
+                if len(loss_vals) > 0:
+                    selec_arg = np.argmin(loss_vals)
+                    pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
+                    infos = regress_comp_set[selec_arg]
+                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var in zip(infos, xs, ys, pdfs, x_vars, y_vars):
+                        r -= int(extend/2)
+                        c -= int(extend/2)
+                        if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                            continue
+                        row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                        col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                        coords[n].append([row_coord, col_coord])
+                        reg_pdfs[n].append(pdf)
             return coords, reg_pdfs
 
         for step, (bg, g_grid, window_size, radius, threshold) in (

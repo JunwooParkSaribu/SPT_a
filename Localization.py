@@ -20,12 +20,12 @@ OUTPUT_DIR = f'.'
 
 
 THRESHOLDS = [.28, .23, .3, .3]
-P0 = [2., 2., 0., 0., 0.1]
+P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images[:5]
+images = images[:15]
 
 
 def region_max_filter2(maps, window_size, threshold):
@@ -292,11 +292,42 @@ def localization2(imgs: np.ndarray, bgs, gauss_grids):
     return coords, reg_pdfs
 
 
+def indice_filtering(indices, window_sizes, img_shape, extend):
+    max_window = window_sizes[-1]
+    mask = np.zeros(img_shape)
+    win_mask = [[[[] for _ in range(img_shape[2])] for _ in range(img_shape[1])] for _ in range(img_shape[0])]
+    regions = []
+    ret_indices = []
+    for index in indices[-1]:
+        r = [max(0, index[1] - int((max_window[1]-1)/2)), min(img_shape[1]-1, index[1] + int((max_window[1]-1)/2)),
+        max(0, index[2] - int((max_window[0]-1)/2)), min(img_shape[2]-1, index[2] + int((max_window[0]-1)/2))]
+        regions.append(r)
+        win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
+
+    for indexx, wins in zip(indices[::-1][1:], window_sizes[::-1][1:]):
+        for index in indexx:
+            mask[index[0], index[1], index[2]] += 1
+            win_mask[index[0]][index[1]][index[2]].append(wins[0])
+
+    for index, reg in zip(indices[-1], regions):
+        if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
+            al = []
+            ms = {ws[0]: [] for ws in window_sizes}
+            rs, cs = np.where(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1] >= 1)
+            for r, c in zip(rs, cs):
+                for win_size_val in win_mask[index[0]][r + reg[0]][c + reg[2]]:
+                    ms[int(win_size_val)].append([index[0], r + reg[0] + extend, c + reg[2] + extend, int(win_size_val)])
+            for ws in ms:
+                al.append(ms[ws])
+            ret_indices.append(al)
+    return ret_indices
+
+
 def localization(imgs: np.ndarray, bgs, gauss_grids):
     shift = 1
     extend = 30
-    linkage = {5:0, 7:1, 11:2, 15:3}
-    rev_linkage = {0:5, 1:7, 2:11, 3:15}
+    linkage = {5: 0, 7: 1, 11: 2, 15: 3}
+    rev_linkage = {0: 5, 1: 7, 2: 11, 3: 15}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[0][:, 0]
@@ -304,19 +335,72 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
-    org_ext_imgs = extended_imgs.copy()
     print(f'extension : {timer() - start}')
     index = 0
     while index < len(THRESHOLDS):
+        print(f'INDEX: {index}')
         h_maps = []
         window_sizes = WINDOW_SIZES[index:]
         thresholds = THRESHOLDS[index:]
         radiuss = RADIUS[index:]
         g_grids = gauss_grids[index:]
-        all_crop_imgs = [[] for _ in range(len(thresholds))]
+        all_crop_imgs = [[] for _ in range(len(THRESHOLDS))]
         win_s_dict = {}
         for ws in window_sizes:
             win_s_dict[ws[0]] = []
+
+        if index == len(THRESHOLDS) - 1:
+            print(f'BACKWARD PROCESS')
+            for step, (bg, g_grid, window_size, radius, threshold) in (
+                    enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):
+                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
+                crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                                                        window_size[0] * window_size[1])
+                crop_imgs = np.moveaxis(crop_imgs, 0, 1)
+                all_crop_imgs[step] = crop_imgs.copy()
+                bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
+                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
+                h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+            h_maps = np.array(h_maps)
+
+            back_indices = [[] for _ in range(index + 1)]
+            for backward_index in range(index, -1, -1):
+                back_indices[backward_index] = region_max_filter2(h_maps[backward_index], WINDOW_SIZES[backward_index],
+                                                                  THRESHOLDS[backward_index])
+            reregress_indice = indice_filtering(back_indices, WINDOW_SIZES, imgs.shape, int(extend/2))
+            for regress_comp_set in reregress_indice:
+                loss_vals = []
+                selected_dt = []
+                for win_s_set in regress_comp_set:
+                    regress_imgs = []
+                    bg_regress = []
+                    for regress_index in win_s_set:
+                        ws = regress_index[3]
+                        regress_imgs.append(extended_imgs[regress_index[0],
+                                            regress_index[1] - int((regress_index[3] - 1) / 2):regress_index[1] + int(
+                                                (regress_index[3] - 1) / 2) + 1,
+                                            regress_index[2] - int((regress_index[3] - 1) / 2):regress_index[2] + int(
+                                                (regress_index[3] - 1) / 2) + 1])
+                        bg_regress.append(bgs[linkage[ws]][regress_index[0]])
+                    regress_imgs = np.array(regress_imgs)
+                    if len(regress_imgs) > 0:
+                        pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
+                        loss_vals.append(np.mean((regress_imgs - pdfs.reshape(regress_imgs.shape)) ** 2))
+                selec_arg = np.argmin(loss_vals)
+                pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
+                infos = regress_comp_set[selec_arg]
+                for (n, r, c, ws), dx, dy, pdf, x_var, y_var in zip(infos, xs, ys, pdfs, x_vars, y_vars):
+                    r -= int(extend/2)
+                    c -= int(extend/2)
+                    if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                        continue
+                    row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                    col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                    coords[n].append([row_coord, col_coord])
+                    reg_pdfs[n].append(pdf)
+            return coords, reg_pdfs
+
         for step, (bg, g_grid, window_size, radius, threshold) in (
                 enumerate(zip(bgs, g_grids, window_sizes, radiuss, thresholds))):
             print(f'{step} : {imgs.shape}')
@@ -329,14 +413,14 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
             c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
             h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
         h_maps = np.array(h_maps)
-        indices = region_max_filter(h_maps, window_sizes, thresholds)
-
+        indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
         if len(indices) != 0:
             for n, r, c, ws in indices:
                 win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
                                        bgs[linkage[ws]][n], n, r, c])
             ws = window_sizes[0][0]
             if len(win_s_dict[ws]) != 0:
+                err_indice = []
                 regress_imgs = []
                 bg_regress = []
                 ns = []
@@ -348,45 +432,49 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                     ns.append(i3)
                     rs.append(i4)
                     cs.append(i5)
-                pdfs, xs, ys = image_regression(regress_imgs, bg_regress, (ws, ws))
-                for n, r, c, dx, dy, pdf in zip(ns, rs, cs, xs, ys, pdfs):
-                    if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
-                        continue
-                    row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                    col_coord = max(0, min(c+dy, imgs.shape[2]-1))
-                    coords[n].append([row_coord, col_coord])
-                    reg_pdfs[n].append(pdf)
-                del_indices = np.array([ns, rs, cs]).T
-                new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
-                extended_imgs = new_imgs
-        else:
-            return coords, reg_pdfs
-            pdf_diff_distrbution = [[] for _ in range(len(coords))]
-            my_imgs = [[] for _ in range(len(coords))]
-            for img_n, coord in enumerate(coords):
-                for (r, c), reg_pdf in zip(coord, reg_pdfs[img_n]):
-                    reg_pdf = reg_pdf.reshape((int(np.sqrt(reg_pdf.shape[0])), int(np.sqrt(reg_pdf.shape[0]))))
-                    center_r = int(np.round(r + extend/2))
-                    center_c = int(np.round(c + extend/2))
-                    selec_img = org_ext_imgs[img_n,
-                                center_r - int((reg_pdf.shape[0]-1)/2): center_r + int((reg_pdf.shape[0]-1)/2) + 1,
-                                center_c - int((reg_pdf.shape[1]-1)/2): center_c + int((reg_pdf.shape[1]-1)/2) + 1]
-                    pdf_diff_distrbution[img_n].append(np.sum((reg_pdf[int((reg_pdf.shape[0]-1)/2)][int((reg_pdf.shape[1]-1)/2)]
-                                                               - selec_img[int((reg_pdf.shape[0]-1)/2)][int((reg_pdf.shape[1]-1)/2)] )**2))
-                    my_imgs[img_n].append(selec_img)
-            for img_n, distrib in enumerate(pdf_diff_distrbution):
-                sort_args = np.argsort(distrib)[::-1]
-                distrib = np.array(distrib)[sort_args]
-                img_coord = np.array(coords[img_n])[sort_args]
-                my_imgs = np.array(my_imgs[img_n])[sort_args]
-                for val, (r, c), img in zip(distrib, img_coord, my_imgs):
-                    print(val, r, c)
-                    plt.figure()
-                    plt.imshow(img)
-                    plt.show()
-                exit(1)
 
-            return coords, reg_pdfs
+                pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
+                    if x_var < 0 or y_var < 0:
+                        err_indice.append(err_i)
+                if len(err_indice) > 0:
+                    print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
+                    for err_i in err_indice:
+                        err_cond = np.argmax(regress_imgs[err_i])
+                        err_r = err_cond // ws
+                        err_c = err_cond % ws
+                        err_ws = rev_linkage[0]
+                        err_reg_img = extended_imgs[ns[err_i]][rs[err_i] + err_r - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
+                                                               rs[err_i] + err_r - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1,
+                                      cs[err_i] + err_c - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
+                                      cs[err_i] + err_c - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1]
+                        err_bg_img = bgs[linkage[err_ws]][ns[err_i]]
+                        err_pdfs, err_xs, err_ys, err_x_vars, err_y_vars = image_regression([err_reg_img], [err_bg_img], (err_ws, err_ws))
+                        err_ns = [ns[err_i]]
+                        err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
+                        err_cs = [cs[err_i] + err_c - int((ws-1) / 2)]
+                        for n, r, c, dx, dy, pdf, x_var, y_var in zip(err_ns, err_rs, err_cs, err_xs, err_ys, err_pdfs, err_x_vars, err_y_vars):
+                            if r + dx <= -1 or r + dx >= imgs.shape[1] or c + dy <= -1 or c + dy >= imgs.shape[2]:
+                                continue
+                            row_coord = max(0, min(r + dx, imgs.shape[1] - 1))
+                            col_coord = max(0, min(c + dy, imgs.shape[2] - 1))
+                            coords[n].append([row_coord, col_coord])
+                            reg_pdfs[n].append(pdf)
+                        del_indices = np.array([err_ns, err_rs, err_cs]).T
+                        new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
+                        extended_imgs = new_imgs
+                else:
+                    for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
+                        if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                            continue
+                        row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                        col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                        coords[n].append([row_coord, col_coord])
+                        reg_pdfs[n].append(pdf)
+                    del_indices = np.array([ns, rs, cs]).T
+                    new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
+                    extended_imgs = new_imgs
+
         if rev_linkage[index] not in indices[:, 3]:
             index += 1
 
@@ -496,7 +584,7 @@ def image_regression(imgs, bgs, window_size, amp=3):
     cov_mat = np.array([variables[:, 0], [0]*variables.shape[0], [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
     pdfs = bi_variate_normal_pdf(grid, cov_mat, mu=np.array([0, 0]), normalization=False)
     pdfs = variables[:, 4].reshape(-1, 1) * pdfs + bgs
-    return pdfs, variables[:, 2], variables[:, 3]
+    return pdfs, variables[:, 2], variables[:, 3], variables[:, 0], variables[:, 1]
 
 
 @njit
@@ -530,7 +618,7 @@ def matrix_decomp(matrix, q):
 def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7)):
     nb_imgs = imgs.shape[0]
     if p0 is None:
-        p0 = [2., 2., 0., 0., 0.1]
+        p0 = [1.5, 1.5, 0., 0., 0.5]
     coef_vals = np.array(pack_vars(nbList(p0), nb_imgs))
     imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.

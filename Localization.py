@@ -9,9 +9,9 @@ from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('SimulData/receptor_7_mid.tif')
+#images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
@@ -25,7 +25,7 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images[:15]
+images = images[:500]
 
 
 def region_max_filter2(maps, window_size, threshold):
@@ -303,23 +303,22 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         max(0, index[2] - int((max_window[0]-1)/2)), min(img_shape[2]-1, index[2] + int((max_window[0]-1)/2))]
         regions.append(r)
         win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
-
     for indexx, wins in zip(indices[::-1][1:], window_sizes[::-1][1:]):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
             win_mask[index[0]][index[1]][index[2]].append(wins[0])
 
     for index, reg in zip(indices[-1], regions):
-        if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
-            al = []
-            ms = {ws[0]: [] for ws in window_sizes}
-            rs, cs = np.where(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1] >= 1)
-            for r, c in zip(rs, cs):
-                for win_size_val in win_mask[index[0]][r + reg[0]][c + reg[2]]:
-                    ms[int(win_size_val)].append([index[0], r + reg[0] + extend, c + reg[2] + extend, int(win_size_val)])
-            for ws in ms:
-                al.append(ms[ws])
-            ret_indices.append(al)
+        #if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
+        al = []
+        ms = {ws[0]: [] for ws in window_sizes}
+        rs, cs = np.where(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1] >= 1)
+        for r, c in zip(rs, cs):
+            for win_size_val in win_mask[index[0]][r + reg[0]][c + reg[2]]:
+                ms[int(win_size_val)].append([index[0], r + reg[0] + extend, c + reg[2] + extend, int(win_size_val)])
+        for ws in ms:
+            al.append(ms[ws])
+        ret_indices.append(al)
     return ret_indices
 
 
@@ -362,7 +361,6 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                 c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
-
             back_indices = [[] for _ in range(index + 1)]
             for backward_index in range(index, -1, -1):
                 back_indices[backward_index] = region_max_filter2(h_maps[backward_index], WINDOW_SIZES[backward_index],
@@ -414,6 +412,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
             h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
         h_maps = np.array(h_maps)
         indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
+
         if len(indices) != 0:
             for n, r, c, ws in indices:
                 win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
@@ -475,7 +474,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                     new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                     extended_imgs = new_imgs
 
-        if rev_linkage[index] not in indices[:, 3]:
+        if len(indices) == 0 or rev_linkage[index] not in indices[:, 3]:
             index += 1
 
 

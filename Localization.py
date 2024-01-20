@@ -12,8 +12,8 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_mid.tif')
-images = read_tif('tif_trxyt/microtubule_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
+#images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
@@ -710,7 +710,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7)):
 
 
 @njit
-def gauss_seidel(a, b, p0, iter=1000, tol=1e-8):
+def gauss_seidel(a, b, p0, iter=200, tol=1e-8):
     x = p0.ravel()
     for it_count in range(1, iter):
         x_new = np.zeros(x.shape, dtype=np.float64)

@@ -2,18 +2,17 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
-from scipy import stats
 from numba import njit
 from numba.typed import List as nbList
 from ImageModule import read_tif
 from timeit import default_timer as timer
 
 
-images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
+#images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
@@ -24,10 +23,11 @@ P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
-DIV_Q = 5
-images = images[:500]
+DIV_Q = 2
+images = images[:2]
 
 
+@njit
 def region_max_filter2(maps, window_size, threshold):
     indices = []
     r_start_index = int((window_size[1]-1) / 2)
@@ -39,12 +39,13 @@ def region_max_filter2(maps, window_size, threshold):
         if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
                                    max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]):
             indices.append([n, r, c])
-    return np.array(indices)
+    return indices
 
 
 def region_max_filter(maps, window_sizes, thresholds):
     indices = []
-    infos = [[] for _ in range(maps.shape[1])]
+    nb_imgs = maps.shape[1]
+    infos = [[] for _ in range(nb_imgs)]
     for i, (hmap, threshold, window_size) in enumerate(zip(maps, thresholds, window_sizes)):
         args_map = hmap > threshold
         maps[i] = hmap * args_map
@@ -52,9 +53,10 @@ def region_max_filter(maps, window_sizes, thresholds):
         col_start_index = int((window_size[0] - 1) / 2)
         img_n, row, col = np.where(args_map == True)
         for n, r, c in zip(img_n, row, col):
-            if maps[i][n][r][c] == np.max(maps[i, n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
-                                       max(0, c - col_start_index):min(maps[i].shape[2] + 1, c + col_start_index + 1)]):
-                infos[n].append([i, r, c, hmap[n][r][c]])
+            if maps[i][n][r][c] == np.max(
+                    maps[i, n, max(0, r - r_start_index):min(maps[i].shape[1] + 1, r + r_start_index + 1),
+                    max(0, c - col_start_index):min(maps[i].shape[2] + 1, c + col_start_index + 1)]):
+                infos[n].append([i, r, c , hmap[n][r][c]])
     maps = np.moveaxis(maps, 0, 1)
     for img_n, info in enumerate(infos):
         mask = np.zeros((maps.shape[2], maps.shape[3])).astype(np.uint8)
@@ -265,11 +267,6 @@ def localization2(imgs: np.ndarray, bgs, gauss_grids):
 
         h_maps = c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2])
         #h_map = h_map * img / np.max(h_map * img)
-        #plt.figure('img', figsize=(9, 9))
-        #plt.imshow(extended_imgs[0], vmin=0, vmax=0.5)
-        #plt.figure('hmap', figsize=(9, 9))
-        #plt.imshow(h_maps[0], vmin=0, vmax=0.5)
-        #plt.show()
         indices = region_max_filter2(h_maps, window_size, threshold)
         if len(indices) != 0:
             start = timer()
@@ -323,19 +320,18 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
 
 
 def localization(imgs: np.ndarray, bgs, gauss_grids):
+    index = 0
     shift = 1
     extend = 30
-    linkage = {5: 0, 7: 1, 11: 2, 15: 3}
-    rev_linkage = {0: 5, 1: 7, 2: 11, 3: 15}
+    linkage = {ws[0]: i for i, ws in enumerate(WINDOW_SIZES)}
+    rev_linkage = {i: ws[0] for i, ws in enumerate(WINDOW_SIZES)}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[0][:, 0]
-    start = timer()
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
-    print(f'extension : {timer() - start}')
-    index = 0
+
     while index < len(THRESHOLDS):
         print(f'INDEX: {index}')
         h_maps = []

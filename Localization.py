@@ -12,7 +12,8 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-images = read_tif('tif_trxyt/receptor_7_mid.tif')
+#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
@@ -23,8 +24,8 @@ P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
-DIV_Q = 2
-images = images[:2]
+DIV_Q = 5
+images = images[:5]
 
 
 @njit
@@ -488,7 +489,7 @@ def image_cropping(extended_imgs: np.ndarray, extend, window_size, shift):
     return cropped_imgs
 
 
-def cov_matrix(grid, qt):
+def empiric_cov_matrix(grid, qt):
     observations = qt * grid
     nbs = np.sum(qt, axis=1)
     obv_mean = (np.sum(observations, axis=1) / nbs).reshape(observations.shape[0], 1, -1)
@@ -498,8 +499,32 @@ def cov_matrix(grid, qt):
     return estimated_cov
 
 
+def cov_matrix(grid, qt, x_means, y_means):
+    observations = qt * grid
+    grids = []
+    for n in range(x_means.shape[0]):
+        grids.append(grid)
+    grids = np.array(grids)
+    cov = np.sum(
+        (qt.reshape(x_means.shape[0], -1) *
+         (grids[:, :, 0] - x_means.reshape(-1, 1)) *
+         (grids[:, :, 1] - y_means.reshape(-1, 1))), axis=1)
+    return cov
+    #nbs = np.sum(qt, axis=(1, 2))
+    nbs = np.sum(observations[:, :, 0], 1) / x_means
+    qt_x_sum = qt * x_means.reshape(-1, 1, 1)
+    qt_y_sum = qt * y_means.reshape(-1, 1, 1)
+    aaa = ((observations[:, :, 0].reshape((qt_x_sum.shape[0], qt_x_sum.shape[1], 1)) - qt_x_sum) *
+           (observations[:, :, 1].reshape((qt_y_sum.shape[0], qt_y_sum.shape[1], 1)) - qt_y_sum))
+    cov_val = np.sum(aaa, axis=(1, 2)) / (nbs - 1)
+    return cov_val
+
+
 def quantification(imgs, window_size, amp):
-    qt_imgs = (imgs * (10**amp)).astype(np.uint8).reshape(imgs.shape[0], -1, 1)
+    if amp == 0:
+        qt_imgs = imgs.reshape(imgs.shape[0], -1, 1)
+    else:
+        qt_imgs = (imgs * (10**amp)).astype(np.uint32).reshape(imgs.shape[0], -1, 1)
     x = np.arange(-(window_size[0]-1)/2, (window_size[0]+1)/2)
     y = np.arange(-(window_size[1]-1)/2, (window_size[1]+1)/2)
     xv, yv = np.meshgrid(x, y, sparse=True)
@@ -571,13 +596,20 @@ def intensity_reg(imgs, pdfs, center_i):
     return intensity, bg_i
 
 
-def image_regression(imgs, bgs, window_size, amp=3):
+def image_regression(imgs, bgs, window_size, amp=0):
     imgs = np.array(imgs)
     bgs = np.array(bgs)
     qt_imgs, grid = quantification(imgs, window_size, amp)
     coefs = guo_algorithm(imgs, bgs, p0=P0, window_size=window_size)
     variables = np.array(unpack_coefs(coefs)).T
-    cov_mat = np.array([variables[:, 0], [0]*variables.shape[0], [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
+    cov_mat = np.array([variables[:, 0], [0]*variables.shape[0],
+                        [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
+    """
+    cov_val = cov_matrix(grid, qt_imgs, variables[:, 2],  variables[:, 3])
+    cov_mat = np.array([variables[:, 0], cov_val,
+                        cov_val, variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
+    """
+    #cov_mat = empiric_cov_matrix(grid, qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, cov_mat, mu=np.array([0, 0]), normalization=False)
     pdfs = variables[:, 4].reshape(-1, 1) * pdfs + bgs
     return pdfs, variables[:, 2], variables[:, 3], variables[:, 0], variables[:, 1]

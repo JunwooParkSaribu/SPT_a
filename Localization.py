@@ -12,20 +12,20 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-images = read_tif('tif_trxyt/receptor_7_mid.tif')
+#images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.28, .23, .3, .3]
+THRESHOLDS = [.15, .15, .13, .13]
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images[:5]
+images = images[:500]
 
 
 @njit
@@ -301,7 +301,7 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         max(0, index[2] - int((max_window[0]-1)/2)), min(img_shape[2]-1, index[2] + int((max_window[0]-1)/2))]
         regions.append(r)
         win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
-    for indexx, wins in zip(indices[::-1][1:], window_sizes[::-1][1:]):
+    for indexx, wins in zip(indices[::-1], window_sizes[::-1]):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
             win_mask[index[0]][index[1]][index[2]].append(wins[0])
@@ -382,7 +382,10 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                         pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
                         selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
                         loss_vals.append(np.mean((regress_imgs - pdfs.reshape(regress_imgs.shape)) ** 2))
-                if len(loss_vals) > 0:
+                    else:
+                        selected_dt.append([0, 0, 0, 0, 0])
+                        loss_vals.append(1e3)
+                if np.sum(loss_vals) < (len(THRESHOLDS) * 1e3) - 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
                     infos = regress_comp_set[selec_arg]
@@ -410,7 +413,6 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
             h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
         h_maps = np.array(h_maps)
         indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
-
         if len(indices) != 0:
             for n, r, c, ws in indices:
                 win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],

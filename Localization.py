@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
 from numba import njit
+from FileIO import write_localization, read_localization
 from numba.typed import List as nbList
 from ImageModule import read_tif
 from timeit import default_timer as timer
@@ -748,34 +749,6 @@ def visualilzation(output_dir, images, localized_xys):
     circle_imgs = orignal_imgs_3ch.copy()
     stacked_img = np.array(make_red_circles(orignal_imgs_3ch, circle_imgs, localized_xys))
     tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
-
-
-def write_localization(output_dir, coords):
-    lines = f''
-    for frame, coord in enumerate(coords):
-        for pos in coord:
-            lines += f'{frame + 1}'
-            for p in pos:
-                lines += f',{p}'
-            lines += f'\n'
-
-    with open(f'{output_dir}/localization.txt', 'w') as f:
-        f.write(lines)
-
-
-def read_localization(input_file):
-    locals = {}
-    with open(input_file, 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.strip().split('\n')[0].split(',')
-            if line[0] not in locals:
-                locals[line[0]] = []
-            pos_line = []
-            for dt in line[1:]:
-                pos_line.append(dt)
-            locals[line[0]].append(pos_line)
-    return locals
 
 
 xy_coords = []

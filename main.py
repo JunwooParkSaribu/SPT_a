@@ -8,7 +8,7 @@ from numba import jit, njit, cuda, vectorize, int32, int64, float32, float64
 from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif
 from TrajectoryObject import TrajectoryObj
 from XmlModule import xml_to_object, write_xml, read_xml
-from FileIO import write_trajectory, read_trajectory, read_mosaic
+from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localization
 from timeit import default_timer as timer
 from ElipseFit import cart_to_pol, fit_ellipse, get_ellipse_pts
 from skimage import measure
@@ -662,8 +662,9 @@ if __name__ == '__main__':
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
-    localizations = read_xml(gt_xml)
+    #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
+    localizations = read_localization('localization.txt')
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')

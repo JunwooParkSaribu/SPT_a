@@ -91,3 +91,33 @@ def read_mosaic(file: str) -> dict:
     except Exception as e:
         print(f"Unexpected error, check the file: {file}")
         print(e)
+
+
+def write_localization(output_dir, coords):
+    lines = f''
+    for frame, coord in enumerate(coords):
+        for pos in coord:
+            lines += f'{frame + 1}'
+            for p in pos:
+                lines += f',{p}' #### need to change it for r,c to x,y
+            lines += f'\n'
+
+    with open(f'{output_dir}/localization.txt', 'w') as f:
+        f.write(lines)
+
+
+def read_localization(input_file):
+    locals = {}
+    with open(input_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip().split('\n')[0].split(',')
+            if int(line[0]) not in locals:
+                locals[int(line[0])] = []
+            pos_line = []
+            for dt in line[1:]:
+                pos_line.append(np.round(float(dt), 4))
+            if len(line) < 4:
+                pos_line.append(0.)
+            locals[int(line[0])].append(pos_line)
+    return locals

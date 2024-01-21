@@ -25,7 +25,7 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images
+images = images[:2]
 
 
 @njit
@@ -750,6 +750,34 @@ def visualilzation(output_dir, images, localized_xys):
     tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
+def write_localization(output_dir, coords):
+    lines = f''
+    for frame, coord in enumerate(coords):
+        for pos in coord:
+            lines += f'{frame + 1}'
+            for p in pos:
+                lines += f',{p}'
+            lines += f'\n'
+
+    with open(f'{output_dir}/localization.txt', 'w') as f:
+        f.write(lines)
+
+
+def read_localization(input_file):
+    locals = {}
+    with open(input_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip().split('\n')[0].split(',')
+            if line[0] not in locals:
+                locals[line[0]] = []
+            pos_line = []
+            for dt in line[1:]:
+                pos_line.append(dt)
+            locals[line[0]].append(pos_line)
+    return locals
+
+
 xy_coords = []
 reg_pdfs = []
 gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
@@ -760,4 +788,5 @@ for div_q in range(0, len(images), DIV_Q):
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
 
+write_localization(OUTPUT_DIR, xy_coords)
 visualilzation(OUTPUT_DIR, images, xy_coords)

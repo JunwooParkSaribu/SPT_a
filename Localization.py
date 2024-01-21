@@ -12,20 +12,20 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
-images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.15, .15, .13, .13]
+THRESHOLDS = [.2, .2, .15, .15]
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
 DIV_Q = 5
-images = images[:500]
+images = images
 
 
 @njit

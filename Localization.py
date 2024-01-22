@@ -26,9 +26,10 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (15, 15)]
 RADIUS = [1.1, 3.5]
 THRESHOLDS = [.25, .22]
-BACKWARD_WINDOW_SIZES = [(3, 3), (15, 15)]
-BACKWARD_RADIUS = [0.7, 3.5]
-BACKWARD_THRESHOLDS = [.25, .22]
+BACKWARD_WINDOW_SIZES = [(5, 5), (15, 15)]
+BACKWARD_RADIUS = [.7, 3.5]
+BACKWARD_THRESHOLDS = [.27, .22]
+ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 DIV_Q = 5
 images = images
 
@@ -310,7 +311,6 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
             win_mask[index[0]][index[1]][index[2]].append(wins[0])
-
     for index, reg in zip(indices[-1], regions):
         #if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
         al = []
@@ -329,11 +329,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     index = 0
     shift = 1
     extend = 30
-    linkage = {ws[0]: i for i, ws in enumerate(WINDOW_SIZES)}
     rev_linkage = {i: ws[0] for i, ws in enumerate(WINDOW_SIZES)}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
-    bg_means = bgs[0][:, 0]
+    bg_means = bgs[ALL_WINDOW_SIZES[0][0]][:, 0]
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
@@ -345,29 +344,28 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
         thresholds = THRESHOLDS[index:]
         radiuss = RADIUS[index:]
         g_grids = f_gauss_grids[index:]
-        all_crop_imgs = [[] for _ in range(len(THRESHOLDS))]
+        all_crop_imgs = {ws[0]: None for ws in ALL_WINDOW_SIZES}
         win_s_dict = {}
         for ws in window_sizes:
             win_s_dict[ws[0]] = []
-
         if index == len(THRESHOLDS) - 1:
             print(f'BACKWARD PROCESS')
-            for step, (bg, g_grid, window_size, radius, threshold) in (
-                    enumerate(zip(bgs, b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
+            for step, (g_grid, window_size, radius, threshold) in (
+                    enumerate(zip(b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
                 crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                all_crop_imgs[step] = crop_imgs.copy()
+                all_crop_imgs[window_size[0]] = crop_imgs.copy()
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
                 c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
             back_indices = [[] for _ in range(index + 1)]
             for backward_index in range(index, -1, -1):
-                back_indices[backward_index] = region_max_filter2(h_maps[backward_index], WINDOW_SIZES[backward_index],
-                                                                  THRESHOLDS[backward_index])
-            reregress_indice = indice_filtering(back_indices, WINDOW_SIZES, imgs.shape, int(extend/2))
+                back_indices[backward_index] = region_max_filter2(h_maps[backward_index], BACKWARD_WINDOW_SIZES[backward_index],
+                                                                  BACKWARD_THRESHOLDS[backward_index])
+            reregress_indice = indice_filtering(back_indices, BACKWARD_WINDOW_SIZES, imgs.shape, int(extend/2))
             for regress_comp_set in reregress_indice:
                 loss_vals = []
                 selected_dt = []
@@ -381,12 +379,27 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                                                 (regress_index[3] - 1) / 2) + 1,
                                             regress_index[2] - int((regress_index[3] - 1) / 2):regress_index[2] + int(
                                                 (regress_index[3] - 1) / 2) + 1])
-                        bg_regress.append(bgs[linkage[ws]][regress_index[0]])
+                        bg_regress.append(bgs[ws][regress_index[0]])
                     regress_imgs = np.array(regress_imgs)
+
                     if len(regress_imgs) > 0:
                         pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                        regressed_imgs = []
+                        for regress_index, dx, dy in zip(win_s_set, xs, ys):
+                            ws = regress_index[3]
+                            regressed_imgs.append(extended_imgs[regress_index[0],
+                                                  regress_index[1] - int((regress_index[3] - 1) / 2) + int(np.round(dy)):
+                                                  regress_index[1] + int((regress_index[3] - 1) / 2) + int(np.round(dy)) + 1,
+                                                  regress_index[2] - int((regress_index[3] - 1) / 2) + int(np.round(dx)):
+                                                  regress_index[2] + int((regress_index[3] - 1) / 2) + int(np.round(dx)) + 1]
+                                                  )
+                        regressed_imgs = np.array(regressed_imgs)
                         selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
-                        loss_vals.append(np.mean((regress_imgs - pdfs.reshape(regress_imgs.shape)) ** 2))
+                        penalty = 1
+                        for x_var, y_var in zip(x_vars, y_vars):
+                            if x_var < 0 or y_var < 0:
+                                penalty *= 1e5
+                        loss_vals.append(np.mean((regressed_imgs - pdfs.reshape(regress_imgs.shape)) ** 2) * penalty)
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
@@ -407,14 +420,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
             return coords, reg_pdfs
 
         else:
-            for step, (bg, g_grid, window_size, radius, threshold) in (
-                    enumerate(zip(bgs, g_grids, window_sizes, radiuss, thresholds))):
+            for step, (g_grid, window_size, radius, threshold) in (
+                    enumerate(zip(g_grids, window_sizes, radiuss, thresholds))):
                 print(f'{step} : {imgs.shape}')
                 crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                all_crop_imgs[step] = crop_imgs.copy()
+                all_crop_imgs[window_size[0]] = crop_imgs.copy()
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
                 c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
@@ -423,8 +436,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
 
             if len(indices) != 0:
                 for n, r, c, ws in indices:
-                    win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
-                                           bgs[linkage[ws]][n], n, r, c])
+                    win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c],
+                                           bgs[ws][n], n, r, c])
                 ws = window_sizes[0][0]
                 if len(win_s_dict[ws]) != 0:
                     err_indice = []
@@ -450,12 +463,12 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             err_cond = np.argmax(regress_imgs[err_i])
                             err_r = err_cond // ws
                             err_c = err_cond % ws
-                            err_ws = rev_linkage[0]
+                            err_ws = ws
                             err_reg_img = extended_imgs[ns[err_i]][rs[err_i] + err_r - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
                                                                    rs[err_i] + err_r - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1,
                                           cs[err_i] + err_c - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
                                           cs[err_i] + err_c - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1]
-                            err_bg_img = bgs[linkage[err_ws]][ns[err_i]]
+                            err_bg_img = bgs[err_ws][ns[err_i]]
                             err_pdfs, err_xs, err_ys, err_x_vars, err_y_vars = image_regression([err_reg_img], [err_bg_img], (err_ws, err_ws))
                             err_ns = [ns[err_i]]
                             err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
@@ -467,7 +480,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                                 col_coord = max(0, min(c + dx, imgs.shape[2] - 1))
                                 coords[n].append([row_coord, col_coord])
                                 reg_pdfs[n].append(pdf)
-                            del_indices = np.array([err_ns, err_rs, err_cs]).T
+                            del_indices = np.array([err_ns, np.round(err_rs+err_ys), np.round(err_cs+err_xs)]).T.astype(np.uint32)
                             new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
                             extended_imgs = new_imgs
                     else:
@@ -478,7 +491,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
-                        del_indices = np.array([ns, rs, cs]).T
+                        del_indices = np.array([ns, np.round(rs+ys), np.round(cs+xs)]).T.astype(np.uint32)
                         new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         extended_imgs = new_imgs
 
@@ -553,7 +566,7 @@ def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
 
 def background(imgs, window_sizes):
     bins = 0.01
-    bgs = []
+    bgs = {}
     bg_means = []
     bg_stds = []
     #bg_instensity = stats.mode(
@@ -578,7 +591,7 @@ def background(imgs, window_sizes):
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
         bg *= bg_means.reshape(-1, 1)
-        bgs.append(bg)
+        bgs[window_size[0]] = bg
     return bgs, bg_stds
 
 
@@ -664,7 +677,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
     yk_2 = imgs.astype(np.float64)
     x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
               .reshape(-1, window_size[0], window_size[1]))
-    y_grid = (np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
+    y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
               .reshape(-1, window_size[0], window_size[1]))
     for k in range(0, repeat):
         if k != 0:
@@ -764,7 +777,7 @@ forward_gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 backward_gauss_grids = gauss_psf(BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
-    bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=WINDOW_SIZES)
+    bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=ALL_WINDOW_SIZES)
     xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids)
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)

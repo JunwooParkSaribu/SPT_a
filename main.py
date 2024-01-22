@@ -642,11 +642,11 @@ if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
     cutoff = 2
-    methods = [1, 2, 3]
+    methods = [1, 3]
     var_parallel = True
     confidence = 0.95
     amp = 1.3
-    THRESHOLDS = None
+    THRESHOLDS = [8.5, 14]
 
     snr = '7'
     density = 'low'

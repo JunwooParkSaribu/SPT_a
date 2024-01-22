@@ -10,8 +10,8 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
-images = read_tif('SimulData/vesicle_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
@@ -23,9 +23,12 @@ OUTPUT_DIR = f'.'
 
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
-RADIUS = [1.1, 3, 5, 7]
-THRESHOLDS = [.23, .23, .22, .2]
+WINDOW_SIZES = [(7, 7), (15, 15)]
+RADIUS = [1.1, 3.5]
+THRESHOLDS = [.25, .22]
+BACKWARD_WINDOW_SIZES = [(3, 3), (15, 15)]
+BACKWARD_RADIUS = [0.7, 3.5]
+BACKWARD_THRESHOLDS = [.25, .22]
 DIV_Q = 5
 images = images
 
@@ -96,7 +99,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [0, 1, 2, 3, 4, 5, 6, 7]
+    borders = [1, 2, 3, 4, 5, 6, 7]
     erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)
@@ -322,7 +325,7 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
     return ret_indices
 
 
-def localization(imgs: np.ndarray, bgs, gauss_grids):
+def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     index = 0
     shift = 1
     extend = 30
@@ -341,7 +344,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
         window_sizes = WINDOW_SIZES[index:]
         thresholds = THRESHOLDS[index:]
         radiuss = RADIUS[index:]
-        g_grids = gauss_grids[index:]
+        g_grids = f_gauss_grids[index:]
         all_crop_imgs = [[] for _ in range(len(THRESHOLDS))]
         win_s_dict = {}
         for ws in window_sizes:
@@ -350,7 +353,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
         if index == len(THRESHOLDS) - 1:
             print(f'BACKWARD PROCESS')
             for step, (bg, g_grid, window_size, radius, threshold) in (
-                    enumerate(zip(bgs, gauss_grids, WINDOW_SIZES, RADIUS, THRESHOLDS))):
+                    enumerate(zip(bgs, b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
                 crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
@@ -387,6 +390,7 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
+
                 if np.sum(loss_vals) < (len(THRESHOLDS) * 1e3) - 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
@@ -394,10 +398,10 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                     for (n, r, c, ws), dx, dy, pdf, x_var, y_var in zip(infos, xs, ys, pdfs, x_vars, y_vars):
                         r -= int(extend/2)
                         c -= int(extend/2)
-                        if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                        if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
                             continue
-                        row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                        col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                        row_coord = max(0, min(r+dy, imgs.shape[1]-1))
+                        col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                         coords[n].append([row_coord, col_coord])
                         reg_pdfs[n].append(pdf)
             return coords, reg_pdfs
@@ -457,10 +461,10 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                             err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
                             err_cs = [cs[err_i] + err_c - int((ws-1) / 2)]
                             for n, r, c, dx, dy, pdf, x_var, y_var in zip(err_ns, err_rs, err_cs, err_xs, err_ys, err_pdfs, err_x_vars, err_y_vars):
-                                if r + dx <= -1 or r + dx >= imgs.shape[1] or c + dy <= -1 or c + dy >= imgs.shape[2]:
+                                if r + dy <= -1 or r + dy >= imgs.shape[1] or c + dx <= -1 or c + dx >= imgs.shape[2]:
                                     continue
-                                row_coord = max(0, min(r + dx, imgs.shape[1] - 1))
-                                col_coord = max(0, min(c + dy, imgs.shape[2] - 1))
+                                row_coord = max(0, min(r + dy, imgs.shape[1] - 1))
+                                col_coord = max(0, min(c + dx, imgs.shape[2] - 1))
                                 coords[n].append([row_coord, col_coord])
                                 reg_pdfs[n].append(pdf)
                             del_indices = np.array([err_ns, err_rs, err_cs]).T
@@ -468,10 +472,10 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                             extended_imgs = new_imgs
                     else:
                         for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
-                            if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
+                            if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
                                 continue
-                            row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                            col_coord = max(0, min(c+dy, imgs.shape[2]-1))
+                            row_coord = max(0, min(r+dy, imgs.shape[1]-1))
+                            col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
                         del_indices = np.array([ns, rs, cs]).T
@@ -649,20 +653,20 @@ def matrix_decomp(matrix, q):
     return ret_mat
 
 
-def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7)):
+def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
     nb_imgs = imgs.shape[0]
     if p0 is None:
         p0 = [1.5, 1.5, 0., 0., 0.5]
     coef_vals = np.array(pack_vars(nbList(p0), nb_imgs))
     imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.
-    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-2
+    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-3
     yk_2 = imgs.astype(np.float64)
     x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
               .reshape(-1, window_size[0], window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(int(window_size[1]/2), -int((window_size[1]/2) + 1), -1)])
               .reshape(-1, window_size[0], window_size[1]))
-    for k in range(0, 5):
+    for k in range(0, repeat):
         if k != 0:
             yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
                           coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
@@ -756,11 +760,12 @@ def visualilzation(output_dir, images, localized_xys):
 
 xy_coords = []
 reg_pdfs = []
-gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
+forward_gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
+backward_gauss_grids = gauss_psf(BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
     bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=WINDOW_SIZES)
-    xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, gauss_grids)
+    xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids)
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
 

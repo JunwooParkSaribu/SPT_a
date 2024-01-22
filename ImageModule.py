@@ -139,27 +139,28 @@ def compare_two_localization_visual(output_dir, images, localized_xys_1, localiz
     orignal_imgs_3ch = np.ascontiguousarray(np.moveaxis(orignal_imgs_3ch, 0, 3))
     original_imgs_3ch_2 = orignal_imgs_3ch.copy()
     stacked_imgs = []
-    for img_n, (coords1, coords2) in enumerate(zip(localized_xys_1, localized_xys_2)):
-        for center_coord in coords1:
+    frames = np.sort(list(localized_xys_1.keys()))
+    for img_n in frames:
+        for center_coord in localized_xys_1[img_n]:
             if (center_coord[0] > orignal_imgs_3ch.shape[1] or center_coord[0] < 0
                     or center_coord[1] > orignal_imgs_3ch.shape[2] or center_coord[1] < 0):
                 print("ERR")
                 print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
-            x, y = int(round(center_coord[0])), int(round(center_coord[1]))
-            orignal_imgs_3ch[img_n][x][y][0] = 1
-            orignal_imgs_3ch[img_n][x][y][1] = 0
-            orignal_imgs_3ch[img_n][x][y][2] = 0
+            x, y = int(round(center_coord[1])), int(round(center_coord[0]))
+            orignal_imgs_3ch[img_n-1][x][y][0] = 1
+            orignal_imgs_3ch[img_n-1][x][y][1] = 0
+            orignal_imgs_3ch[img_n-1][x][y][2] = 0
 
-        for center_coord in coords2:
+        for center_coord in localized_xys_2[img_n]:
             if (center_coord[0] > original_imgs_3ch_2.shape[1] or center_coord[0] < 0
                     or center_coord[1] > original_imgs_3ch_2.shape[2] or center_coord[1] < 0):
                 print("ERR")
                 print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
-            x, y = int(round(center_coord[0])), int(round(center_coord[1]))
-            original_imgs_3ch_2[img_n][x][y][0] = 1
-            original_imgs_3ch_2[img_n][x][y][1] = 0
-            original_imgs_3ch_2[img_n][x][y][2] = 0
-        stacked_imgs.append(np.hstack((orignal_imgs_3ch[img_n], original_imgs_3ch_2[img_n])))
+            x, y = int(round(center_coord[1])), int(round(center_coord[0]))
+            original_imgs_3ch_2[img_n-1][x][y][0] = 1
+            original_imgs_3ch_2[img_n-1][x][y][1] = 0
+            original_imgs_3ch_2[img_n-1][x][y][2] = 0
+        stacked_imgs.append(np.hstack((orignal_imgs_3ch[img_n-1], original_imgs_3ch_2[img_n-1])))
     stacked_imgs = np.array(stacked_imgs)
     tifffile.imwrite(f'{output_dir}/local_comparison.tif', data=(stacked_imgs * 255).astype(np.uint8), imagej=True)
 

@@ -672,6 +672,7 @@ if __name__ == '__main__':
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
     localizations = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
+    #compare_two_localization_visual(WINDOWS_PATH, images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')

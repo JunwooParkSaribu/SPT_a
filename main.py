@@ -664,7 +664,7 @@ if __name__ == '__main__':
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'{WINDOWS_PATH}/localization.txt')
+    localizations = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')

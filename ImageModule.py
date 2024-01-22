@@ -134,6 +134,35 @@ def make_image_seqs(*trajectory_lists, output_dir, time_steps, cutoff=0, origina
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 
+def compare_two_localization_visual(output_dir, images, localized_xys_1, localized_xys_2):
+    orignal_imgs_3ch = np.array([images.copy(), images.copy(), images.copy()])
+    orignal_imgs_3ch = np.ascontiguousarray(np.moveaxis(orignal_imgs_3ch, 0, 3))
+    original_imgs_3ch_2 = orignal_imgs_3ch.copy()
+    stacked_imgs = []
+    for img_n, (coords1, coords2) in enumerate(zip(localized_xys_1, localized_xys_2)):
+        for center_coord in coords1:
+            if (center_coord[0] > orignal_imgs_3ch.shape[1] or center_coord[0] < 0
+                    or center_coord[1] > orignal_imgs_3ch.shape[2] or center_coord[1] < 0):
+                print("ERR")
+                print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
+            x, y = int(round(center_coord[0])), int(round(center_coord[1]))
+            orignal_imgs_3ch[img_n][x][y][0] = 1
+            orignal_imgs_3ch[img_n][x][y][1] = 0
+            orignal_imgs_3ch[img_n][x][y][2] = 0
+
+        for center_coord in coords2:
+            if (center_coord[0] > original_imgs_3ch_2.shape[1] or center_coord[0] < 0
+                    or center_coord[1] > original_imgs_3ch_2.shape[2] or center_coord[1] < 0):
+                print("ERR")
+                print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
+            x, y = int(round(center_coord[0])), int(round(center_coord[1]))
+            original_imgs_3ch_2[img_n][x][y][0] = 1
+            original_imgs_3ch_2[img_n][x][y][1] = 0
+            original_imgs_3ch_2[img_n][x][y][2] = 0
+        stacked_imgs.append(np.hstack((orignal_imgs_3ch[img_n], original_imgs_3ch_2[img_n])))
+    stacked_imgs = np.array(stacked_imgs)
+    tifffile.imwrite(f'{output_dir}/local_comparison.tif', data=(stacked_imgs * 255).astype(np.uint8), imagej=True)
+
 
 """
 imgs = []

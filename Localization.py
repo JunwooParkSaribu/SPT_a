@@ -301,7 +301,7 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         r = [max(0, index[1] - int((max_window[1]-1)/2)), min(img_shape[1]-1, index[1] + int((max_window[1]-1)/2)),
         max(0, index[2] - int((max_window[0]-1)/2)), min(img_shape[2]-1, index[2] + int((max_window[0]-1)/2))]
         regions.append(r)
-        win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
+        #win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
     for indexx, wins in zip(indices[::-1], window_sizes[::-1]):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
@@ -401,82 +401,84 @@ def localization(imgs: np.ndarray, bgs, gauss_grids):
                         reg_pdfs[n].append(pdf)
             return coords, reg_pdfs
 
-        for step, (bg, g_grid, window_size, radius, threshold) in (
-                enumerate(zip(bgs, g_grids, window_sizes, radiuss, thresholds))):
-            print(f'{step} : {imgs.shape}')
-            crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
-            crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
-                                                    window_size[0] * window_size[1])
-            crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-            all_crop_imgs[step] = crop_imgs.copy()
-            bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
-            c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
-            h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
-        h_maps = np.array(h_maps)
-        indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
-        if len(indices) != 0:
-            for n, r, c, ws in indices:
-                win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
-                                       bgs[linkage[ws]][n], n, r, c])
-            ws = window_sizes[0][0]
-            if len(win_s_dict[ws]) != 0:
-                err_indice = []
-                regress_imgs = []
-                bg_regress = []
-                ns = []
-                rs = []
-                cs = []
-                for i1, i2, i3, i4, i5 in win_s_dict[ws]:
-                    regress_imgs.append(i1)
-                    bg_regress.append(i2)
-                    ns.append(i3)
-                    rs.append(i4)
-                    cs.append(i5)
+        else:
+            for step, (bg, g_grid, window_size, radius, threshold) in (
+                    enumerate(zip(bgs, g_grids, window_sizes, radiuss, thresholds))):
+                print(f'{step} : {imgs.shape}')
+                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
+                crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                                                        window_size[0] * window_size[1])
+                crop_imgs = np.moveaxis(crop_imgs, 0, 1)
+                all_crop_imgs[step] = crop_imgs.copy()
+                bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
+                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
+                h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+            h_maps = np.array(h_maps)
+            indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
 
-                pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
-                for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
-                    if x_var < 0 or y_var < 0:
-                        err_indice.append(err_i)
-                if len(err_indice) > 0:
-                    print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
-                    for err_i in err_indice:
-                        err_cond = np.argmax(regress_imgs[err_i])
-                        err_r = err_cond // ws
-                        err_c = err_cond % ws
-                        err_ws = rev_linkage[0]
-                        err_reg_img = extended_imgs[ns[err_i]][rs[err_i] + err_r - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
-                                                               rs[err_i] + err_r - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1,
-                                      cs[err_i] + err_c - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
-                                      cs[err_i] + err_c - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1]
-                        err_bg_img = bgs[linkage[err_ws]][ns[err_i]]
-                        err_pdfs, err_xs, err_ys, err_x_vars, err_y_vars = image_regression([err_reg_img], [err_bg_img], (err_ws, err_ws))
-                        err_ns = [ns[err_i]]
-                        err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
-                        err_cs = [cs[err_i] + err_c - int((ws-1) / 2)]
-                        for n, r, c, dx, dy, pdf, x_var, y_var in zip(err_ns, err_rs, err_cs, err_xs, err_ys, err_pdfs, err_x_vars, err_y_vars):
-                            if r + dx <= -1 or r + dx >= imgs.shape[1] or c + dy <= -1 or c + dy >= imgs.shape[2]:
+            if len(indices) != 0:
+                for n, r, c, ws in indices:
+                    win_s_dict[ws].append([all_crop_imgs[linkage[ws] - index][n][imgs.shape[2] * r + c],
+                                           bgs[linkage[ws]][n], n, r, c])
+                ws = window_sizes[0][0]
+                if len(win_s_dict[ws]) != 0:
+                    err_indice = []
+                    regress_imgs = []
+                    bg_regress = []
+                    ns = []
+                    rs = []
+                    cs = []
+                    for i1, i2, i3, i4, i5 in win_s_dict[ws]:
+                        regress_imgs.append(i1)
+                        bg_regress.append(i2)
+                        ns.append(i3)
+                        rs.append(i4)
+                        cs.append(i5)
+
+                    pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                    for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
+                        if x_var < 0 or y_var < 0:
+                            err_indice.append(err_i)
+                    if len(err_indice) > 0:
+                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
+                        for err_i in err_indice:
+                            err_cond = np.argmax(regress_imgs[err_i])
+                            err_r = err_cond // ws
+                            err_c = err_cond % ws
+                            err_ws = rev_linkage[0]
+                            err_reg_img = extended_imgs[ns[err_i]][rs[err_i] + err_r - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
+                                                                   rs[err_i] + err_r - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1,
+                                          cs[err_i] + err_c - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
+                                          cs[err_i] + err_c - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1]
+                            err_bg_img = bgs[linkage[err_ws]][ns[err_i]]
+                            err_pdfs, err_xs, err_ys, err_x_vars, err_y_vars = image_regression([err_reg_img], [err_bg_img], (err_ws, err_ws))
+                            err_ns = [ns[err_i]]
+                            err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
+                            err_cs = [cs[err_i] + err_c - int((ws-1) / 2)]
+                            for n, r, c, dx, dy, pdf, x_var, y_var in zip(err_ns, err_rs, err_cs, err_xs, err_ys, err_pdfs, err_x_vars, err_y_vars):
+                                if r + dx <= -1 or r + dx >= imgs.shape[1] or c + dy <= -1 or c + dy >= imgs.shape[2]:
+                                    continue
+                                row_coord = max(0, min(r + dx, imgs.shape[1] - 1))
+                                col_coord = max(0, min(c + dy, imgs.shape[2] - 1))
+                                coords[n].append([row_coord, col_coord])
+                                reg_pdfs[n].append(pdf)
+                            del_indices = np.array([err_ns, err_rs, err_cs]).T
+                            new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
+                            extended_imgs = new_imgs
+                    else:
+                        for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
+                            if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
                                 continue
-                            row_coord = max(0, min(r + dx, imgs.shape[1] - 1))
-                            col_coord = max(0, min(c + dy, imgs.shape[2] - 1))
+                            row_coord = max(0, min(r+dx, imgs.shape[1]-1))
+                            col_coord = max(0, min(c+dy, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
-                        del_indices = np.array([err_ns, err_rs, err_cs]).T
-                        new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
+                        del_indices = np.array([ns, rs, cs]).T
+                        new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         extended_imgs = new_imgs
-                else:
-                    for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
-                        if r+dx <= -1 or r+dx >= imgs.shape[1] or c+dy <= -1 or c+dy >= imgs.shape[2]:
-                            continue
-                        row_coord = max(0, min(r+dx, imgs.shape[1]-1))
-                        col_coord = max(0, min(c+dy, imgs.shape[2]-1))
-                        coords[n].append([row_coord, col_coord])
-                        reg_pdfs[n].append(pdf)
-                    del_indices = np.array([ns, rs, cs]).T
-                    new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
-                    extended_imgs = new_imgs
 
-        if len(indices) == 0 or rev_linkage[index] not in indices[:, 3]:
-            index += 1
+            if len(indices) == 0 or rev_linkage[index] not in indices[:, 3]:
+                index += 1
 
 
 @njit

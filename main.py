@@ -5,7 +5,7 @@ import concurrent.futures
 from scipy.stats import gmean
 from scipy.spatial import KDTree
 from numba import jit, njit, cuda, vectorize, int32, int64, float32, float64
-from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif
+from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif, compare_two_localization_visual
 from TrajectoryObject import TrajectoryObj
 from XmlModule import xml_to_object, write_xml, read_xml
 from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localization

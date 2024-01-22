@@ -98,8 +98,15 @@ def write_localization(output_dir, coords):
     for frame, coord in enumerate(coords):
         for pos in coord:
             lines += f'{frame + 1}'
-            for p in pos:
-                lines += f',{p}' #### need to change it for r,c to x,y
+            if len(pos) == 3:
+                lines += f',{pos[1]},{pos[0]},{pos[2]}'
+            elif len(pos) == 2:
+                lines += f',{pos[1]},{pos[0]}'
+            elif len(pos) == 1:
+                lines += f',{pos[0]}'
+            else:
+                print(f'Localization writing Err')
+                raise Exception
             lines += f'\n'
 
     with open(f'{output_dir}/localization.txt', 'w') as f:

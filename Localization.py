@@ -20,11 +20,11 @@ images = read_tif('SimulData/receptor_7_low.tif')
 OUTPUT_DIR = f'.'
 
 
-THRESHOLDS = [.2, .2, .2, .2]
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (11, 11), (15, 15)]
 RADIUS = [1.1, 3, 5, 7]
+THRESHOLDS = [.2, .2, .2, .2]
 DIV_Q = 5
 images = images
 

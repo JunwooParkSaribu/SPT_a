@@ -157,7 +157,7 @@ def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
 
 
 def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropolis_hastings',
-                  n_iter=1e6, burn=0, parallel=True):
+                  n_iter=1e6, burn=0, parallel=True, thresholds=None):
     approx_distribution = {}
     n_iter = int(n_iter)
     if parallel:
@@ -166,15 +166,21 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
             for lag in real_distribution.keys():
                 future = executor.submit(approx_cdf, real_distribution[lag], conf, bin_size, approx, n_iter, burn)
                 executors[lag] = future
-            for lag in executors:
+            for index, lag in enumerate(executors):
                 seg_len_obv, pdf_obv, bins_obv, cdf_obv, distrib = executors[lag].result()
-                approx_distribution[lag] = [seg_len_obv*amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
+                if thresholds is not None:
+                    approx_distribution[lag] = [thresholds[index], pdf_obv, bins_obv, cdf_obv, distrib]
+                else:
+                    approx_distribution[lag] = [seg_len_obv*amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
     else:
-        for lag in real_distribution.keys():
+        for index, lag in enumerate(real_distribution.keys()):
             seg_len_obv, pdf_obv, bins_obv, cdf_obv, distrib = (
                 approx_cdf(distribution=real_distribution[lag],
                            conf=conf, bin_size=bin_size, approx=approx, n_iter=n_iter, burn=burn))
-            approx_distribution[lag] = [seg_len_obv*amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
+            if thresholds is not None:
+                approx_distribution[lag] = [thresholds[index], pdf_obv, bins_obv, cdf_obv, distrib]
+            else:
+                approx_distribution[lag] = [seg_len_obv * amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
     return approx_distribution
 
 
@@ -640,6 +646,7 @@ if __name__ == '__main__':
     var_parallel = True
     confidence = 0.95
     amp = 1.3
+    THRESHOLDS = None
 
     snr = '7'
     density = 'low'
@@ -685,7 +692,7 @@ if __name__ == '__main__':
 
     start_time = timer()
     segment_distribution = mcmc_parallel(segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
-                                         approx='metropolis_hastings', parallel=var_parallel)
+                                         approx='metropolis_hastings', parallel=var_parallel, thresholds=THRESHOLDS)
     print(f'MCMC duration: {timer() - start_time:.2f}s')
     for lag in segment_distribution.keys():
         print(f'{lag}_limit_length: {segment_distribution[lag][0]}')

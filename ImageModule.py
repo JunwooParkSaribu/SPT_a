@@ -29,7 +29,14 @@ def read_tif(filepath):
 
 
 def read_single_tif(filepath):
-    imgs = tifffile.imread(filepath).astype(np.int16)
+    with TiffFile(filepath) as tif:
+        imgs = tif.asarray()
+        if len(imgs.shape) >= 3:
+            imgs = imgs[0]
+        axes = tif.series[0].axes
+        imagej_metadata = tif.imagej_metadata
+        tag = tif.pages[0].tags
+
     y_size = imgs.shape[0]
     x_size = imgs.shape[1]
     s_mins = np.min(imgs)
@@ -42,7 +49,9 @@ def read_single_tif(filepath):
     imgs = (imgs - s_mins) / (s_maxima - s_mins)
     #img = np.minimum(img, one_base)
     normalized_imgs = np.array(imgs * 255, dtype=np.uint8)
-    return normalized_imgs
+    img_3chs = np.array([np.zeros(normalized_imgs.shape), normalized_imgs, np.zeros(normalized_imgs.shape)]).astype(np.uint8)
+    img_3chs = np.moveaxis(img_3chs, 0, 2)
+    return img_3chs
 
 
 def stack_tif(filename, normalized_imgs):

@@ -2,13 +2,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import tifffile
-import scipy
-from PIL import Image
+from tifffile import TiffFile
 
 
 def read_tif(filepath):
     normalized_imgs = []
-    imgs = tifffile.imread(filepath).astype(np.int16)
+    with TiffFile(filepath) as tif:
+        imgs = tif.asarray()
+        axes = tif.series[0].axes
+        imagej_metadata = tif.imagej_metadata
+
     nb_tif = imgs.shape[0]
     y_size = imgs.shape[1]
     x_size = imgs.shape[2]

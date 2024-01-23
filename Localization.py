@@ -18,20 +18,21 @@ images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
+#images = read_tif('SimulData/videos_fov_0_dimer.tif')
 OUTPUT_DIR = f'.'
 
 
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(7, 7), (15, 15)]
-RADIUS = [1.1, 3.5]
-THRESHOLDS = [.25, .22]
-BACKWARD_WINDOW_SIZES = [(5, 5), (15, 15)]
-BACKWARD_RADIUS = [.7, 3.5]
-BACKWARD_THRESHOLDS = [.27, .22]
+WINDOW_SIZES = [(5, 5), (7, 7)] #[(7, 7), (15, 15)]   #[(3, 3)]
+RADIUS = [.7, 1.1] #[1.1, 3.5]   #[0.3]
+THRESHOLDS = [.25, .25] #[.25, .22]   #[.09]
+BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
+BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
+BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 DIV_Q = 5
-images = images
+images = images[:20]
 
 
 @njit
@@ -311,6 +312,7 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
             win_mask[index[0]][index[1]][index[2]].append(wins[0])
+
     for index, reg in zip(indices[-1], regions):
         #if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
         al = []
@@ -329,7 +331,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     index = 0
     shift = 1
     extend = 30
-    rev_linkage = {i: ws[0] for i, ws in enumerate(WINDOW_SIZES)}
+    forward_linkage = {i: ws[0] for i, ws in enumerate(WINDOW_SIZES)}
+    backward_linkage = {ws[0]: i for i, ws in enumerate(BACKWARD_WINDOW_SIZES)}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[ALL_WINDOW_SIZES[0][0]][:, 0]
@@ -337,7 +340,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
 
-    while index < len(THRESHOLDS):
+    while 1:
         print(f'INDEX: {index}')
         h_maps = []
         window_sizes = WINDOW_SIZES[index:]
@@ -348,7 +351,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
         win_s_dict = {}
         for ws in window_sizes:
             win_s_dict[ws[0]] = []
-        if index == len(THRESHOLDS) - 1:
+
+        if index == len(THRESHOLDS):
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
@@ -361,8 +365,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                 c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
-            back_indices = [[] for _ in range(index + 1)]
-            for backward_index in range(index, -1, -1):
+            back_indices = [[] for _ in range(len(BACKWARD_THRESHOLDS))]
+            for backward_index in range(len(BACKWARD_THRESHOLDS)-1, -1, -1):
                 back_indices[backward_index] = region_max_filter2(h_maps[backward_index], BACKWARD_WINDOW_SIZES[backward_index],
                                                                   BACKWARD_THRESHOLDS[backward_index])
             reregress_indice = indice_filtering(back_indices, BACKWARD_WINDOW_SIZES, imgs.shape, int(extend/2))
@@ -398,13 +402,17 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         penalty = 1
                         for x_var, y_var in zip(x_vars, y_vars):
                             if x_var < 0 or y_var < 0:
-                                penalty *= 1e5
-                        loss_vals.append(np.mean((regressed_imgs - pdfs.reshape(regress_imgs.shape)) ** 2) * penalty)
+                                penalty *= 1e6
+                        loss_vals.append(np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty)
+                        #for pdf in pdfs:
+                        #    plt.figure()
+                        #    plt.imshow(pdf.reshape((ws, ws)))
+                        #plt.show()
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
-
-                if np.sum(loss_vals) < (len(THRESHOLDS) * 1e3) - 1:
+                print(np.array(loss_vals))
+                if np.sum(np.array(loss_vals) < 1.) >= 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
                     infos = regress_comp_set[selec_arg]
@@ -491,11 +499,11 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
-                        del_indices = np.array([ns, np.round(rs+ys), np.round(cs+xs)]).T.astype(np.uint32)
+                        del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
                         new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         extended_imgs = new_imgs
 
-            if len(indices) == 0 or rev_linkage[index] not in indices[:, 3]:
+            if len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
                 index += 1
 
 
@@ -784,3 +792,28 @@ for div_q in range(0, len(images), DIV_Q):
 
 write_localization(OUTPUT_DIR, xy_coords)
 visualilzation(OUTPUT_DIR, images, xy_coords)
+
+for i, (pdfs, xy_coord) in enumerate(zip(reg_pdfs, xy_coords)):
+    max_pdf_vals = []
+    xys = []
+    for pdf, xy in zip(pdfs, xy_coord):
+        max_pdf_vals.append(np.max(pdf))
+        xys.append(xy)
+    args = np.argsort(max_pdf_vals)[::-1]
+    max_pdf_vals = np.array(max_pdf_vals)
+    xys = np.array(xys)
+
+    print('@@@@@@@@@@@@@@@@@@@')
+    print(i)
+    bin_edgs = np.arange(0, np.max(max_pdf_vals)+0.05, 0.025)
+    max_pdf_vals_hist = np.histogram(max_pdf_vals, bins=bin_edgs)
+    print('std: ', np.std(max_pdf_vals))
+    print('mode: ', (bin_edgs[:-1] + 0.0125)[np.argmax(max_pdf_vals_hist[0])])
+    print('mode + 3.5sigma: ', (bin_edgs[:-1] + 0.0125)[np.argmax(max_pdf_vals_hist[0])] + 3.5 * np.std(max_pdf_vals))
+    print(max_pdf_vals[args][:3])
+    print(xys[args][:3])
+    plt.figure(i)
+    plt.hist(max_pdf_vals, bins=bin_edgs)
+    plt.show()
+
+

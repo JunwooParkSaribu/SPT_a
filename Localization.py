@@ -34,7 +34,7 @@ BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
-images = images[10:15]
+images = images
 
 
 @njit

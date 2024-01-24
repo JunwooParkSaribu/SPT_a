@@ -681,7 +681,7 @@ if __name__ == '__main__':
     segment_distribution = distribution_segments(localizations, time_steps=time_steps, lag=blink_lag,
                                                  parallel=False)
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
-    bin_size = np.mean(xyz_max - xyz_min) / 2000.
+    bin_size = np.mean(xyz_max - xyz_min) / 4000.
 
     fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
     for lag in segment_distribution.keys():

@@ -642,7 +642,7 @@ if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
     cutoff = 2
-    methods = [1, 3]
+    methods = [1, 2, 3]
     var_parallel = True
     confidence = 0.95
     amp = 1.3
@@ -659,20 +659,20 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'{WINDOWS_PATH}/receptor_7_low.tif'
+    input_tif = f'tif_trxyt/receptor_7_low.tif'
     input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'{WINDOWS_PATH}/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/mymethod.tif'
+    output_xml = f'./mymethod.xml'
+    output_img = f'./mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
-    #localizations = read_xml(gt_xml)
+    #localizations1 = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
-    #compare_two_localization_visual(WINDOWS_PATH, images, localizations1, localizations2)
+    localizations = read_localization(f'localization.txt')
+    #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')

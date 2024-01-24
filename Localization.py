@@ -25,13 +25,14 @@ OUTPUT_DIR = f'.'
 
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7)] #[(7, 7), (15, 15)]   #[(3, 3)]
-RADIUS = [.7, 1.1] #[1.1, 3.5]   #[0.3]
-THRESHOLDS = [.25, .25] #[.25, .22]   #[.09]
+WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)] #[(7, 7), (15, 15)]   #[(3, 3)]
+RADIUS = [.7, 1.1, 3.] #[1.1, 3.5]   #[0.3]
+THRESHOLDS = [.25, .25, .25] #[.25, .22]   #[.09]
 BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
 BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
 BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
+SIGMA = 3
 DIV_Q = 5
 images = images
 
@@ -819,7 +820,7 @@ for div_q in range(0, len(images), DIV_Q):
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
 
-reg_pdfs, xy_coords = intensity_distribution(reg_pdfs, xy_coords, sigma=5)
+reg_pdfs, xy_coords = intensity_distribution(reg_pdfs, xy_coords, sigma=SIGMA)
 write_localization(OUTPUT_DIR, xy_coords)
 visualilzation(OUTPUT_DIR, images, xy_coords)
 

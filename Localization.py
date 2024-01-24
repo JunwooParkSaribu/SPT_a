@@ -10,10 +10,11 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
+images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
@@ -24,15 +25,15 @@ OUTPUT_DIR = f'.'
 
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7)] #[(7, 7), (15, 15)]   #[(3, 3)]
-RADIUS = [.7, 1.1] #[1.1, 3.5]   #[0.3]
-THRESHOLDS = [.25, .25] #[.25, .22]   #[.09]
+WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)] #[(7, 7), (15, 15)]   #[(3, 3)]
+RADIUS = [.7, 1.1, 3.] #[1.1, 3.5]   #[0.3]
+THRESHOLDS = [.25, .25, .25] #[.25, .22]   #[.09]
 BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
 BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
 BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 DIV_Q = 5
-images = images
+images = images[:1]
 
 
 @njit
@@ -352,7 +353,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
         for ws in window_sizes:
             win_s_dict[ws[0]] = []
 
-        if index == len(THRESHOLDS):
+        if index == len(THRESHOLDS) - 1:
+            plt.figure()
+            plt.imshow(extended_imgs[0])
+            plt.show()
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):

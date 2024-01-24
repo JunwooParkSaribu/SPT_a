@@ -32,7 +32,7 @@ BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
 BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
 BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
-SIGMA = 3
+SIGMA = 4
 DIV_Q = 5
 images = images
 

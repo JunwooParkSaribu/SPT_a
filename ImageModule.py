@@ -116,6 +116,8 @@ def make_image_seqs(*trajectory_lists, output_dir, time_steps, cutoff=0, origina
             img = img_origin.copy()
             for traj in trajectory_list:
                 times = traj.get_times()
+                if times[-1] < frame - 10:
+                    continue
                 indices = [i for i, time in enumerate(times) if time <= frame]
                 if traj.get_trajectory_length() >= cutoff:
                     xy = np.array([[int(x * x_amp), int(y * y_amp)]

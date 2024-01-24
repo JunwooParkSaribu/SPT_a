@@ -34,7 +34,7 @@ BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
-images = images
+images = images[10:15]
 
 
 @njit
@@ -760,24 +760,22 @@ def gauss_seidel(a, b, p0, iter=200, tol=1e-8):
 def make_red_circles(original_imgs, circle_imgs, localized_xys):
     stacked_imgs = nbList()
     for img_n, coords in enumerate(localized_xys):
+        xy_cum = []
         for center_coord in coords:
             if (center_coord[0] > original_imgs.shape[1] or center_coord[0] < 0
                     or center_coord[1] > original_imgs.shape[2] or center_coord[1] < 0):
                 print("ERR")
                 print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
             x, y = int(round(center_coord[0])), int(round(center_coord[1]))
-            if circle_imgs[img_n][x][y][0] == 1 and circle_imgs[img_n][x][y][1] == 1:
-                circle_imgs[img_n][x][y][0] = 1
-                circle_imgs[img_n][x][y][1] = 1
+            if (x, y) in xy_cum:
+                circle_imgs[img_n][x][y][0] = 0
+                circle_imgs[img_n][x][y][1] = 0
                 circle_imgs[img_n][x][y][2] = 1
-            elif circle_imgs[img_n][x][y][0] == 1:
-                circle_imgs[img_n][x][y][0] = 1
-                circle_imgs[img_n][x][y][1] = 1
-                circle_imgs[img_n][x][y][2] = 0
             else:
                 circle_imgs[img_n][x][y][0] = 1
                 circle_imgs[img_n][x][y][1] = 0
                 circle_imgs[img_n][x][y][2] = 0
+            xy_cum.append((x, y))
         stacked_imgs.append(np.hstack((original_imgs[img_n], circle_imgs[img_n])))
     return stacked_imgs
 

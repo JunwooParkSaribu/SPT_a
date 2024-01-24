@@ -413,7 +413,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
-                print(np.array(loss_vals))
+
                 if np.sum(np.array(loss_vals) < 1.) >= 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
@@ -766,9 +766,18 @@ def make_red_circles(original_imgs, circle_imgs, localized_xys):
                 print("ERR")
                 print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
             x, y = int(round(center_coord[0])), int(round(center_coord[1]))
-            circle_imgs[img_n][x][y][0] = 1
-            circle_imgs[img_n][x][y][1] = 0
-            circle_imgs[img_n][x][y][2] = 0
+            if circle_imgs[img_n][x][y][0] == 1 and circle_imgs[img_n][x][y][1] == 1:
+                circle_imgs[img_n][x][y][0] = 1
+                circle_imgs[img_n][x][y][1] = 1
+                circle_imgs[img_n][x][y][2] = 1
+            elif circle_imgs[img_n][x][y][0] == 1:
+                circle_imgs[img_n][x][y][0] = 1
+                circle_imgs[img_n][x][y][1] = 1
+                circle_imgs[img_n][x][y][2] = 0
+            else:
+                circle_imgs[img_n][x][y][0] = 1
+                circle_imgs[img_n][x][y][1] = 0
+                circle_imgs[img_n][x][y][2] = 0
         stacked_imgs.append(np.hstack((original_imgs[img_n], circle_imgs[img_n])))
     return stacked_imgs
 
@@ -801,7 +810,6 @@ def intensity_distribution(reg_pdfs, xy_coords, sigma=5):
 
         for i, max_pdf_val in enumerate(max_pdf_vals):
             if max_pdf_val > mode_sigma:
-                print(img_n, max_pdf_val, mode_sigma)
                 new_pdf_tmp.append(pdfs[i])
                 new_xy_coord_tmp.append(xy_coord[i])
         new_pdfs.append(new_pdf_tmp)

@@ -33,7 +33,7 @@ BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
 BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 DIV_Q = 5
-images = images[:1]
+images = images[:20]
 
 
 @njit
@@ -354,9 +354,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
             win_s_dict[ws[0]] = []
 
         if index == len(THRESHOLDS) - 1:
-            plt.figure()
-            plt.imshow(extended_imgs[0])
-            plt.show()
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
@@ -783,6 +780,34 @@ def visualilzation(output_dir, images, localized_xys):
     tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
+def intensity_distribution(reg_pdfs, xy_coords, sigma=5):
+    new_pdfs = []
+    new_coords = []
+    for img_n, (pdfs, xy_coord) in enumerate(zip(reg_pdfs, xy_coords)):
+        if len(pdfs) < 2:
+            continue
+        new_pdf_tmp = pdfs.copy()
+        new_xy_coord_tmp = xy_coord.copy()
+        max_pdf_vals = []
+
+        for pdf, xy in zip(pdfs, xy_coord):
+            max_pdf_vals.append(pdf[int((pdf.shape[0] - 1)/2)])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
+        max_pdf_vals = np.array(max_pdf_vals)
+
+        bin_edgs = np.arange(0, np.max(max_pdf_vals) + 0.05, 0.05)
+        max_pdf_vals_hist = np.histogram(max_pdf_vals, bins=bin_edgs)
+        mode_sigma = (bin_edgs[:-1] + 0.025)[np.argmax(max_pdf_vals_hist[0])] + sigma * np.std(max_pdf_vals)
+
+        for i, max_pdf_val in enumerate(max_pdf_vals):
+            if max_pdf_val > mode_sigma:
+                print(img_n, max_pdf_val, mode_sigma)
+                new_pdf_tmp.append(pdfs[i])
+                new_xy_coord_tmp.append(xy_coord[i])
+        new_pdfs.append(new_pdf_tmp)
+        new_coords.append(new_xy_coord_tmp)
+    return new_pdfs, new_coords
+
+
 xy_coords = []
 reg_pdfs = []
 forward_gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
@@ -794,30 +819,39 @@ for div_q in range(0, len(images), DIV_Q):
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
 
+reg_pdfs, xy_coords = intensity_distribution(reg_pdfs, xy_coords, sigma=5)
 write_localization(OUTPUT_DIR, xy_coords)
 visualilzation(OUTPUT_DIR, images, xy_coords)
 
+
+"""
 for i, (pdfs, xy_coord) in enumerate(zip(reg_pdfs, xy_coords)):
     max_pdf_vals = []
     xys = []
+    img_numbers = []
     for pdf, xy in zip(pdfs, xy_coord):
-        max_pdf_vals.append(np.max(pdf))
+        max_pdf_vals.append(np.max(pdf)) #  - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
         xys.append(xy)
+        img_numbers.append(i)
+
     args = np.argsort(max_pdf_vals)[::-1]
     max_pdf_vals = np.array(max_pdf_vals)
     xys = np.array(xys)
+    img_numbers = np.array(img_numbers)
 
     print('@@@@@@@@@@@@@@@@@@@')
-    print(i)
-    bin_edgs = np.arange(0, np.max(max_pdf_vals)+0.05, 0.025)
+    bin_edgs = np.arange(0, np.max(max_pdf_vals)+0.05, 0.05)
     max_pdf_vals_hist = np.histogram(max_pdf_vals, bins=bin_edgs)
     print('std: ', np.std(max_pdf_vals))
-    print('mode: ', (bin_edgs[:-1] + 0.0125)[np.argmax(max_pdf_vals_hist[0])])
-    print('mode + 3.5sigma: ', (bin_edgs[:-1] + 0.0125)[np.argmax(max_pdf_vals_hist[0])] + 3.5 * np.std(max_pdf_vals))
-    print(max_pdf_vals[args][:3])
-    print(xys[args][:3])
-    plt.figure(i)
+    print('mode: ', (bin_edgs[:-1] + 0.025)[np.argmax(max_pdf_vals_hist[0])])
+    print('mode + 5sigma: ', (bin_edgs[:-1] + 0.025)[np.argmax(max_pdf_vals_hist[0])] + 5 * np.std(max_pdf_vals))
+    print(max_pdf_vals[args][:5])
+    print(img_numbers[args][:5])
+    print(xys[args][:5])
+
+    plt.figure()
     plt.hist(max_pdf_vals, bins=bin_edgs)
     plt.show()
+"""
 
 

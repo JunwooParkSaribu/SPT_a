@@ -33,7 +33,7 @@ BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
 BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 DIV_Q = 5
-images = images[:20]
+images = images
 
 
 @njit

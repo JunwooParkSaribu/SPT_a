@@ -10,8 +10,8 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/vesicle_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
@@ -390,30 +390,29 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
 
                     if len(regress_imgs) > 0:
                         pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
-                        regressed_imgs = []
-                        for regress_index, dx, dy in zip(win_s_set, xs, ys):
-                            ws = regress_index[3]
-                            regressed_imgs.append(extended_imgs[regress_index[0],
-                                                  regress_index[1] - int((regress_index[3] - 1) / 2) + int(np.round(dy)):
-                                                  regress_index[1] + int((regress_index[3] - 1) / 2) + int(np.round(dy)) + 1,
-                                                  regress_index[2] - int((regress_index[3] - 1) / 2) + int(np.round(dx)):
-                                                  regress_index[2] + int((regress_index[3] - 1) / 2) + int(np.round(dx)) + 1]
-                                                  )
-                        regressed_imgs = np.array(regressed_imgs)
-                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
                         penalty = 1
                         for x_var, y_var in zip(x_vars, y_vars):
                             if x_var < 0 or y_var < 0:
                                 penalty *= 1e6
-                        loss_vals.append(np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty)
-                        #for pdf in pdfs:
-                        #    plt.figure()
-                        #    plt.imshow(pdf.reshape((ws, ws)))
-                        #plt.show()
+                        regressed_imgs = []
+                        for regress_index, dx, dy in zip(win_s_set, xs, ys):
+                            regressed_imgs.append(extended_imgs[regress_index[0],
+                                                  regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
+                                                  regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
+                                                  regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
+                                                  regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
+                                                  )
+                        regressed_imgs = np.array(regressed_imgs)
+                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
+                        if regressed_imgs.shape != (pdfs.reshape(regress_imgs.shape)).shape:
+                            ## x_var or y_var is (-)
+                            loss_vals.append(penalty)
+                        else:
+                            loss_vals.append(np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty)
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
-
+                print(loss_vals)
                 if np.sum(np.array(loss_vals) < 1.) >= 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]

@@ -661,7 +661,7 @@ if __name__ == '__main__':
 
     input_tif = f'{WINDOWS_PATH}/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'ground_truth/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'{WINDOWS_PATH}/RECEPTOR snr 7 density low.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'

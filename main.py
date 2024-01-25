@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
@@ -130,8 +132,10 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
 
 @njit
 def euclidian_displacement(pos1, pos2):
-    return np.sqrt((pos1[:, 0] - pos2[:, 0])**2 + (pos1[:, 1] - pos2[:, 1])**2 + (pos1[:, 2] - pos2[:, 2])**2)
-
+    if pos1.shape[1] > 2:
+        return np.sqrt((pos1[:, 0] - pos2[:, 0])**2 + (pos1[:, 1] - pos2[:, 1])**2 + (pos1[:, 2] - pos2[:, 2])**2)
+    else:
+        return np.sqrt((pos1[:, 0] - pos2[:, 0]) ** 2 + (pos1[:, 1] - pos2[:, 1]) ** 2)
 
 def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
     length_max_val = np.max(distribution)
@@ -507,8 +511,7 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
             linkage_log_probas = linkage_log_probas[linkage_indices]
             linkage_pairs = linkage_pairs[linkage_indices]
 
-        #for ma_pair, probaba in zip(linkage_pairs, linkage_log_probas):
-        #    print(ma_pair, probaba)
+        make_graph(linkage_pairs, linkage_log_probas)
 
         before_time = timer()
         link_pairs = []
@@ -646,6 +649,64 @@ def optimal_next_position(localizations, optimal_trajectory, reduced_trajectory,
     return optimal_trajectory, reduced_trajectory
 
 
+def make_graph(pairs, probas):
+    pairs = np.array(pairs)
+    probas = np.array(probas)
+    assert pairs.shape[0] == probas.shape[0]
+
+    sub_graphs = [[(pairs[0][0], pairs[0][1]), (pairs[0][2], pairs[0][3])]]
+    pair_probas = {}
+    for pair, proba in zip(pairs, probas):
+        pair_probas[pair[0], pair[1], pair[2], pair[3]] = proba
+
+    for pair in pairs[1:]:
+        flag = 0
+        sub_graphs_copy = sub_graphs.copy()
+        prev_pair_tuple = (pair[0], pair[1])
+        next_pair_tuple = (pair[2], pair[3])
+        for sub_graph in sub_graphs:
+            if prev_pair_tuple in sub_graph or next_pair_tuple in sub_graph:
+                sub_graph.extend([prev_pair_tuple, next_pair_tuple])
+                flag = 1
+        if flag == 0:
+            sub_graphs.append([prev_pair_tuple, next_pair_tuple])
+
+    print(pair_probas)
+    print(sub_graphs)
+    for sub_graph in sub_graphs:
+        graph_matrix(sub_graph, pair_probas)
+    exit(1)
+
+
+def graph_matrix(graph, pair_proba):
+    row_list = list(set([prev_point for prev_point in graph[::2]]))
+    col_list = list(set([prev_point for prev_point in graph[1::2]]))
+
+    graph_mat = np.zeros((len(row_list), len(col_list))) - np.inf
+    for r, row in enumerate(row_list):
+        for c, col in enumerate(col_list):
+            graph_mat[r, c] = pair_proba[(row[0], row[1], col[0], col[1])]
+
+    global_optimal_strategy(graph_mat, row_list, col_list)
+
+
+def global_optimal_strategy(graph_matrix, row_list, col_list):
+    max_val = -np.inf
+    r_indice = np.arange(len(row_list))
+    c_indice = np.arange(len(col_list))
+    exit(1)
+
+
+def recursive_combination(row_indice, col_indice):
+    b = list(itertools.product('123', 'abcd'))
+    print(b)
+    c = [('1', 'a'), ('1', 'b'), ('1', 'c'), ('1', 'd'), ('2', 'a'), ('2', 'b'), ('2', 'c'), ('2', 'd'), ('3', 'a'), ('3', 'b'), ('3', 'c'), ('3', 'd')]
+    c = list(itertools.combinations(c, 3))
+    print(len(c))
+    print(c)
+
+
+
 if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
@@ -691,6 +752,7 @@ if __name__ == '__main__':
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 4000.
 
+    """
     fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
     for lag in segment_distribution.keys():
         axs[lag][0].hist(segment_distribution[lag],
@@ -698,6 +760,7 @@ if __name__ == '__main__':
                          alpha=0.5)
         axs[lag][0].set_xlim([0, 20])
     plt.show()
+    """
 
     start_time = timer()
     segment_distribution = mcmc_parallel(segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
@@ -705,7 +768,7 @@ if __name__ == '__main__':
     print(f'MCMC duration: {timer() - start_time:.2f}s')
     for lag in segment_distribution.keys():
         print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
-
+    """
     fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
     for lag in segment_distribution.keys():
         axs[lag][0].bar(segment_distribution[lag][2][:-1],
@@ -717,7 +780,7 @@ if __name__ == '__main__':
         axs[lag][0].legend()
         axs[lag][0].set_xlim([0, segment_distribution[lag][0] + 1])
     plt.show()
-
+    """
     localizations = create_2d_window(images, localizations, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
     trajectory_list = simple_connect(localization=localizations, time_steps=time_steps,
                                      distrib=segment_distribution, blink_lag=blink_lag, on=methods)

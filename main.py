@@ -221,7 +221,10 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
             if limits[n] < thresholds[n]:
                 #print(index, limits[n], pdfs[n][index])
                 if index < pdfs.shape[1]:
-                    pdf_indices.append([n, pdfs[n][index]])
+                    if pdfs[n][index] > 0.:
+                        pdf_indices.append([n, pdfs[n][index]])
+                    else:
+                        print('there is a proba 0 even lower than thresholds')
                 else:
                     pdf_indices.append([n, pdfs[n][-1]])
     else:
@@ -483,6 +486,7 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
         thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
         before_time = timer()
         linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins)
+
         print(f'{"displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
@@ -500,7 +504,11 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
                 print(f'{"directional probability duration":<35}:{(timer() - before_time):.2f}s')
             # sort by probabilities
             linkage_indices = np.argsort(linkage_log_probas)[::-1]
+            linkage_log_probas = linkage_log_probas[linkage_indices]
             linkage_pairs = linkage_pairs[linkage_indices]
+
+        #for ma_pair, probaba in zip(linkage_pairs, linkage_log_probas):
+        #    print(ma_pair, probaba)
 
         before_time = timer()
         link_pairs = []

@@ -14,6 +14,7 @@ from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localiza
 from timeit import default_timer as timer
 from ElipseFit import cart_to_pol, fit_ellipse, get_ellipse_pts
 from skimage import measure
+from Bipartite_searching import hungarian_algo_max
 
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
@@ -229,6 +230,7 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
                         pdf_indices.append([n, pdfs[n][index]])
                     else:
                         print('there is a proba 0 even lower than thresholds')
+                        #pdf_indices.append([n, 1e-6])
                 else:
                     pdf_indices.append([n, pdfs[n][-1]])
     else:
@@ -506,13 +508,27 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
                 # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
                 linkage_log_probas = proba_direction(linkage_log_probas, linkage_imgs, linkage_positions)
                 print(f'{"directional probability duration":<35}:{(timer() - before_time):.2f}s')
+
+        before_time = timer()
+        linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
+        link_pairs = []
+        for pair in linkage_pairs:
+            t, src_i = pair[0]
+            next_t, dest_i = pair[1]
+            if (t, src_i) not in srcs_linked and (next_t, dest_i) not in dests_linked:
+                link_pairs.append([[t, src_i], [next_t, dest_i]])
+                srcs_linked.append((t, src_i))
+                dests_linked.append((next_t, dest_i))
+        for link_pair in link_pairs:
+            dests_pairs.remove(link_pair[1])
+        link_pairs = np.array(link_pairs)
+
+        """
+        if linkage_indices is not None:
             # sort by probabilities
             linkage_indices = np.argsort(linkage_log_probas)[::-1]
             linkage_log_probas = linkage_log_probas[linkage_indices]
             linkage_pairs = linkage_pairs[linkage_indices]
-
-        make_graph(linkage_pairs, linkage_log_probas)
-
         before_time = timer()
         link_pairs = []
         for pair in linkage_pairs:
@@ -524,6 +540,7 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
         for link_pair in link_pairs:
             dests_pairs.remove(link_pair[1])
         link_pairs = np.array(link_pairs)
+        """
 
         # trajectory objects update
         if len(link_pairs) > 0:
@@ -650,9 +667,13 @@ def optimal_next_position(localizations, optimal_trajectory, reduced_trajectory,
 
 
 def make_graph(pairs, probas):
+    links = []
     pairs = np.array(pairs)
     probas = np.array(probas)
     assert pairs.shape[0] == probas.shape[0]
+    args = np.lexsort((pairs[:, 1], pairs[:, 0]))  # sort by frame and then by molecule number
+    pairs = pairs[args]
+    probas = probas[args]
 
     sub_graphs = [[(pairs[0][0], pairs[0][1]), (pairs[0][2], pairs[0][3])]]
     pair_probas = {}
@@ -661,50 +682,36 @@ def make_graph(pairs, probas):
 
     for pair in pairs[1:]:
         flag = 0
-        sub_graphs_copy = sub_graphs.copy()
         prev_pair_tuple = (pair[0], pair[1])
         next_pair_tuple = (pair[2], pair[3])
         for sub_graph in sub_graphs:
             if prev_pair_tuple in sub_graph or next_pair_tuple in sub_graph:
                 sub_graph.extend([prev_pair_tuple, next_pair_tuple])
                 flag = 1
+                break
         if flag == 0:
             sub_graphs.append([prev_pair_tuple, next_pair_tuple])
 
-    print(pair_probas)
-    print(sub_graphs)
     for sub_graph in sub_graphs:
-        graph_matrix(sub_graph, pair_probas)
-    exit(1)
+        linkages, val = graph_matrix(sub_graph, pair_probas)
+        for linkage in linkages:
+            links.append(linkage)
+    return links
 
 
 def graph_matrix(graph, pair_proba):
+    opt_matchs = []
     row_list = list(set([prev_point for prev_point in graph[::2]]))
     col_list = list(set([prev_point for prev_point in graph[1::2]]))
-
     graph_mat = np.zeros((len(row_list), len(col_list))) - np.inf
     for r, row in enumerate(row_list):
         for c, col in enumerate(col_list):
-            graph_mat[r, c] = pair_proba[(row[0], row[1], col[0], col[1])]
-
-    global_optimal_strategy(graph_mat, row_list, col_list)
-
-
-def global_optimal_strategy(graph_matrix, row_list, col_list):
-    max_val = -np.inf
-    r_indice = np.arange(len(row_list))
-    c_indice = np.arange(len(col_list))
-    exit(1)
-
-
-def recursive_combination(row_indice, col_indice):
-    b = list(itertools.product('123', 'abcd'))
-    print(b)
-    c = [('1', 'a'), ('1', 'b'), ('1', 'c'), ('1', 'd'), ('2', 'a'), ('2', 'b'), ('2', 'c'), ('2', 'd'), ('3', 'a'), ('3', 'b'), ('3', 'c'), ('3', 'd')]
-    c = list(itertools.combinations(c, 3))
-    print(len(c))
-    print(c)
-
+            if (row[0], row[1], col[0], col[1]) in pair_proba:
+                graph_mat[r, c] = pair_proba[(row[0], row[1], col[0], col[1])]
+    rows, cols, val = hungarian_algo_max(graph_mat)
+    for row, col in zip(rows, cols):
+        opt_matchs.append((row_list[row], col_list[col]))
+    return opt_matchs, val
 
 
 if __name__ == '__main__':
@@ -728,19 +735,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'{WINDOWS_PATH}/receptor_7_low.tif'
+    input_tif = f'tif_trxyt/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'{WINDOWS_PATH}/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/mymethod.tif'
+    output_xml = f'./mymethod.xml'
+    output_img = f'./mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations1 = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
+    localizations = read_localization(f'./receptor_7_low.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

@@ -78,6 +78,26 @@ def collect_segments(localization, time_steps, method, lag):
     return tmp
 
 
+def trajectory_to_segments(trajectory_list, blink_lag):
+    segment_distrib = {lag: [] for lag in range(blink_lag + 1)}
+    for traj_obj in trajectory_list:
+        pos = traj_obj.get_positions()
+        times = traj_obj.get_times()
+        for lag in range(blink_lag + 1):
+            for i in range(len(pos) - 1 - lag):
+                x, y, z = pos[i]
+                next_x, next_y, next_z = pos[i+1+lag]
+                t = times[i]
+                next_t = times[i+1+lag]
+                if (int(next_t - t) - 1) in segment_distrib:
+                    segment_distrib[int(next_t - t) - 1].append(
+                        [np.sqrt((next_x - x)**2 + (next_y - y)**2 + (next_z - z)**2)]
+                    )
+    for lag in segment_distrib:
+        segment_distrib[lag] = np.array(segment_distrib[lag])
+    return segment_distrib
+
+
 def count_localizations(localization, images):
     nb = 0
     xyz_min = np.array([1e5, 1e5, 1e5])
@@ -761,6 +781,7 @@ if __name__ == '__main__':
     start_time = timer()
     segment_distribution = distribution_segments(localizations, time_steps=time_steps, lag=blink_lag,
                                                  parallel=False)
+
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 4000.
 
@@ -774,31 +795,33 @@ if __name__ == '__main__':
     plt.show()
     """
 
-    start_time = timer()
-    segment_distribution = mcmc_parallel(segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
-                                         approx='metropolis_hastings', parallel=var_parallel, thresholds=THRESHOLDS)
-    print(f'MCMC duration: {timer() - start_time:.2f}s')
-    for lag in segment_distribution.keys():
-        print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
-    """
-    fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
-    for lag in segment_distribution.keys():
-        axs[lag][0].bar(segment_distribution[lag][2][:-1],
-                        np.histogram(segment_distribution[lag][4], bins=segment_distribution[lag][2])[0] / len(segment_distribution[lag][4]),
-                        width=segment_distribution[lag][2][1]-segment_distribution[lag][2][0], alpha=0.5)
-        axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][1], label=f'{lag}_PDF')
-        axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][3](segment_distribution[lag][2][:-1]), label=f'{lag}_CDF')
-        axs[lag][0].vlines(segment_distribution[lag][0], ymin=0, ymax=1., alpha=0.6, colors='r', label=f'{lag}_limit')
-        axs[lag][0].legend()
-        axs[lag][0].set_xlim([0, segment_distribution[lag][0] + 1])
-    plt.show()
-    """
-    localizations = create_2d_window(images, localizations, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
-    trajectory_list = simple_connect(localization=localizations, time_steps=time_steps,
-                                     distrib=segment_distribution, blink_lag=blink_lag, on=methods)
-    #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
-    print(f'Total number of trajectories: {len(trajectory_list)}')
+    for repeat in range(1):
+        start_time = timer()
+        segment_distribution = mcmc_parallel(segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
+                                             approx='metropolis_hastings', parallel=var_parallel, thresholds=THRESHOLDS)
+        print(f'MCMC duration: {timer() - start_time:.2f}s')
+        for lag in segment_distribution.keys():
+            print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
+        """
+        fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
+        for lag in segment_distribution.keys():
+            axs[lag][0].bar(segment_distribution[lag][2][:-1],
+                            np.histogram(segment_distribution[lag][4], bins=segment_distribution[lag][2])[0] / len(segment_distribution[lag][4]),
+                            width=segment_distribution[lag][2][1]-segment_distribution[lag][2][0], alpha=0.5)
+            axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][1], label=f'{lag}_PDF')
+            axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][3](segment_distribution[lag][2][:-1]), label=f'{lag}_CDF')
+            axs[lag][0].vlines(segment_distribution[lag][0], ymin=0, ymax=1., alpha=0.6, colors='r', label=f'{lag}_limit')
+            axs[lag][0].legend()
+            axs[lag][0].set_xlim([0, segment_distribution[lag][0] + 1])
+        plt.show()
+        """
+        localizations = create_2d_window(images, localizations, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
+        trajectory_list = simple_connect(localization=localizations, time_steps=time_steps,
+                                         distrib=segment_distribution, blink_lag=blink_lag, on=methods)
+        #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
+        segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
 
+    print(f'Total number of trajectories: {len(trajectory_list)}')
     write_xml(output_file=output_xml, trajectory_list=trajectory_list,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     trajectory_list = xml_to_object(output_xml)

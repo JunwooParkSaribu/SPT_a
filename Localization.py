@@ -469,6 +469,12 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                     for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
                         if x_var < 0 or y_var < 0:
                             err_indice.append(err_i)
+                    if len(err_indice) == len(pdfs):
+                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
+                        index += 1
+                        continue
+
+                        """
                     if len(err_indice) > 0:
                         print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
                         for err_i in err_indice:
@@ -495,7 +501,17 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             del_indices = np.array([err_ns, np.round(err_rs+err_ys), np.round(err_cs+err_xs)]).T.astype(np.uint32)
                             new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
                             extended_imgs = new_imgs
+                        """
+
                     else:
+                        pdfs = np.delete(pdfs, err_indice, 0)
+                        xs = np.delete(xs, err_indice, 0)
+                        ys = np.delete(ys, err_indice, 0)
+                        x_vars = np.delete(x_vars, err_indice, 0)
+                        y_vars = np.delete(y_vars, err_indice, 0)
+                        ns = np.delete(ns, err_indice, 0)
+                        rs = np.delete(rs, err_indice, 0)
+                        cs = np.delete(cs, err_indice, 0)
                         for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
                             if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
                                 continue

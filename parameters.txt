@@ -1,20 +1,20 @@
 ## receptor
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7)] #[(7, 7), (15, 15)]   #[(3, 3)]
-RADIUS = [.7, 1.1] #[1.1, 3.5]   #[0.3]
-THRESHOLDS = [.25, .25] #[.25, .22]   #[.09]
-BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
-BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
-BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
+WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)]
+RADIUS = [.7, 1.1, 3.]
+THRESHOLDS = [.25, .25, .25]
+BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)]
+BACKWARD_RADIUS = [.3, .7]
+BACKWARD_THRESHOLDS = [.20, .25]
 
 
-## receptor2
+## for updated loss value
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)] #[(7, 7), (15, 15)]   #[(3, 3)]
-RADIUS = [.7, 1.1, 3.] #[1.1, 3.5]   #[0.3]
-THRESHOLDS = [.25, .25, .25] #[.25, .22]   #[.09]
-BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
-BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
-BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
+WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)]
+RADIUS = [.7, 1.1, 3.]
+THRESHOLDS = [.25, .25, .25]
+BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5), (13, 13)]
+BACKWARD_RADIUS = [.3, .7, 3.]
+BACKWARD_THRESHOLDS = [.20, .25, .25]

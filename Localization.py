@@ -10,11 +10,11 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_low.tif')
+images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
@@ -28,9 +28,9 @@ GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)] #[(7, 7), (15, 15)]   #[(3, 3)]
 RADIUS = [.7, 1.1, 3.] #[1.1, 3.5]   #[0.3]
 THRESHOLDS = [.25, .25, .25] #[.25, .22]   #[.09]
-BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)] #[(5, 5), (15, 15)]   #[(5, 5)]
-BACKWARD_RADIUS = [.3, .7] #[.7, 3.5]   #[.7]
-BACKWARD_THRESHOLDS = [.20, .25] #[.27, .22]   #[.11]
+BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5), (13, 13)] #[(5, 5), (15, 15)]   #[(5, 5)]
+BACKWARD_RADIUS = [.3, .7, 3.] #[.7, 3.5]   #[.7]
+BACKWARD_THRESHOLDS = [.20, .25, .25] #[.27, .22]   #[.11]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
@@ -408,7 +408,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             ## x_var or y_var is (-)
                             loss_vals.append(penalty)
                         else:
-                            loss_vals.append(np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty)
+                            loss = np.mean(np.sort(np.mean((regressed_imgs - pdfs.reshape(regress_imgs.shape))**2, axis=0).
+                                                   flatten())[::-1][:BACKWARD_WINDOW_SIZES[0][0] * BACKWARD_WINDOW_SIZES[0][1]]) * penalty
+                            #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
+                            loss_vals.append(loss)
                     else:
                         selected_dt.append([0, 0, 0, 0, 0])
                         loss_vals.append(1e3)

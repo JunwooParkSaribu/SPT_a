@@ -405,7 +405,10 @@ def proba_direction(paired_probas, paired_images, paired_positions):
         cur_pos = positions[0]
         next_pos = positions[1]
         next_vector = np.array([next_pos[0] - cur_pos[0], next_pos[1] - cur_pos[1]])
-        next_vector = next_vector / euclidian_displacement(np.array([[0, 0]]), np.array([next_vector]))
+        if next_vector[0] == 0 and next_vector[1] == 0:
+            next_vector = next_vector
+        else:
+            next_vector = next_vector / euclidian_displacement(np.array([[0, 0]]), np.array([next_vector]))
         image1 = (image1 - np.min(image1)) / np.max(image1 - np.min(image1))
         contours1 = measure.find_contours(image1, 0.4)
         contours2 = measure.find_contours(image1, 0.6)
@@ -703,11 +706,13 @@ def graph_matrix(graph, pair_proba):
     opt_matchs = []
     row_list = list(set([prev_point for prev_point in graph[::2]]))
     col_list = list(set([prev_point for prev_point in graph[1::2]]))
+
     graph_mat = np.zeros((len(row_list), len(col_list))) - np.inf
     for r, row in enumerate(row_list):
         for c, col in enumerate(col_list):
             if (row[0], row[1], col[0], col[1]) in pair_proba:
                 graph_mat[r, c] = pair_proba[(row[0], row[1], col[0], col[1])]
+
     rows, cols, val = hungarian_algo_max(graph_mat)
     for row, col in zip(rows, cols):
         opt_matchs.append((row_list[row], col_list[col]))
@@ -745,9 +750,9 @@ if __name__ == '__main__':
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
-    #localizations1 = read_xml(gt_xml)
+    #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'./localization.txt')
+    localizations = read_localization(f'./receptor_7_low.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

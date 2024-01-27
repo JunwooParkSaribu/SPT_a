@@ -747,7 +747,7 @@ if __name__ == '__main__':
     var_parallel = True
     confidence = 0.95
     amp = 1.3
-    THRESHOLDS = None #[8.5, 14]
+    THRESHOLDS = None #[8, 14.5]
 
     snr = '7'
     density = 'low'

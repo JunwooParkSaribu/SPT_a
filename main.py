@@ -722,7 +722,7 @@ if __name__ == '__main__':
     var_parallel = True
     confidence = 0.95
     amp = 1.3
-    THRESHOLDS = [8.5, 14]
+    THRESHOLDS = None #[8.5, 14]
 
     snr = '7'
     density = 'low'
@@ -747,7 +747,7 @@ if __name__ == '__main__':
     #localizations = read_trajectory(input_trxyt)
     #localizations1 = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'./receptor_7_low.txt')
+    localizations = read_localization(f'./localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

@@ -14,8 +14,8 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_low.tif')
-images = read_tif('tif_trxyt/vesicle_7_low.tif')
+images = read_tif('tif_trxyt/receptor_7_low.tif')
+#images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
@@ -26,11 +26,11 @@ OUTPUT_DIR = f'.'
 
 P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5), (7, 7), (13, 13)]
-RADIUS = [.7, 1.1, 3.]
+WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
+RADIUS = [1.1, 1.7, 3.]
 THRESHOLDS = [.25, .25, .25]
-BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)]
-BACKWARD_RADIUS = [.3, .7]
+BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
+BACKWARD_RADIUS = [.7, 1.1]
 BACKWARD_THRESHOLDS = [.20, .25]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4

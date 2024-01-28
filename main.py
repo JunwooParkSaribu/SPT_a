@@ -715,11 +715,41 @@ def make_graph(pairs, probas):
         if flag == 0:
             sub_graphs.append([prev_pair_tuple, next_pair_tuple])
 
+    print('Nb of sub_graphs before: ', len(sub_graphs))
+    while True:
+        original_sub_graphs = sub_graphs.copy()
+        for i in range(len(sub_graphs)):
+            sub_graphs = merge_graphs(sub_graphs[i], sub_graphs, i)
+            if sub_graphs != original_sub_graphs:
+                break
+        if sub_graphs == original_sub_graphs:
+            break
+    print('Nb of sub_graphs  after: ', len(sub_graphs))
+
     for sub_graph in sub_graphs:
         linkages, val = graph_matrix(sub_graph, pair_probas)
         for linkage in linkages:
             links.append(linkage)
     return links
+
+
+def merge_graphs(graph, sub_graphs, index):
+    graph_prevs = list(set([point for point in graph[::2]]))
+    graph_nexts = list(set([point for point in graph[1::2]]))
+
+    for i in range(len(sub_graphs)):
+        if i == index:
+            continue
+        else:
+            sub_graph = sub_graphs[i]
+            sub_graph_prevs = list(set([point for point in sub_graph[::2]]))
+            sub_graph_nexts = list(set([point for point in sub_graph[1::2]]))
+
+            for prev, next in zip(graph_prevs, graph_nexts):
+                if prev in sub_graph_prevs or next in sub_graph_nexts:
+                    sub_graphs[i].extend(graph)
+                    return sub_graphs[:index] + sub_graphs[index+1:]
+    return sub_graphs
 
 
 def graph_matrix(graph, pair_proba):

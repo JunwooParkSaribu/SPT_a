@@ -104,8 +104,13 @@ def make_image(output, trajectory_list, cutoff=0, pixel_shape=(512, 512), amp=1,
     cv2.imwrite(output, img)
 
 
-def make_image_seqs(*trajectory_lists, output_dir, time_steps, cutoff=0, original_shape=(512, 512),
+def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, original_shape=(512, 512),
                     target_shape=(512, 512), amp=0, add_index=True):
+    """
+    Use:
+    make_image_seqs(gt_list, trajectory_list, output_dir=output_img, time_steps=time_steps, cutoff=1,
+    original_shape=(images.shape[1], images.shape[2]), target_shape=(1536, 1536), add_index=True)
+    """
     img_origin = np.zeros((target_shape[0] * (10**amp), target_shape[1] * (10**amp), 3), dtype=np.uint8)
     result_stack = []
     x_amp = img_origin.shape[0] / original_shape[0]
@@ -145,6 +150,47 @@ def make_image_seqs(*trajectory_lists, output_dir, time_steps, cutoff=0, origina
         hstacked_img = np.hstack(img_stack)
         result_stack.append(hstacked_img)
     result_stack = np.array(result_stack)
+    tifffile.imwrite(output_dir, data=result_stack, imagej=True)
+
+
+def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, add_index=True):
+    alpha = 1.
+    result_stack = []
+    for img, frame in zip(img_stacks, time_steps):
+        img = np.array([img, img, img])
+        img = np.moveaxis(img, 0, 2)
+        img = np.ascontiguousarray(img)
+        img_org = img.copy()
+        overlay = img.copy()
+        for traj in trajectory_list:
+            times = traj.get_times()
+            if times[-1] < frame - 1:
+                continue
+            indices = [i for i, time in enumerate(times) if time <= frame]
+            if traj.get_trajectory_length() >= 2:
+                xy = np.array([[int(np.around(x)), int(np.around(y))]
+                               for x, y, _ in traj.get_positions()[indices]], np.int32)
+                font_scale = 0.1 * 2
+                img_poly = cv2.polylines(overlay, [xy],
+                                             isClosed=False,
+                                             color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
+                                                    int(traj.get_color()[2] * 255)),
+                                             thickness=1)
+                if len(indices) > 0:
+                    if add_index:
+                        cv2.putText(overlay, f'[{times[indices[0]]},{times[indices[-1]]}]',
+                                    org=[xy[0][0], xy[0][1] + 12], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                                    fontScale=font_scale,
+                                    color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
+                                           int(traj.get_color()[2] * 255)))
+                        cv2.putText(overlay, f'{traj.get_index()}', org=xy[0], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                                    fontScale=font_scale,
+                                    color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
+                                               int(traj.get_color()[2] * 255)))
+        image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
+        hstacked_img = np.hstack((img_org, image_alpha))
+        result_stack.append(hstacked_img)
+    result_stack = (np.array(result_stack) * 255).astype(np.uint8)
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 

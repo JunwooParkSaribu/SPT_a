@@ -338,6 +338,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     backward_linkage = {ws[0]: i for i, ws in enumerate(BACKWARD_WINDOW_SIZES)}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
+    reg_infos = [[] for _ in range(imgs.shape[0])]
     bg_means = bgs[ALL_WINDOW_SIZES[0][0]][:, 0]
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
@@ -390,7 +391,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                     regress_imgs = np.array(regress_imgs)
 
                     if len(regress_imgs) > 0:
-                        pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                        pdfs, xs, ys, x_vars, y_vars, amps = image_regression(regress_imgs, bg_regress, (ws, ws))
                         penalty = 1
                         for x_var, y_var in zip(x_vars, y_vars):
                             if x_var < 0 or y_var < 0:
@@ -404,7 +405,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                                                   regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
                                                   )
                         regressed_imgs = np.array(regressed_imgs)
-                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars])
+                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars, amps])
                         if regressed_imgs.shape != (pdfs.reshape(regress_imgs.shape)).shape:
                             ## x_var or y_var is (-)
                             loss_vals.append(penalty)
@@ -414,14 +415,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
                             loss_vals.append(loss)
                     else:
-                        selected_dt.append([0, 0, 0, 0, 0])
+                        selected_dt.append([0, 0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
                 print(loss_vals)
                 if np.sum(np.array(loss_vals) < 1.) >= 1:
                     selec_arg = np.argmin(loss_vals)
-                    pdfs, xs, ys, x_vars, y_vars = selected_dt[selec_arg]
+                    pdfs, xs, ys, x_vars, y_vars, amps = selected_dt[selec_arg]
                     infos = regress_comp_set[selec_arg]
-                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var in zip(infos, xs, ys, pdfs, x_vars, y_vars):
+                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var, amp in zip(infos, xs, ys, pdfs, x_vars, y_vars, amps):
                         r -= int(extend/2)
                         c -= int(extend/2)
                         if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
@@ -430,7 +431,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                         coords[n].append([row_coord, col_coord])
                         reg_pdfs[n].append(pdf)
-            return coords, reg_pdfs
+                        reg_infos[n].append([x_var, y_var, amp])
+            return coords, reg_pdfs, reg_infos
 
         else:
             for step, (g_grid, window_size, radius, threshold) in (
@@ -466,7 +468,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         rs.append(i4)
                         cs.append(i5)
 
-                    pdfs, xs, ys, x_vars, y_vars = image_regression(regress_imgs, bg_regress, (ws, ws))
+                    pdfs, xs, ys, x_vars, y_vars, amps = image_regression(regress_imgs, bg_regress, (ws, ws))
                     for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
                         if x_var < 0 or y_var < 0:
                             err_indice.append(err_i)
@@ -513,13 +515,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         ns = np.delete(ns, err_indice, 0)
                         rs = np.delete(rs, err_indice, 0)
                         cs = np.delete(cs, err_indice, 0)
-                        for n, r, c, dx, dy, pdf, x_var, y_var in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars):
+                        for n, r, c, dx, dy, pdf, x_var, y_var, amp in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars, amps):
                             if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
                                 continue
                             row_coord = max(0, min(r+dy, imgs.shape[1]-1))
                             col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
+                            reg_infos[n].append([x_var, y_var, amp])
                         del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
                         new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         extended_imgs = new_imgs
@@ -664,7 +667,7 @@ def image_regression(imgs, bgs, window_size, amp=0):
     #cov_mat = empiric_cov_matrix(grid, qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, cov_mat, mu=np.array([0, 0]), normalization=False)
     pdfs = variables[:, 4].reshape(-1, 1) * pdfs + bgs
-    return pdfs, variables[:, 2], variables[:, 3], variables[:, 0], variables[:, 1]
+    return pdfs, variables[:, 2], variables[:, 3], variables[:, 0], variables[:, 1], variables[:, 4]
 
 
 @njit
@@ -807,17 +810,19 @@ def visualilzation(output_dir, images, localized_xys):
     tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
-def intensity_distribution(reg_pdfs, xy_coords, sigma=5):
+def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=5):
     new_pdfs = []
     new_coords = []
-    for img_n, (pdfs, xy_coord) in enumerate(zip(reg_pdfs, xy_coords)):
+    new_infos = []
+    for img_n, (pdfs, xy_coord, info) in enumerate(zip(reg_pdfs, xy_coords, reg_infos)):
         if len(pdfs) < 2:
             continue
         new_pdf_tmp = pdfs.copy()
         new_xy_coord_tmp = xy_coord.copy()
+        new_reg_tmp = info.copy()
         max_pdf_vals = []
 
-        for pdf, xy in zip(pdfs, xy_coord):
+        for pdf in pdfs:
             max_pdf_vals.append(pdf[int((pdf.shape[0] - 1)/2)])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
         max_pdf_vals = np.array(max_pdf_vals)
 
@@ -829,24 +834,28 @@ def intensity_distribution(reg_pdfs, xy_coords, sigma=5):
             if max_pdf_val > mode_sigma:
                 new_pdf_tmp.append(pdfs[i])
                 new_xy_coord_tmp.append(xy_coord[i])
+                new_reg_tmp.append(info[i])
         new_pdfs.append(new_pdf_tmp)
         new_coords.append(new_xy_coord_tmp)
-    return new_pdfs, new_coords
+        new_infos.append(new_reg_tmp)
+    return new_pdfs, new_coords, new_infos
 
 
 xy_coords = []
 reg_pdfs = []
+reg_infos = []
 forward_gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 backward_gauss_grids = gauss_psf(BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
     bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=ALL_WINDOW_SIZES)
-    xy_coord, pdf = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids)
+    xy_coord, pdf, info = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids)
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
+    reg_infos.extend(info)
 
-reg_pdfs, xy_coords = intensity_distribution(reg_pdfs, xy_coords, sigma=SIGMA)
-write_localization(OUTPUT_DIR, xy_coords)
+reg_pdfs, xy_coords, reg_infos = intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
+write_localization(OUTPUT_DIR, xy_coords, reg_infos)
 visualilzation(OUTPUT_DIR, images, xy_coords)
 
 

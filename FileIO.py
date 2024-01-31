@@ -93,20 +93,21 @@ def read_mosaic(file: str) -> dict:
         print(e)
 
 
-def write_localization(output_dir, coords):
+def write_localization(output_dir, coords, infos):
     lines = f''
-    for frame, coord in enumerate(coords):
-        for pos in coord:
+    for frame, (coord, info) in enumerate(zip(coords, infos)):
+        for pos, (x_var, y_var, amp) in zip(coord, info):
             lines += f'{frame + 1}'
             if len(pos) == 3:
                 lines += f',{pos[1]},{pos[0]},{pos[2]}'
             elif len(pos) == 2:
-                lines += f',{pos[1]},{pos[0]}'
+                lines += f',{pos[1]},{pos[0]},0.0'
             elif len(pos) == 1:
-                lines += f',{pos[0]}'
+                lines += f',{pos[0]},0.0,0.0'
             else:
                 print(f'Localization writing Err')
                 raise Exception
+            lines += f',{x_var},{y_var},{amp}'
             lines += f'\n'
 
     with open(f'{output_dir}/localization.txt', 'w') as f:
@@ -115,16 +116,20 @@ def write_localization(output_dir, coords):
 
 def read_localization(input_file):
     locals = {}
+    locals_info = {}
     with open(input_file, 'r') as f:
         lines = f.readlines()
         for line in lines:
             line = line.strip().split('\n')[0].split(',')
             if int(line[0]) not in locals:
                 locals[int(line[0])] = []
+                locals_info[int(line[0])] = []
             pos_line = []
-            for dt in line[1:]:
-                pos_line.append(np.round(float(dt), 4))
-            if len(line) < 4:
-                pos_line.append(0.)
+            info_line = []
+            for dt in line[1:4]:
+                pos_line.append(np.round(float(dt), 5))
+            for dt in line[4:]:
+                info_line.append(np.round(float(dt), 5))
             locals[int(line[0])].append(pos_line)
-    return locals
+            locals_info[int(line[0])].append(info_line)
+    return locals, locals_info

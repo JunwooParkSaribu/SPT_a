@@ -802,7 +802,7 @@ if __name__ == '__main__':
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

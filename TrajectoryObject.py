@@ -12,7 +12,7 @@ class TrajectoryObj:
         self.closed = False
         self.color = (np.random.randint(0, 200)/255.,
                       np.random.randint(0, 255)/255.,
-                      np.random.randint(0, 255)/255.)
+                      np.random.randint(100, 255)/255.)
         self.optimality = 0.
         self.positions = []
 

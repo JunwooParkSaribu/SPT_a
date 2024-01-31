@@ -792,17 +792,17 @@ if __name__ == '__main__':
 
     input_tif = f'{WINDOWS_PATH}/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'{WINDOWS_PATH}/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/receptor_7_low.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

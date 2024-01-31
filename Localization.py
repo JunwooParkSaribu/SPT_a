@@ -21,7 +21,10 @@ images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
-OUTPUT_DIR = f'.'
+
+WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
+WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
+OUTPUT_DIR = f'{WINDOWS_PATH}'
 
 
 P0 = [1.5, 1.5, 0., 0., 0.5]

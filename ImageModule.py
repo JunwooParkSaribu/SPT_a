@@ -153,7 +153,7 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 
-def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2, add_index=True):
+def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2, add_index=True, gt_trajectory=None):
     alpha = 1.
     result_stack = []
     for img, frame in zip(img_stacks, time_steps):
@@ -172,10 +172,11 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                                for x, y, _ in traj.get_positions()[indices]], np.int32)
                 font_scale = 0.1 * 2
                 img_poly = cv2.polylines(overlay, [xy],
-                                             isClosed=False,
-                                             color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
-                                                    int(traj.get_color()[2] * 255)),
-                                             thickness=1)
+                                         isClosed=False,
+                                         color=(int(traj.get_color()[0] * 255),
+                                                int(traj.get_color()[1] * 255),
+                                                int(traj.get_color()[2] * 255)),
+                                         thickness=1)
                 if len(indices) > 0:
                     if add_index:
                         cv2.putText(overlay, f'[{times[indices[0]]},{times[indices[-1]]}]',
@@ -190,6 +191,38 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         img_org[:, -1, :] = 1
         image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
         hstacked_img = np.hstack((img_org, image_alpha))
+
+        if gt_trajectory is not None:
+            overlay = img.copy()
+            for traj in gt_trajectory:
+                times = traj.get_times()
+                if times[-1] < frame - 1:
+                    continue
+                indices = [i for i, time in enumerate(times) if time <= frame]
+                if traj.get_trajectory_length() >= cutoff:
+                    xy = np.array([[int(np.around(x)), int(np.around(y))]
+                                   for x, y, _ in traj.get_positions()[indices]], np.int32)
+                    font_scale = 0.1 * 2
+                    img_poly = cv2.polylines(overlay, [xy],
+                                             isClosed=False,
+                                             color=(int(traj.get_color()[0] * 255),
+                                                    int(traj.get_color()[1] * 255),
+                                                    int(traj.get_color()[2] * 255)),
+                                             thickness=1)
+                    if len(indices) > 0:
+                        if add_index:
+                            cv2.putText(overlay, f'[{times[indices[0]]},{times[indices[-1]]}]',
+                                        org=[xy[0][0], xy[0][1] + 12], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                                        fontScale=font_scale,
+                                        color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
+                                               int(traj.get_color()[2] * 255)))
+                            cv2.putText(overlay, f'{traj.get_index()}', org=xy[0], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                                        fontScale=font_scale,
+                                        color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
+                                               int(traj.get_color()[2] * 255)))
+            hstacked_img[:, -1, :] = 1
+            image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
+            hstacked_img = np.hstack((hstacked_img, image_alpha))
         result_stack.append(hstacked_img)
     result_stack = (np.array(result_stack) * 255).astype(np.uint8)
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)

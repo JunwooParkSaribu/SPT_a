@@ -775,7 +775,7 @@ if __name__ == '__main__':
     cutoff = 2
     methods = [1, 3]
     var_parallel = True
-    confidence = 0.95
+    confidence = 0.99
     amp = 1.3
     THRESHOLDS = None #[8, 14.5]
 
@@ -790,19 +790,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/vesicle_7_low.tif'
+    input_tif = f'./SimulData/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./simulated_data/ground_truth/VESICLE snr 7 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/my_test1/vesicle_7_low/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/my_test1/vesicle_7_low/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/vesicle_7_low/localization.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

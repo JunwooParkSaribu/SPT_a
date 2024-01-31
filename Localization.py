@@ -10,8 +10,8 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/receptor_4_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
@@ -32,10 +32,10 @@ P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
-THRESHOLDS = [.3, .3, .3]
+THRESHOLDS = [.35, .35, .35]
 BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
 BACKWARD_RADIUS = [.7, 1.1]
-BACKWARD_THRESHOLDS = [.3, .3]
+BACKWARD_THRESHOLDS = [.35, .35]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
@@ -452,6 +452,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
             indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
+            print(indices)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
                     win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c],

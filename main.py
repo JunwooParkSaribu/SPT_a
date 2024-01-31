@@ -603,7 +603,7 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
         for src_key in trajectory_dict:
             traj = trajectory_dict[src_key]
             srcs_pairs.append(traj.get_trajectory_tuples()[-1])
-        print(f'linkage duration:{(timer() - before_time):.2f}s')
+        print(f'linkage duration: {(timer() - before_time):.2f}s')
 
     for src_key in trajectory_dict:
         trajectory_dict[src_key].close()
@@ -773,7 +773,7 @@ if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
     cutoff = 2
-    methods = [1, 2, 3]
+    methods = [1, 3]
     var_parallel = True
     confidence = 0.95
     amp = 1.3

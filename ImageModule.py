@@ -187,6 +187,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                                     fontScale=font_scale,
                                     color=(int(traj.get_color()[0] * 255), int(traj.get_color()[1] * 255),
                                                int(traj.get_color()[2] * 255)))
+        img[:, -1, :] = 255
         image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
         hstacked_img = np.hstack((img_org, image_alpha))
         result_stack.append(hstacked_img)

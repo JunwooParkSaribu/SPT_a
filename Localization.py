@@ -11,6 +11,7 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
@@ -31,10 +32,10 @@ P0 = [1.5, 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
-THRESHOLDS = [.25, .25, .25]
+THRESHOLDS = [.3, .3, .3]
 BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
 BACKWARD_RADIUS = [.7, 1.1]
-BACKWARD_THRESHOLDS = [.20, .25]
+BACKWARD_THRESHOLDS = [.3, .3]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
@@ -451,7 +452,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
             indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
-
             if len(indices) != 0:
                 for n, r, c, ws in indices:
                     win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c],
@@ -470,10 +470,9 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         ns.append(i3)
                         rs.append(i4)
                         cs.append(i5)
-
                     pdfs, xs, ys, x_vars, y_vars, amps = image_regression(regress_imgs, bg_regress, (ws, ws))
                     for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
-                        if x_var < 0 or y_var < 0:
+                        if x_var < 0 or y_var < 0 or x_var > 2*ws or y_var > 2*ws:
                             err_indice.append(err_i)
                     if len(err_indice) == len(pdfs):
                         print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')

@@ -856,4 +856,5 @@ if __name__ == '__main__':
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     trajectory_list = xml_to_object(output_xml)
     gt_list = xml_to_object(gt_xml)
-    make_image_seqs(trajectory_list, output_dir=output_img, img_stacks=images, time_steps=time_steps, add_index=False)
+    make_image_seqs(trajectory_list, output_dir=output_img, img_stacks=images,
+                    time_steps=time_steps, cutoff=cutoff, add_index=False)

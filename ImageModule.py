@@ -153,7 +153,7 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 
-def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, add_index=True):
+def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2, add_index=True):
     alpha = 1.
     result_stack = []
     for img, frame in zip(img_stacks, time_steps):
@@ -167,7 +167,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, add_ind
             if times[-1] < frame - 1:
                 continue
             indices = [i for i, time in enumerate(times) if time <= frame]
-            if traj.get_trajectory_length() >= 2:
+            if traj.get_trajectory_length() >= cutoff:
                 xy = np.array([[int(np.around(x)), int(np.around(y))]
                                for x, y, _ in traj.get_positions()[indices]], np.int32)
                 font_scale = 0.1 * 2

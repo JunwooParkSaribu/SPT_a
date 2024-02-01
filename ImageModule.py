@@ -177,7 +177,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
             local_img[:, -1, :] = 1
         for traj in trajectory_list:
             times = traj.get_times()
-            if times[-1] < frame - 1:
+            if times[-1] < frame:
                 continue
             indices = [i for i, time in enumerate(times) if time <= frame]
             if traj.get_trajectory_length() >= cutoff:
@@ -212,7 +212,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
             overlay = img.copy()
             for traj in gt_trajectory:
                 times = traj.get_times()
-                if times[-1] < frame - 1:
+                if times[-1] < frame:
                     continue
                 indices = [i for i, time in enumerate(times) if time <= frame]
                 if traj.get_trajectory_length() >= cutoff:

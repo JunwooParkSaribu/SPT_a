@@ -240,7 +240,7 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
 def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=True):
     pdf_indices = []
     bin_size = bins[0][1] - bins[0][0]
-    alphas = np.ceil((np.sign((thresholds / limits) - 1) + 1)/2.) + 1e-6
+    alphas = np.ceil((np.sign((thresholds / limits) - 1) + 1)/2.) + 1e-8
     if cut:
         for n, index in enumerate(((limits / alphas) // bin_size).astype(np.uint64)):
             if limits[n] < thresholds[n]:
@@ -250,7 +250,7 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
                         pdf_indices.append([n, pdfs[n][index]])
                     else:
                         print('there is a proba 0 even lower than thresholds')
-                        #pdf_indices.append([n, 1e-6])
+                        #pdf_indices.append([n, 1e-8])
                 else:
                     pdf_indices.append([n, pdfs[n][-1]])
     else:
@@ -510,11 +510,14 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
         before_time = timer()
         pairs, seg_lengths, pair_crop_images, pair_positions = pair_permutation(srcs_pairs, dests_pairs, localization)
         print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
-        paused_times = [trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]]
-
+        paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
+        track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
         thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
+
         before_time = timer()
         linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins)
+        track_lengths = track_lengths[linkage_indices]
+        linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
 
         print(f'{"displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:

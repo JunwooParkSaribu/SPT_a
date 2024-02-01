@@ -153,7 +153,8 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 
-def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2, add_index=True, gt_trajectory=None):
+def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2,
+                    add_index=True, local_img=None, gt_trajectory=None):
     alpha = 1.
     result_stack = []
     for img, frame in zip(img_stacks, time_steps):
@@ -162,6 +163,18 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         img = np.ascontiguousarray(img)
         img_org = img.copy()
         overlay = img.copy()
+        if local_img is not None:
+            local_img = img_org.copy()
+            for traj in trajectory_list:
+                times = traj.get_times()
+                if frame in times:
+                    indices = [i for i, time in enumerate(times) if time == frame]
+                    xy = np.array([[int(np.around(x)), int(np.around(y))]
+                                   for x, y, _ in traj.get_positions()[indices]], np.int32)
+                    local_img[xy[0][1], xy[0][0], 0] = 1
+                    local_img[xy[0][1], xy[0][0], 1] = 0
+                    local_img[xy[0][1], xy[0][0], 2] = 0
+            local_img[:, -1, :] = 1
         for traj in trajectory_list:
             times = traj.get_times()
             if times[-1] < frame - 1:
@@ -190,7 +203,10 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                                                int(traj.get_color()[2] * 255)))
         img_org[:, -1, :] = 1
         image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
-        hstacked_img = np.hstack((img_org, image_alpha))
+        if local_img is not None:
+            hstacked_img = np.hstack((local_img, image_alpha))
+        else:
+            hstacked_img = image_alpha
 
         if gt_trajectory is not None:
             overlay = img.copy()

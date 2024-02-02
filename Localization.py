@@ -10,8 +10,8 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/receptor_4_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
@@ -606,6 +606,7 @@ def background(imgs, window_sizes):
     #bg_instensity = stats.mode(
     #    (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
     bg_intensities = (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8) / 100
+    max_itensities = np.max(imgs, axis=(1, 2))
     for i in range(len(bg_intensities)):
         args = np.arange(len(bg_intensities[i]))
         post_mask_args = args.copy()
@@ -621,6 +622,9 @@ def background(imgs, window_sizes):
         bg_stds.append(np.std(it_data))
     bg_means = np.array(bg_means)
     bg_stds = np.array(bg_stds)
+
+    #for xxx in range(imgs.shape[0]):
+    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}')
 
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))

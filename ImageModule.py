@@ -28,7 +28,7 @@ def read_tif(filepath):
     return normalized_imgs
 
 
-def read_single_tif(filepath):
+def read_single_tif(filepath, ch3=True):
     with TiffFile(filepath) as tif:
         imgs = tif.asarray()
         if len(imgs.shape) >= 3:
@@ -49,6 +49,8 @@ def read_single_tif(filepath):
     imgs = (imgs - s_mins) / (s_maxima - s_mins)
     #img = np.minimum(img, one_base)
     normalized_imgs = np.array(imgs * 255, dtype=np.uint8)
+    if ch3 is False:
+        return normalized_imgs
     img_3chs = np.array([np.zeros(normalized_imgs.shape), normalized_imgs, np.zeros(normalized_imgs.shape)]).astype(np.uint8)
     img_3chs = np.moveaxis(img_3chs, 0, 2)
     return img_3chs
@@ -282,10 +284,8 @@ for i in range(100):
         i = '00'+str(i)
     else:
         i = '0' + str(i)
-    f = f'/home/junwoo/MT/simulated_data/VESICLE/VESICLE snr 7 density mid/VESICLE snr 7 density mid t{i} z0.tif'
-    imgs.append(read_single_tif(f))
-stack_tif(filename=f'vesicle_7_mid.tif', normalized_imgs=imgs)
+    f = f'/home/junwoo/SPT_a/simulated_data/MICROTUBULE/MICROTUBULE snr 4 density mid/MICROTUBULE snr 4 density mid t{i} z0.tif'
+    imgs.append(read_single_tif(f, ch3=False))
+stack_tif(filename=f'microtubule_4_mid.tif', normalized_imgs=imgs)
 exit(1)
 """
-
-

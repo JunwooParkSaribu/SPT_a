@@ -152,4 +152,4 @@ else the value is higher: far from the ground-truth.
 """
 mine = np.zeros_like(ground_truth_hist)  # change this for your segments distribution and convert it into a histogram with bins_.
 result_value = kl_divergence(mine, ground_truth_hist)
-print(f'Result KL-divergence entropy between two PDF:{result_value}')
+print(f'Result of KL-divergence entropy between two PDFs:{result_value}')

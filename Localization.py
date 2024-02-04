@@ -13,14 +13,15 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
-images = read_tif('SimulData/vesicle_4_low.tif')
+#images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
+#images = read_tif('tif_trxyt/vesicle_4_low.tif')
 #images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 
@@ -39,7 +40,7 @@ BACKWARD_RADIUS = [.7, 1.1]
 BACKWARD_THRESHOLDS = [.35, .35]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
-DIV_Q = 5
+DIV_Q = 50
 images = images
 
 
@@ -608,6 +609,7 @@ def background(imgs, window_sizes):
     #    (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
     bg_intensities = (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8) / 100
     max_itensities = np.max(imgs, axis=(1, 2))
+    mean_intensities = np.mean(imgs, axis=(1, 2))
     for i in range(len(bg_intensities)):
         args = np.arange(len(bg_intensities[i]))
         post_mask_args = args.copy()
@@ -624,9 +626,9 @@ def background(imgs, window_sizes):
     bg_means = np.array(bg_means)
     bg_stds = np.array(bg_stds)
 
-    #for xxx in range(imgs.shape[0]):
-    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}')
-
+    for xxx in range(imgs.shape[0]):
+        print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
+    exit(1)
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
         bg *= bg_means.reshape(-1, 1)

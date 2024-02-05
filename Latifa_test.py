@@ -130,7 +130,7 @@ def kl_divergence(distribution, ground_truth_xml):
     ref_distribution = trajectory_to_segments(xml_to_object(ground_truth_xml), blink_lag=MAX_DELTA_T)
     ref_proba, bins = np.histogram(ref_distribution[DELTA_T], bins=bins_)
     if type(distribution) is str:
-        distribution = trajectory_to_segments(xml_to_object(distribution), blink_lag=MAX_DELTA_T)
+        distribution = trajectory_to_segments(xml_to_object(distribution), blink_lag=MAX_DELTA_T)[DELTA_T]
     proba, bins = np.histogram(distribution, bins=bins_)
 
     assert proba.shape == ref_proba.shape  # check the shape whether both inputs used bins_ or not.
@@ -152,7 +152,7 @@ and compare the histograms(ground-truth and yours) with kl-divergence.
 If the result value equal to 0: exactly same as ground truth, perfect match,
 else the value is higher: far from the ground-truth.
 """
-WSL_PATH = '/mnt/c/Users/jwoo/Desktop/my_test1/receptor_7_low/receptor_7_low.xml'
+
 mine = np.zeros(np.arange(0, 50, 0.25).shape)  # change this for your segments distribution.
-result_value = kl_divergence(WSL_PATH, ground_truth_xml)
+result_value = kl_divergence(mine, ground_truth_xml)
 print(f'Result of KL-divergence entropy between two PDFs:{result_value}')

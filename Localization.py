@@ -10,18 +10,19 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
+#images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/vesicle_4_low.tif')
 #images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
-images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 
@@ -30,17 +31,17 @@ WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 OUTPUT_DIR = f'{WINDOWS_PATH}'
 
 
-P0 = [1.5, 1.5, 0., 0., 0.5]
+P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
-THRESHOLDS = [.35, .35, .35]
+THRESHOLDS = [.3, .3, .3]
 BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
 BACKWARD_RADIUS = [.7, 1.1]
-BACKWARD_THRESHOLDS = [.35, .35]
+BACKWARD_THRESHOLDS = [.3, .3]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
-DIV_Q = 50
+DIV_Q = 5
 images = images
 
 
@@ -397,7 +398,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                     regress_imgs = np.array(regress_imgs)
 
                     if len(regress_imgs) > 0:
-                        pdfs, xs, ys, x_vars, y_vars, amps = image_regression(regress_imgs, bg_regress, (ws, ws))
+                        pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress, (ws, ws))
                         penalty = 1
                         for x_var, y_var in zip(x_vars, y_vars):
                             if x_var < 0 or y_var < 0:
@@ -472,7 +473,18 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         ns.append(i3)
                         rs.append(i4)
                         cs.append(i5)
-                    pdfs, xs, ys, x_vars, y_vars, amps = image_regression(regress_imgs, bg_regress, (ws, ws))
+                    pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress, (ws, ws))
+                    """
+                    for mypdf, rgpdf, aa,bb,cc in zip(pdfs, regress_imgs, rhos, x_vars, y_vars):
+                        if bb < 0 or cc < 0:
+                            print(aa, bb, cc)
+                            print(aa * np.sqrt(bb) * np.sqrt(cc))
+                            plt.figure()
+                            plt.imshow(mypdf.reshape((ws, ws)))
+                            plt.figure()
+                            plt.imshow(rgpdf.reshape((ws, ws)))
+                            plt.show()
+                    """
                     for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
                         if x_var < 0 or y_var < 0 or x_var > 2*ws or y_var > 2*ws:
                             err_indice.append(err_i)
@@ -626,9 +638,9 @@ def background(imgs, window_sizes):
     bg_means = np.array(bg_means)
     bg_stds = np.array(bg_stds)
 
-    for xxx in range(imgs.shape[0]):
-        print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
-    exit(1)
+    #for xxx in range(imgs.shape[0]):
+    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
+    #exit(1)
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
         bg *= bg_means.reshape(-1, 1)
@@ -665,9 +677,11 @@ def image_regression(imgs, bgs, window_size, amp=0):
     bgs = np.array(bgs)
     qt_imgs, grid = quantification(imgs, window_size, amp)
     coefs = guo_algorithm(imgs, bgs, p0=P0, window_size=window_size)
-    variables = np.array(unpack_coefs(coefs)).T
-    cov_mat = np.array([variables[:, 0], [0]*variables.shape[0],
-                        [0]*variables.shape[0], variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
+    variables, err_indices = unpack_coefs(coefs)
+    variables = np.array(variables).T
+    cov_mat = np.array([variables[:, 0], variables[:, 4] * np.sqrt(variables[:, 0]) * np.sqrt(variables[:, 2]),
+                        variables[:, 4] * np.sqrt(variables[:, 0] * np.sqrt(variables[:, 2])), variables[:, 2]]
+                       ).T.reshape(variables.shape[0], 2, 2)
     """
     cov_val = cov_matrix(grid, qt_imgs, variables[:, 2],  variables[:, 3])
     cov_mat = np.array([variables[:, 0], cov_val,
@@ -675,28 +689,11 @@ def image_regression(imgs, bgs, window_size, amp=0):
     """
     #cov_mat = empiric_cov_matrix(grid, qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, cov_mat, mu=np.array([0, 0]), normalization=False)
-    pdfs = variables[:, 4].reshape(-1, 1) * pdfs + bgs
-    return pdfs, variables[:, 2], variables[:, 3], variables[:, 0], variables[:, 1], variables[:, 4]
-
-
-@njit
-def unpack_coefs(coefs):
-    x_var = -1./(2 * coefs[:, 0])
-    y_var = -1./(2 * coefs[:, 2])
-    x0 = coefs[:, 1] * x_var
-    y0 = coefs[:, 3] * y_var
-    amp = np.exp(coefs[:, 4] + ((x0**2)/(2 * x_var)) + ((y0**2)/(2 * y_var)))
-    return [x_var, y_var, x0, y0, amp]
-
-
-@njit
-def pack_vars(vars, len_img):
-    coef0 = -1./(2 * vars[0])
-    coef2 = -1. / (2 * vars[1])
-    coef1 = vars[2] / vars[0]
-    coef3 = vars[3] / vars[1]
-    coef4 = np.log(vars[4]) - ((vars[2]**2)/(2 * vars[0])) - ((vars[3]**2)/(2 * vars[1]))
-    return [[coef0, coef1, coef2, coef3, coef4] for _ in range(len_img)]
+    pdfs = variables[:, 5].reshape(-1, 1) * pdfs + bgs
+    for err_i in err_indices:
+        variables[err_i][0] = -100
+        variables[err_i][2] = -100
+    return pdfs, variables[:, 1], variables[:, 3], variables[:, 0], variables[:, 2], variables[:, 5], variables[:, 4]
 
 
 @njit
@@ -707,15 +704,56 @@ def matrix_decomp(matrix, q):
     return ret_mat
 
 
+#@njit
+def unpack_coefs(coefs):
+    err_indices = []
+    x_mu = []
+    y_mu = []
+    for err_indice, (acoef_check, ccoef_check) in enumerate(zip(coefs[:, 0], coefs[:, 2])):
+        if acoef_check >= 0 or ccoef_check >= 0:
+            err_indices.append(err_indice)
+    rho = coefs[:, 4] * np.sqrt(1/(4 * -abs(coefs[:, 0]) * -abs(coefs[:, 2])))
+    k = 1 - rho**2
+    x_var = abs(1/(-2 * coefs[:, 0] * k))
+    y_var = abs(1/(-2 * coefs[:, 2] * k))
+    for i, (b, d) in enumerate(zip(coefs[:, 1], coefs[:, 3])):
+        if i in err_indices:
+            x_mu.extend([0])
+            y_mu.extend([0])
+        else:
+            coef_mat = np.array([[-rho[i] * np.sqrt(y_var[i]) / np.sqrt(x_var[i]), 1.],
+                                 [1., -rho[i] * np.sqrt(x_var[i]) / np.sqrt(y_var[i])]])
+            ans_mat = np.array([[d * k[i] * y_var[i]], [b * k[i] * x_var[i]]])
+            x_, y_, = np.linalg.lstsq(coef_mat, ans_mat, rcond=None)[0]
+            x_mu.extend(x_)
+            y_mu.extend(y_)
+    x_mu = np.array(x_mu)
+    y_mu = np.array(y_mu)
+    amp = np.exp(coefs[:, 5] + (x_mu**2 / (2 * k * x_var)) + (y_mu**2 / (2 * k * y_var)) - (rho * x_mu * y_mu / (k * np.sqrt(x_var) * np.sqrt(y_var))))
+    return [x_var, x_mu, y_var, y_mu, rho, amp], err_indices
+
+
+@njit
+def pack_vars(vars, len_img):
+    a = -1./(2 * vars[0] * (1 - vars[4]**2))
+    b = vars[1] / ((1 - vars[4]**2) * vars[0]) - (vars[4] * vars[3]) / ((1 - vars[4]**2) * np.sqrt(vars[0]) * np.sqrt(vars[2]))
+    c = -1. / (2 * vars[2] * (1 - vars[4]**2))
+    d = vars[3] / ((1 - vars[4]**2) * vars[2]) - (vars[4] * vars[1]) / ((1 - vars[4]**2) * np.sqrt(vars[0]) * np.sqrt(vars[2]))
+    e = vars[4] / ((1 - vars[4]**2) * np.sqrt(vars[0]) * np.sqrt(vars[2]))
+    f = (-(vars[1]**2)/(2*(1-vars[4]**2)*vars[0]) - (vars[3]**2)/(2*(1-vars[4]**2)*vars[2]) + (vars[4]*vars[1]*vars[3])/((1-vars[4]**2)*np.sqrt(vars[0]) * np.sqrt(vars[2])) +
+         np.log(1/(2*np.pi*np.sqrt(vars[0]) * np.sqrt(vars[2])*(np.sqrt(1-vars[4]**2)))))
+    return [[a, b, c, d, e, f] for _ in range(len_img)]
+
+
 def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
     nb_imgs = imgs.shape[0]
     if p0 is None:
-        p0 = [1.5, 1.5, 0., 0., 0.5]
+        p0 = [1.5, 0., 1.5, 0., 0., 0.5]  # x_var, x_mu, y_var, y_mu, rho, amp
     coef_vals = np.array(pack_vars(nbList(p0), nb_imgs))
     imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.
-    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-3
-    yk_2 = imgs.astype(np.float64)
+    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-2
+    yk_2 = imgs.astype(np.float64).copy()
     x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
               .reshape(-1, window_size[0], window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
@@ -724,36 +762,41 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
         if k != 0:
             yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
                           coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
-                          coef_vals[:, 4].reshape(-1, 1, 1))
+                          coef_vals[:, 4].reshape(-1, 1, 1) * x_grid * y_grid + coef_vals[:, 5].reshape(-1, 1, 1))
         yk_2 *= yk_2
         coef1 = yk_2 * x_grid**4
         coef2 = yk_2 * x_grid**3
-        coef3 = yk_2 * y_grid**2 * x_grid**2
-        coef4 = yk_2 * y_grid * x_grid**2
-        coef5 = yk_2 * x_grid**2
-        coef6 = yk_2 * y_grid**2 * x_grid
-        coef7 = yk_2 * y_grid * x_grid
-        coef8 = yk_2 * x_grid
-        coef9 = yk_2 * y_grid**4
-        coef10 = yk_2 * y_grid**3
-        coef11 = yk_2 * y_grid**2
-        coef12 = yk_2 * y_grid
+        coef3 = yk_2 * x_grid**2 * y_grid**2
+        coef4 = yk_2 * x_grid**2 * y_grid
+        coef5 = yk_2 * x_grid**3 * y_grid
+        coef6 = yk_2 * x_grid**2
+        coef7 = yk_2 * x_grid * y_grid**2
+        coef8 = yk_2 * x_grid * y_grid
+        coef9 = yk_2 * x_grid
+        coef10 = yk_2 * y_grid**4
+        coef11 = yk_2 * y_grid**3
+        coef12 = yk_2 * x_grid * y_grid**3
+        coef13 = yk_2 * y_grid**2
+        coef14 = yk_2 * y_grid
+        coef15 = yk_2
         coef_matrix = np.sum(
             np.array(
-                [[coef1, coef2, coef3, coef4, coef5],
-                 [coef2, coef5, coef6, coef7, coef8],
-                 [coef3, coef6, coef9, coef10, coef11],
-                 [coef4, coef7, coef10, coef11, coef12],
-                 [coef5, coef8, coef11, coef12, yk_2]]
+                [[coef1, coef2, coef3, coef4, coef5, coef6],
+                 [coef2, coef6, coef7, coef8, coef4, coef9],
+                 [coef3, coef7, coef10, coef11, coef12, coef13],
+                 [coef4, coef8, coef11, coef13, coef7, coef14],
+                 [coef5, coef4, coef12, coef7, coef3, coef8],
+                 [coef6, coef9, coef13, coef14, coef8, coef15]]
             ), axis=(3, 4)).transpose(2, 0, 1)
         ans1 = x_grid ** 2 * yk_2 * np.log(imgs)
         ans2 = x_grid * yk_2 * np.log(imgs)
         ans3 = y_grid ** 2 * yk_2 * np.log(imgs)
         ans4 = y_grid * yk_2 * np.log(imgs)
-        ans5 = yk_2 * np.log(imgs)
+        ans5 = x_grid * y_grid * yk_2 * np.log(imgs)
+        ans6 = yk_2 * np.log(imgs)
         ans_matrix = np.sum(
             np.array(
-                [[ans1], [ans2], [ans3], [ans4], [ans5]]
+                [[ans1], [ans2], [ans3], [ans4], [ans5], [ans6]]
             ), axis=(3, 4), dtype=np.float64).transpose(2, 0, 1)
         coef_matrix = matrix_decomp(coef_matrix, GAUSS_SEIDEL_DECOMP)
         ans_matrix = matrix_decomp(ans_matrix, GAUSS_SEIDEL_DECOMP)
@@ -761,12 +804,12 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
         x_matrix = []
         for (a_mats, b_mats, coef_val) in zip(coef_matrix, ans_matrix, decomp_coef_vals):
             a_mat = np.zeros((a_mats.shape[0] * a_mats.shape[1], a_mats.shape[0] * a_mats.shape[2]))
-            for x, vals in zip(range(0, a_mat.shape[0], 5), a_mats):
-                a_mat[x:x+5, x:x+5] = vals
+            for x, vals in zip(range(0, a_mat.shape[0], 6), a_mats):
+                a_mat[x:x+6, x:x+6] = vals
             b_mat = b_mats.flatten().reshape(-1, 1)
-            #x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
-            x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
-        x_matrix = np.array(x_matrix).reshape(-1, 5)
+            x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
+            #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
+        x_matrix = np.array(x_matrix).reshape(-1, 6)
         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
             break
         coef_vals = x_matrix
@@ -775,7 +818,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7):
 
 @njit
 def gauss_seidel(a, b, p0, iter=200, tol=1e-8):
-    x = p0.ravel()
+    x = p0
     for it_count in range(1, iter):
         x_new = np.zeros(x.shape, dtype=np.float64)
         for i in range(a.shape[0]):

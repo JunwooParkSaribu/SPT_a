@@ -756,10 +756,11 @@ def merge_graphs(graph, sub_graphs, index):
 
 def graph_matrix(graph, pair_proba):
     opt_matchs = []
+    default_val = -1e5
     row_list = list(set([prev_point for prev_point in graph[::2]]))
     col_list = list(set([prev_point for prev_point in graph[1::2]]))
 
-    graph_mat = np.zeros((len(row_list), len(col_list))) - np.inf
+    graph_mat = np.zeros((len(row_list), len(col_list))) + default_val
     for r, row in enumerate(row_list):
         for c, col in enumerate(col_list):
             if (row[0], row[1], col[0], col[1]) in pair_proba:
@@ -767,7 +768,8 @@ def graph_matrix(graph, pair_proba):
 
     rows, cols, val = hungarian_algo_max(graph_mat)
     for row, col in zip(rows, cols):
-        opt_matchs.append((row_list[row], col_list[col]))
+        if graph_mat[row, col] > default_val + 1:
+            opt_matchs.append((row_list[row], col_list[col]))
     return opt_matchs, val
 
 
@@ -792,19 +794,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/vesicle_4_low.tif'
+    input_tif = f'./SimulData/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./simulated_data/ground_truth/VESICLE snr 4 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/my_test1/vesicle_4_low/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/my_test1/vesicle_4_low/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/vesicle_4_low/localization.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

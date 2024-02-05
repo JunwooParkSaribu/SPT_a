@@ -1,5 +1,5 @@
 ## receptor snr 7
-P0 = [1.5, 1.5, 0., 0., 0.5]
+P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
@@ -10,7 +10,7 @@ BACKWARD_THRESHOLDS = [.3, .3]
 
 
 ## receptor snr 4
-P0 = [1.5, 1.5, 0., 0., 0.5]
+P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
@@ -21,7 +21,7 @@ BACKWARD_THRESHOLDS = [.35, .35]
 
 
 ## Real data
-P0 = [1.5, 1.5, 0., 0., 0.5]
+P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]

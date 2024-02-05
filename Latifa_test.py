@@ -120,12 +120,19 @@ def xml_to_object(input_file):
     return trajectory_list
 
 
-def kl_divergence(proba, ref_proba):
+def kl_divergence(distribution, ground_truth_xml):
     """
     @parameters
-    proba: your PDF
-    ref_proba: ground-truth PDF
+    distribution(1d array): your segment length distribution
+    ground_truth_xml(ground-truth xml file): ground-truth
     """
+    bins_ = np.arange(0, 50, 0.25)  # must use this bins_ to make segments distribution into a histogram
+    ref_distribution = trajectory_to_segments(xml_to_object(ground_truth_xml), blink_lag=MAX_DELTA_T)
+    ref_proba, bins = np.histogram(ref_distribution[DELTA_T], bins=bins_)
+    if type(distribution) is str:
+        distribution = trajectory_to_segments(xml_to_object(distribution), blink_lag=MAX_DELTA_T)
+    proba, bins = np.histogram(distribution, bins=bins_)
+
     assert proba.shape == ref_proba.shape  # check the shape whether both inputs used bins_ or not.
     proba = np.array(proba, dtype=np.float64) + 1e-10
     ref_proba = np.array(ref_proba, dtype=np.float64) + 1e-10
@@ -134,14 +141,9 @@ def kl_divergence(proba, ref_proba):
     return np.sum(proba * np.log(proba/ref_proba))
 
 
-max_delta_t = 5  # don't need to touch it
-delta_t = 0   # gap between frames (0: consecutive frame, 1: between frame 0 and 2, 1 and 3, and so on...)
-bins_ = np.arange(0, 50, 0.25)  # must use this bins_ to make segments distribution into a histogram
-
-ground_truth_xml = f'ground_truth/RECEPTOR snr 7 density low.xml'  # ground truth file path
-trajectory_list = xml_to_object(ground_truth_xml)
-segments_distribution = trajectory_to_segments(trajectory_list, blink_lag=max_delta_t)
-ground_truth_hist, bins = np.histogram(segments_distribution[delta_t], bins=bins_)
+MAX_DELTA_T = 5  # don't need to touch it
+DELTA_T = 0   # gap between frames (0: consecutive frame, 1: between frame 0 and 2, 1 and 3, and so on...)
+ground_truth_xml = f'simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'  # ground truth file path
 
 """
 After collecting segments, you can make a histogram for a given delta_t with bins_.
@@ -150,6 +152,7 @@ and compare the histograms(ground-truth and yours) with kl-divergence.
 If the result value equal to 0: exactly same as ground truth, perfect match,
 else the value is higher: far from the ground-truth.
 """
-mine = np.zeros_like(ground_truth_hist)  # change this for your segments distribution and convert it into a histogram with bins_.
-result_value = kl_divergence(mine, ground_truth_hist)
+WSL_PATH = '/mnt/c/Users/jwoo/Desktop/my_test1/receptor_7_low/receptor_7_low.xml'
+mine = np.zeros(np.arange(0, 50, 0.25).shape)  # change this for your segments distribution.
+result_value = kl_divergence(WSL_PATH, ground_truth_xml)
 print(f'Result of KL-divergence entropy between two PDFs:{result_value}')

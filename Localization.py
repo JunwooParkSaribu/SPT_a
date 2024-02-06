@@ -10,9 +10,9 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
-#images = read_tif('SimulData/vesicle_7_low.tif')
+images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
@@ -412,7 +412,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                                                   regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
                                                   )
                         regressed_imgs = np.array(regressed_imgs)
-                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars, amps])
+                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars, rhos, amps])
                         if regressed_imgs.shape != (pdfs.reshape(regress_imgs.shape)).shape:
                             ## x_var or y_var is (-)
                             loss_vals.append(penalty)
@@ -422,14 +422,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                             #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
                             loss_vals.append(loss)
                     else:
-                        selected_dt.append([0, 0, 0, 0, 0, 0])
+                        selected_dt.append([0, 0, 0, 0, 0, 0, 0])
                         loss_vals.append(1e3)
                 print(loss_vals)
                 if np.sum(np.array(loss_vals) < 1.) >= 1:
                     selec_arg = np.argmin(loss_vals)
-                    pdfs, xs, ys, x_vars, y_vars, amps = selected_dt[selec_arg]
+                    pdfs, xs, ys, x_vars, y_vars, rhos, amps = selected_dt[selec_arg]
                     infos = regress_comp_set[selec_arg]
-                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var, amp in zip(infos, xs, ys, pdfs, x_vars, y_vars, amps):
+                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var, rho, amp in zip(infos, xs, ys, pdfs, x_vars, y_vars, rhos, amps):
                         r -= int(extend/2)
                         c -= int(extend/2)
                         if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
@@ -438,7 +438,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                         coords[n].append([row_coord, col_coord])
                         reg_pdfs[n].append(pdf)
-                        reg_infos[n].append([x_var, y_var, amp])
+                        reg_infos[n].append([x_var, y_var, rho, amp])
             return coords, reg_pdfs, reg_infos
 
         else:
@@ -531,14 +531,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
                         ns = np.delete(ns, err_indice, 0)
                         rs = np.delete(rs, err_indice, 0)
                         cs = np.delete(cs, err_indice, 0)
-                        for n, r, c, dx, dy, pdf, x_var, y_var, amp in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars, amps):
+                        for n, r, c, dx, dy, pdf, x_var, y_var, rho, amp in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars, rhos, amps):
                             if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
                                 continue
                             row_coord = max(0, min(r+dy, imgs.shape[1]-1))
                             col_coord = max(0, min(c+dx, imgs.shape[2]-1))
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
-                            reg_infos[n].append([x_var, y_var, amp])
+                            reg_infos[n].append([x_var, y_var, rho, amp])
                         del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
                         new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         extended_imgs = new_imgs

@@ -96,7 +96,7 @@ def read_mosaic(file: str) -> dict:
 def write_localization(output_dir, coords, infos):
     lines = f''
     for frame, (coord, info) in enumerate(zip(coords, infos)):
-        for pos, (x_var, y_var, amp) in zip(coord, info):
+        for pos, (x_var, y_var, rho, amp) in zip(coord, info):
             lines += f'{frame + 1}'
             if len(pos) == 3:
                 lines += f',{pos[1]},{pos[0]},{pos[2]}'
@@ -107,7 +107,7 @@ def write_localization(output_dir, coords, infos):
             else:
                 print(f'Localization writing Err')
                 raise Exception
-            lines += f',{x_var},{y_var},{amp}'
+            lines += f',{x_var},{y_var},{rho},{amp}'
             lines += f'\n'
 
     with open(f'{output_dir}/localization.txt', 'w') as f:

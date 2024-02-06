@@ -157,6 +157,7 @@ def euclidian_displacement(pos1, pos2):
     else:
         return np.sqrt((pos1[:, 0] - pos2[:, 0]) ** 2 + (pos1[:, 1] - pos2[:, 1]) ** 2)
 
+
 def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
     length_max_val = np.max(distribution)
     bins = np.arange(0, length_max_val + bin_size, bin_size)
@@ -515,12 +516,13 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
 
         before_time = timer()
         linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins)
-        track_lengths = track_lengths[linkage_indices]
-        linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
 
         print(f'{"displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
+            track_lengths = track_lengths[linkage_indices]
+            linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
+
             linkage_imgs = pair_crop_images[linkage_indices]
             linkage_positions = pair_positions[linkage_indices]
             if 2 in on:

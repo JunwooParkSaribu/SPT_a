@@ -152,9 +152,13 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
 
 @njit
 def euclidian_displacement(pos1, pos2):
-    if pos1.shape[1] > 2:
+    if pos1.ndim == 1 and len(pos1) < 3:
+        return np.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
+    elif pos1.ndim == 1 and len(pos1) == 3:
+        return np.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2 + (pos1[2] - pos2[2]) ** 2)
+    elif pos1.ndim == 2 and pos1.shape[1] == 3:
         return np.sqrt((pos1[:, 0] - pos2[:, 0])**2 + (pos1[:, 1] - pos2[:, 1])**2 + (pos1[:, 2] - pos2[:, 2])**2)
-    else:
+    elif pos1.ndim == 2 and pos1.shape[1] < 3:
         return np.sqrt((pos1[:, 0] - pos2[:, 0]) ** 2 + (pos1[:, 1] - pos2[:, 1]) ** 2)
 
 
@@ -287,21 +291,26 @@ def unpack_distribution(distrib, paused_times):
     return thresholds, pdfs, bins
 
 
-def pair_permutation(pair1, pair2, localization):
+def pair_permutation(pair1, pair2, localization, local_info):
     permutated_pair = []
     crop_image_pair = []
     pos1s = []
     pos2s = []
+    pair_infos1 = []
+    pair_infos2 = []
     for t, i in pair1:
         for next_t, next_i in pair2:
             permutated_pair.append([t, i, next_t, next_i])
             pos1s.append([localization[t][i][0], localization[t][i][1], localization[t][i][2]])
             pos2s.append([localization[next_t][next_i][0], localization[next_t][next_i][1], localization[next_t][next_i][2]])
             crop_image_pair.append([localization[t][i][3], localization[next_t][next_i][3]])
+            pair_infos1.append(local_info[t][i])
+            pair_infos2.append(local_info[next_t][next_i])
     pos1s = np.array(pos1s)
     pos2s = np.array(pos2s)
     segLengths = euclidian_displacement(pos1s, pos2s)
-    return np.array(permutated_pair), np.array(segLengths), np.array(crop_image_pair), np.stack((pos1s, pos2s), axis=1)
+    return (np.array(permutated_pair), np.array(segLengths), np.array(crop_image_pair),
+            np.stack((pos1s, pos2s), axis=1), np.stack((pair_infos1, pair_infos2), axis=1))
 
 
 def create_2d_window(images, localizations, time_steps, pixel_size=1., window_size=(7, 7)):
@@ -415,7 +424,7 @@ def proba_from_angle(p, radian):
     return proba
 
 
-def proba_direction(paired_probas, paired_images, paired_positions):
+def proba_direction2(paired_probas, paired_images, paired_positions, my_vec):
     rotate90_mat = np.array([[np.cos(np.pi / 2), -np.sin(np.pi / 2)], [np.sin(np.pi / 2), np.cos(np.pi / 2)]])
     new_proba_pairs = paired_probas.copy()
     for i, (pair, positions) in enumerate(zip(paired_images, paired_positions)):
@@ -461,27 +470,75 @@ def proba_direction(paired_probas, paired_images, paired_positions):
             p = proba_from_angle(proba_range, angle)
         else:
             p = 1.
+        print(f'ellipse fitting: ', p, 'proba range: ',proba_range)
         new_proba_pairs[i] += np.log(p)
 
-        """
+
         if len(proba_range) != 0:
-            plt.figure()
+            plt.figure(1)
             plt.title(f'probability distribution\nminor to major axis[{proba_range[0]}, {proba_range[1]}]')
-            plt.imshow(image1, cmap='gray', origin='lower')
+            plt.imshow(image1, cmap='gray')
             plt.plot(x_pts, y_pts, linewidth=2, c='cyan', alpha=0.5)
             plt.plot([x0, (x0 + major_axis_vector[0])], [y0, (y0 + major_axis_vector[1])], c='r', label='major')
             plt.plot([x0, (x0 + minor_axis_vector[0])], [y0, (y0 + minor_axis_vector[1])], c='b', label='minor')
             plt.plot([x0, (x0 + next_vector[0])], [y0, (y0 + next_vector[1])], c='g', label='vector_to_next_pos')
+            plt.plot([x0, (x0 + my_vec[0])], [y0, (y0 + my_vec[1])], c='black', label='eig_vec')
             plt.plot(get_ellipse_pts((x0, y0, ap, bp, e, phi))[0],
                      get_ellipse_pts((x0, y0, ap, bp, e, phi))[1], c='m', label='fitted ellipse')
             plt.legend()
+            plt.figure(2)
+            plt.imshow(image2, cmap='gray')
             plt.show()
-        """
+
 
     return new_proba_pairs
 
 
-def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
+def proba_direction(paired_probas, paired_infos, paired_positions, paired_imgs):
+    new_proba_pairs = paired_probas.copy()
+    for i, (pair, positions) in enumerate(zip(paired_infos, paired_positions)):
+        info1 = pair[0]  # xvar, yvar, rho, amp
+        info2 = pair[1]
+        cur_pos = positions[0][:2]  # 2D data (x,y only)
+        next_pos = positions[1][:2]  # 2D data (x,y only)
+        cov1 = np.array([[info1[0], -info1[2] * np.sqrt(info1[0]) * np.sqrt(info1[1])],
+                         [-info1[2] * np.sqrt(info1[0]) * np.sqrt(info1[1]), info1[1]]])
+        cov2 = np.array([[info2[0], -info2[2] * np.sqrt(info2[0]) * np.sqrt(info2[1])],
+                         [-info2[2] * np.sqrt(info2[0]) * np.sqrt(info2[1]), info2[1]]])
+        eig_vals_1, eig_vecs_1 = np.linalg.eig(cov1)
+        eig_vals_2, eig_vecs_2 = np.linalg.eig(cov2)
+        eig_vals = np.array([eig_vals_1, eig_vals_2])
+        eig_vecs = np.array([eig_vecs_1, eig_vecs_2])
+        major_args = np.array([np.argmax(eig_vals[0]), np.argmax(eig_vals[1])])
+        major_axis_vector = eig_vecs[0][major_args[0]]
+
+        stds = eig_vals[1] / np.min(eig_vals[1])
+        foci_lengh = np.sqrt(abs(stds[0]**2 - stds[1]**2))
+        possible_next_pos = np.array([next_pos + eig_vecs[1][major_args[1]] * foci_lengh,
+                                      next_pos - eig_vecs[1][major_args[1]] * foci_lengh])
+        possible_next_vecs = np.array([(possible_next_pos[0] - cur_pos) / euclidian_displacement(possible_next_pos[0], cur_pos),
+                                       (possible_next_pos[1] - cur_pos) / euclidian_displacement(possible_next_pos[1], cur_pos)])
+        angles = np.array([np.arccos(possible_next_vecs[0] @ major_axis_vector.T),
+                           np.arccos(possible_next_vecs[1] @ major_axis_vector.T)])
+
+        #angles = np.array([np.arccos(((next_pos - cur_pos) / euclidian_displacement(next_pos, cur_pos)) @ major_axis_vector.T)])
+        proba_range = np.array([eig_vals[0][1-major_args[0]] / np.sum(eig_vals[0]), eig_vals[0][major_args[0]] / np.sum(eig_vals[0])])
+        ps = []
+        for angle in angles:
+            ps.append(proba_from_angle(proba_range, angle))
+        p = np.max(ps)
+
+        """
+        print('eig vals: ', eig_vals_1)
+        print('eig vecs: ', eig_vecs_1)
+        print('eig vecs proba: ', p, 'proba range: ',proba_range)
+        proba_direction2(paired_probas, paired_imgs[i:i+1], paired_positions[i:i+1], major_axis_vector)
+        """
+        new_proba_pairs[i] += np.log(p)
+    return new_proba_pairs
+
+
+def simple_connect(localization: dict, localization_infos: dict, time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
     if on is None:
         on = [1, 2, 3]
     trajectory_dict = {}
@@ -508,7 +565,7 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
 
         # Combination with permutation
         before_time = timer()
-        pairs, seg_lengths, pair_crop_images, pair_positions = pair_permutation(srcs_pairs, dests_pairs, localization)
+        pairs, seg_lengths, pair_crop_images, pair_positions, pair_infos = pair_permutation(srcs_pairs, dests_pairs, localization, localization_infos)
         print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
         paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
         track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
@@ -525,15 +582,18 @@ def simple_connect(localization: dict, time_steps: np.ndarray, distrib: dict, bl
 
             linkage_imgs = pair_crop_images[linkage_indices]
             linkage_positions = pair_positions[linkage_indices]
+            linkage_infos = pair_infos[linkage_indices]
+
             if 2 in on:
                 # proba entropies
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
                 print(f'{"image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+
             if 3 in on:
                 before_time = timer()
                 # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
-                linkage_log_probas = proba_direction(linkage_log_probas, linkage_imgs, linkage_positions)
+                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
                 print(f'{"directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
         before_time = timer()
@@ -852,7 +912,7 @@ if __name__ == '__main__':
         plt.show()
         """
         localizations = create_2d_window(images, localizations, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
-        trajectory_list = simple_connect(localization=localizations, time_steps=time_steps,
+        trajectory_list = simple_connect(localization=localizations, localization_infos=loc_infos, time_steps=time_steps,
                                          distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)

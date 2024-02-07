@@ -499,6 +499,9 @@ def proba_direction(paired_probas, paired_infos, paired_positions, paired_imgs):
     for i, (pair, positions) in enumerate(zip(paired_infos, paired_positions)):
         info1 = pair[0]  # xvar, yvar, rho, amp
         info2 = pair[1]
+        if info1[2] < -1 or info1[2] > 1:
+            print("RHO has err(regression err)")
+            continue
         cur_pos = positions[0][:2]  # 2D data (x,y only)
         next_pos = positions[1][:2]  # 2D data (x,y only)
         cov1 = np.array([[info1[0], -info1[2] * np.sqrt(info1[0]) * np.sqrt(info1[1])],
@@ -823,6 +826,7 @@ def graph_matrix(graph, pair_proba):
     col_list = list(set([prev_point for prev_point in graph[1::2]]))
 
     graph_mat = np.zeros((len(row_list), len(col_list))) + default_val
+
     for r, row in enumerate(row_list):
         for c, col in enumerate(col_list):
             if (row[0], row[1], col[0], col[1]) in pair_proba:
@@ -856,19 +860,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/receptor_7_low.tif'
+    input_tif = f'./SimulData/microtubule_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/MICROTUBULE snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/microtubule_7_low/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/microtubule_7_low/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/microtubule_7_low/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

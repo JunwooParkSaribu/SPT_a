@@ -10,12 +10,12 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
-#images = read_tif('SimulData/microtubule_7_low.tif')
+images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/vesicle_4_low.tif')
@@ -33,12 +33,12 @@ OUTPUT_DIR = f'{WINDOWS_PATH}'
 
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
-RADIUS = [1.1, 1.7, 3.]
-THRESHOLDS = [.3, .3, .3]
-BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
-BACKWARD_RADIUS = [.7, 1.1]
-BACKWARD_THRESHOLDS = [.3, .3]
+WINDOW_SIZES = [(19, 19), (13, 13)]
+RADIUS = [5., 4.]
+THRESHOLDS = [.5, .5]
+BACKWARD_WINDOW_SIZES = [(13, 13)]
+BACKWARD_RADIUS = [3.]
+BACKWARD_THRESHOLDS = [.5]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4
 DIV_Q = 5
@@ -111,7 +111,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [1, 2, 3, 4, 5, 6, 7]
+    borders = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)

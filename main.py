@@ -543,7 +543,7 @@ def proba_direction(paired_probas, paired_infos, paired_positions, paired_imgs):
 
 def simple_connect(localization: dict, localization_infos: dict, time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
     if on is None:
-        on = [1, 2, 3]
+        on = [1, 2, 3, 4]
     trajectory_dict = {}
     end_trajectories = []
     srcs_pairs = []
@@ -586,7 +586,7 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
             linkage_imgs = pair_crop_images[linkage_indices]
             linkage_positions = pair_positions[linkage_indices]
             linkage_infos = pair_infos[linkage_indices]
-
+            #print(f'TIMESTEP{i}_(1): {linkage_log_probas}')
             if 2 in on:
                 # proba entropies
                 before_time = timer()
@@ -604,6 +604,7 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
                 trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
                 linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
 
         before_time = timer()
         linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
@@ -837,7 +838,6 @@ def graph_matrix(graph, pair_proba):
         for c, col in enumerate(col_list):
             if (row[0], row[1], col[0], col[1]) in pair_proba:
                 graph_mat[r, c] = pair_proba[(row[0], row[1], col[0], col[1])]
-
     rows, cols, val = hungarian_algo_max(graph_mat)
     for row, col in zip(rows, cols):
         if graph_mat[row, col] > default_val + 1:
@@ -856,19 +856,24 @@ def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
 
 def dm_likelihood(sigma, traget_position, center_pos):
     cov_mat = np.array([[[sigma, 0], [0, sigma]]])
-    likelihood = bi_variate_normal_pdf(np.array([traget_position]), cov_mat, center_pos)[0]
+    likelihood = bi_variate_normal_pdf(np.array([traget_position]), cov_mat, center_pos, normalization=False)[0]
     return likelihood
 
 
 def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs):
     t = 2
-    k = 1
+    k = 5
     directed_log_likelihood = []
     for traj, (prev_pos, target_pos) in zip(trajectories, linkage_positions):
         center_pos, vec_norm = traj.get_expected_pos(t)
-        sigma = k * vec_norm
+        sigma = k
         l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])[0]
         directed_log_likelihood.append(np.log(l))
+
+    for i, l in enumerate(directed_log_likelihood):
+        if l < -9999.:
+            directed_log_likelihood[i] = -9999.
+
     directed_log_likelihood = np.array(directed_log_likelihood)
     return linkage_log_probas + directed_log_likelihood
 
@@ -894,19 +899,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/receptor_7_low.tif'
+    input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
-    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

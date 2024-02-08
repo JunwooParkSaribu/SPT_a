@@ -577,7 +577,7 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
         before_time = timer()
         linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins)
 
-        print(f'{"displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+        print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
             track_lengths = track_lengths[linkage_indices]
@@ -591,13 +591,19 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
                 # proba entropies
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
-                print(f'{"image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+                print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
                 # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
                 linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
-                print(f'{"directional probability duration":<35}:{(timer() - before_time):.2f}s')
+                print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
+
+            if 4 in on:
+                before_time = timer()
+                trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
+                linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
 
         before_time = timer()
         linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
@@ -839,11 +845,39 @@ def graph_matrix(graph, pair_proba):
     return opt_matchs, val
 
 
+def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
+    a = np.ones((cov.shape[0], xy.shape[0], xy.shape[1])) * (xy - mu)
+    if normalization:
+        return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
+                / (2 * np.pi * np.sqrt(np.linalg.det(cov).reshape(-1, 1))))
+    else:
+        return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2)))
+
+
+def dm_likelihood(sigma, traget_position, center_pos):
+    cov_mat = np.array([[[sigma, 0], [0, sigma]]])
+    likelihood = bi_variate_normal_pdf(np.array([traget_position]), cov_mat, center_pos)[0]
+    return likelihood
+
+
+def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs):
+    t = 2
+    k = 1
+    directed_log_likelihood = []
+    for traj, (prev_pos, target_pos) in zip(trajectories, linkage_positions):
+        center_pos, vec_norm = traj.get_expected_pos(t)
+        sigma = k * vec_norm
+        l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])[0]
+        directed_log_likelihood.append(np.log(l))
+    directed_log_likelihood = np.array(directed_log_likelihood)
+    return linkage_log_probas + directed_log_likelihood
+
+
 if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
     cutoff = 2
-    methods = [1, 3]
+    methods = [1, 4]
     var_parallel = True
     confidence = 0.99
     amp = 1.3
@@ -860,19 +894,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/microtubule_7_low.tif'
+    input_tif = f'./SimulData/receptor_7_low.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./simulated_data/ground_truth/MICROTUBULE snr 7 density low.xml'
+    gt_xml = f'./simulated_data/ground_truth/RECEPTOR snr 7 density low.xml'
 
-    output_xml = f'{WINDOWS_PATH}/my_test1/microtubule_7_low/mymethod.xml'
-    output_img = f'{WINDOWS_PATH}/my_test1/microtubule_7_low/mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/my_test1/receptor_7_low/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/microtubule_7_low/localization.txt')
+    localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/receptor_7_low/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
 
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(localizations, images)

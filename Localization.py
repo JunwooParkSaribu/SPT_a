@@ -10,12 +10,12 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
-images = read_tif('SimulData/microtubule_7_low.tif')
+#images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/vesicle_4_low.tif')
@@ -40,7 +40,7 @@ BACKWARD_WINDOW_SIZES = [(13, 13)]
 BACKWARD_RADIUS = [3.]
 BACKWARD_THRESHOLDS = [.5]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
-SIGMA = 4
+SIGMA = 3
 DIV_Q = 5
 images = images
 

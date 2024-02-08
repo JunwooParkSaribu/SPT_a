@@ -881,7 +881,7 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
-    cutoff = 2
+    cutoff = 3
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.99

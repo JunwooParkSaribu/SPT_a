@@ -173,9 +173,14 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                     indices = [i for i, time in enumerate(times) if time == frame]
                     xy = np.array([[int(np.around(x)), int(np.around(y))]
                                    for x, y, _ in traj.get_positions()[indices]], np.int32)
-                    local_img[xy[0][1], xy[0][0], 0] = 1
-                    local_img[xy[0][1], xy[0][0], 1] = 0
-                    local_img[xy[0][1], xy[0][0], 2] = 0
+                    if local_img[xy[0][1], xy[0][0], 0] == 1 and local_img[xy[0][1], xy[0][0], 1] == 0 and local_img[xy[0][1], xy[0][0], 2] == 0:
+                        local_img[xy[0][1], xy[0][0], 0] = 0
+                        local_img[xy[0][1], xy[0][0], 1] = 0
+                        local_img[xy[0][1], xy[0][0], 2] = 1
+                    else:
+                        local_img[xy[0][1], xy[0][0], 0] = 1
+                        local_img[xy[0][1], xy[0][0], 1] = 0
+                        local_img[xy[0][1], xy[0][0], 2] = 0
             local_img[:, -1, :] = 1
         for traj in trajectory_list:
             times = traj.get_times()

@@ -882,7 +882,7 @@ if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
     cutoff = 2
-    methods = [1, 4]
+    methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.99
     amp = 1.3
@@ -922,7 +922,7 @@ if __name__ == '__main__':
                                                  parallel=False)
 
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
-    bin_size = np.mean(xyz_max - xyz_min) / 4000.
+    bin_size = np.mean(xyz_max - xyz_min) / 5000.
 
     """
     fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)

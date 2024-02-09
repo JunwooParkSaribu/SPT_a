@@ -10,12 +10,12 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
-images = read_tif('SimulData/receptor_7_mid.tif')
+#images = read_tif('SimulData/receptor_7_mid.tif')
 #images = read_tif('SimulData/receptor_4_mid.tif')
 #images = read_tif('SimulData/vesicle_7_mid.tif')
 #images = read_tif('SimulData/vesicle_4_mid.tif')

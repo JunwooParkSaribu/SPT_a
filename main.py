@@ -889,7 +889,7 @@ if __name__ == '__main__':
     THRESHOLDS = None #[8, 14.5]
 
     snr = '7'
-    density = 'low'
+    density = 'mid'
     scenario = 'receptor'
     input_dir = f'SimulData'
     output_dir = f'outputs'
@@ -918,7 +918,7 @@ if __name__ == '__main__':
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
     start_time = timer()
-    segment_distribution = distribution_segments(localizations, time_steps=time_steps, lag=blink_lag,
+    segment_distribution = distribution_segments(read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_low/localization.txt')[0], time_steps=time_steps, lag=blink_lag,
                                                  parallel=False)
 
     print(f'Segmentation duration: {timer() - start_time:.2f}s')

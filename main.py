@@ -713,13 +713,13 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
     for xg in range(len(grid)):
         loc_info_tests.append(loc_info_test)
 
-    graphic_loc[1] = [[237.0, 243.0, 0.0]]
+    graphic_loc[1] = [[245.0, 245.0, 0.0]]
     graphic_loc_info[1] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[2] = [[240.0, 243.0, 0.0]]
+    graphic_loc[2] = [[247.0, 247.0, 0.0]]
     graphic_loc_info[2] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[3] = [[242.0, 245.0, 0.0]]
+    graphic_loc[3] = [[245.0, 245.0, 0.0]]
     graphic_loc_info[3] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[4] = [[245.0, 247.0, 0.0]]
+    graphic_loc[4] = [[245.0, 250.0, 0.0]]
     graphic_loc_info[4] = [[1.0, 1.0, 0.0, 0.7]]
     graphic_loc[5] = [[250.0, 250.0, 0.0]]
     graphic_loc_info[5] = [[1.0, 1.0, 0.0, 0.7]]

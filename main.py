@@ -583,7 +583,7 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
         thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
 
         before_time = timer()
-        linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins, cut=False, sorted=False)
+        linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins, sorted=False)
 
         print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:
@@ -613,20 +613,6 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
                 linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
-
-        if i == 4:
-            for xgi, xg in enumerate(linkage_log_probas):
-                if linkage_log_probas[xgi] == -np.inf:
-                    linkage_log_probas[xgi] = np.sort(np.unique(linkage_log_probas))[1]
-            plt.figure()
-            for myt in localization:
-                prev_pts = np.array(localization[myt][0][:2]) - 225
-                if myt <= i + 1:
-                    plt.plot(prev_pts[0], prev_pts[1], marker='+', c='white')
-            plt.imshow(linkage_log_probas.reshape(50, 50), cmap='turbo', interpolation='nearest')
-            plt.plot(25, 25, marker='+', c='white')
-            plt.colorbar()
-            plt.show()
 
         before_time = timer()
         linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
@@ -705,6 +691,111 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
         trajectory_dict[src_key].close()
         end_trajectories.append(trajectory_dict[src_key])
     return end_trajectories
+
+
+def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
+    if on is None:
+        on = [1, 2, 3, 4]
+    trajectory_dict = {}
+    trajectory_index = 0
+
+    x = np.arange(225, 275, 1)
+    y = np.arange(225, 275, 1)
+    xv, yv = np.meshgrid(x, y, sparse=True)
+    grid = list(np.stack(np.meshgrid(xv, yv), -1).reshape(50 * 50, 2))
+    for i, gg in enumerate(grid):
+        grid[i] = np.append(gg, 0)
+    grid = np.array(grid)
+    graphic_loc = {}
+    graphic_loc_info = {}
+    loc_info_tests = []
+    loc_info_test = [1.0, 1.0, 0.0, 0.7]
+    for xg in range(len(grid)):
+        loc_info_tests.append(loc_info_test)
+
+    graphic_loc[1] = [[237.0, 243.0, 0.0]]
+    graphic_loc_info[1] = [[1.0, 1.0, 0.0, 0.7]]
+    graphic_loc[2] = [[240.0, 243.0, 0.0]]
+    graphic_loc_info[2] = [[1.0, 1.0, 0.0, 0.7]]
+    graphic_loc[3] = [[242.0, 245.0, 0.0]]
+    graphic_loc_info[3] = [[1.0, 1.0, 0.0, 0.7]]
+    graphic_loc[4] = [[245.0, 247.0, 0.0]]
+    graphic_loc_info[4] = [[1.0, 1.0, 0.0, 0.7]]
+    graphic_loc[5] = [[250.0, 250.0, 0.0]]
+    graphic_loc_info[5] = [[1.0, 1.0, 0.0, 0.7]]
+
+    graphic_t_steps = np.sort(list(graphic_loc.keys()))
+    srcs_pairs = [[1, 0]]
+    for i, pos in enumerate(graphic_loc[graphic_t_steps[0]]):
+        trajectory_dict[(1, i)] = TrajectoryObj(index=trajectory_index, localizations=graphic_loc, max_pause=blink_lag)
+        trajectory_dict[(1, i)].add_trajectory_tuple(graphic_t_steps[0], i)
+        trajectory_index += 1
+    for i in range(len(graphic_t_steps)):
+        print(f'Time step: {i}')
+        tmp = graphic_loc.copy()
+        tmp_info = graphic_loc_info.copy()
+        next_time = time_steps[i+1]
+        tmp[next_time] = grid.copy()
+        tmp_info[next_time] = loc_info_tests
+        dests_pairs = []
+        for dest_i in range(len(tmp[next_time])):
+            dests_pairs.append([next_time, dest_i])
+        # Combination with permutation
+        pairs, seg_lengths, pair_crop_images, pair_positions, pair_infos = (
+            pair_permutation(srcs_pairs, dests_pairs, tmp, tmp_info))
+        paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
+        track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
+        thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
+        before_time = timer()
+        linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins, cut=False, sorted=False)
+
+        print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+        if linkage_indices is not None:
+            linkage_pairs = pairs[linkage_indices]
+            track_lengths = track_lengths[linkage_indices]
+            linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
+            linkage_imgs = pair_crop_images[linkage_indices]
+            linkage_positions = pair_positions[linkage_indices]
+            linkage_infos = pair_infos[linkage_indices]
+            #print(f'TIMESTEP{i}_(1): {linkage_log_probas}')
+            if 2 in on:
+                # proba entropies
+                before_time = timer()
+                linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
+                print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+
+            if 3 in on:
+                before_time = timer()
+                # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
+                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
+
+            if 4 in on:
+                before_time = timer()
+                trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
+                linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
+
+            plt.figure()
+            for xgi, xg in enumerate(linkage_log_probas):
+                if linkage_log_probas[xgi] == -np.inf:
+                    linkage_log_probas[xgi] = np.sort(np.unique(linkage_log_probas))[1]
+            for myt in graphic_t_steps[:i+1]:
+                prev_pts = np.array(graphic_loc[myt][0][:2]) - 225
+                plt.plot(prev_pts[0], prev_pts[1], marker='+', c='white')
+            plt.imshow(linkage_log_probas.reshape(50, 50), cmap='turbo', interpolation='nearest')
+            plt.colorbar()
+            plt.show()
+
+        if next_time not in graphic_loc:
+            exit(1)
+        srcs_pairs = []
+        for i, g in enumerate(graphic_loc[next_time]):
+            trajectory_dict[(next_time - 1, i)].add_trajectory_tuple(next_time, i)
+            trajectory_index += 1
+            trajectory_dict[(next_time, i)] = trajectory_dict[(next_time - 1, i)]
+            srcs_pairs.append([next_time, i])
 
 
 def trajectory_optimality_check(trajectories, localizations, distrib):
@@ -933,14 +1024,14 @@ if __name__ == '__main__':
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    loc, loc_infos = read_localization(f'./likelihood_space.txt')
+    loc, loc_infos = read_localization(f'./receptor_7_low.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
-    window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(read_localization(f'./receptor_7_low.txt')[0], images)
+    window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
     start_time = timer()
-    segment_distribution = distribution_segments(read_localization(f'./receptor_7_low.txt')[0], time_steps=time_steps, lag=blink_lag,
+    segment_distribution = distribution_segments(loc, time_steps=time_steps, lag=blink_lag,
                                                  parallel=False)
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 5000.
@@ -975,31 +1066,9 @@ if __name__ == '__main__':
             axs[lag][0].set_xlim([0, segment_distribution[lag][0] + 1])
         plt.show()
         """
-        time_steps = time_steps[:6]
-        x = np.arange(225, 275, 1)
-        y = np.arange(225, 275, 1)
-        #z = np.array(([0] * 512))
-        xv, yv = np.meshgrid(x, y, sparse=True)
-        grid = list(np.stack(np.meshgrid(xv, yv), -1).reshape(50 * 50, 2))
-        for i, gg in enumerate(grid):
-            grid[i] = np.append(gg, 0)
-        grid = np.array(grid)
-        loc[6] = grid
-        loc_info_tests = []
-        loc_info_test = [1.0, 1.0, 0.0, 0.7]
-        for xg in range(len(grid)):
-            loc_info_tests.append(loc_info_test)
-        loc_infos[6] = loc_info_tests
-        loc[2] = [[240.0, 243.0, 0.0]]
-        loc_infos[2] = [[1.0, 1.0, 0.0, 0.7]]
-        loc[3] = [[242.0, 245.0, 0.0]]
-        loc_infos[3] = [[1.0, 1.0, 0.0, 0.7]]
-        loc[4] = [[245.0, 247.0, 0.0]]
-        loc_infos[4] = [[1.0, 1.0, 0.0, 0.7]]
-        loc[5] = [[250.0, 250.0, 0.0]]
-        loc_infos[5] = [[1.0, 1.0, 0.0, 0.7]]
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
+        likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         trajectory_list = simple_connect(localization=loc, localization_infos=loc_infos, time_steps=time_steps,
                                          distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)

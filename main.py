@@ -256,13 +256,13 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
                         print('there is a proba 0 even lower than thresholds')
                         #pdf_indices.append([n, 1e-8])
                 else:
-                    pdf_indices.append([n, pdfs[n][-1]])
+                    pdf_indices.append([n, np.min(pdfs[n])])
     else:
         for n, index in enumerate(((limits / alphas) // bin_size).astype(np.uint64)):
             if index < pdfs.shape[1]:
                 pdf_indices.append([n, pdfs[n][index]])
             else:
-                pdf_indices.append([n, pdfs[n][-1]])
+                pdf_indices.append([n, np.min(pdfs[n])])
 
     if len(pdf_indices) == 0:
         return None, None
@@ -994,12 +994,12 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 if __name__ == '__main__':
     start_time = timer()
     blink_lag = 1
-    cutoff = 3
+    cutoff = 2
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.99
     amp = 1.3
-    THRESHOLDS = None #[8, 14.5]
+    THRESHOLDS = None  # [8, 14.5]
 
     snr = '7'
     density = 'low'
@@ -1013,7 +1013,7 @@ if __name__ == '__main__':
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
     input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
-    #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
+    #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
@@ -1024,6 +1024,7 @@ if __name__ == '__main__':
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
+    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)

@@ -160,8 +160,9 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
     alpha = 1.
     result_stack = []
     for img, frame in zip(img_stacks, time_steps):
-        img = np.array([img, img, img])
-        img = np.moveaxis(img, 0, 2)
+        if img.ndim == 2:
+            img = np.array([img, img, img])
+            img = np.moveaxis(img, 0, 2)
         img = np.ascontiguousarray(img)
         img_org = img.copy()
         overlay = img.copy()

@@ -717,11 +717,11 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
     graphic_loc_info[1] = [[1.0, 1.0, 0.0, 0.7]]
     graphic_loc[2] = [[247.0, 247.0, 0.0]]
     graphic_loc_info[2] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[3] = [[245.0, 245.0, 0.0]]
+    graphic_loc[3] = [[245.0, 250.0, 0.0]]
     graphic_loc_info[3] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[4] = [[245.0, 250.0, 0.0]]
+    graphic_loc[4] = [[250.0, 250.0, 0.0]]
     graphic_loc_info[4] = [[1.0, 1.0, 0.0, 0.7]]
-    graphic_loc[5] = [[250.0, 250.0, 0.0]]
+    graphic_loc[5] = [[255.0, 245.0, 0.0]]
     graphic_loc_info[5] = [[1.0, 1.0, 0.0, 0.7]]
 
     graphic_t_steps = np.sort(list(graphic_loc.keys()))
@@ -758,6 +758,7 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
             linkage_positions = pair_positions[linkage_indices]
             linkage_infos = pair_infos[linkage_indices]
             #print(f'TIMESTEP{i}_(1): {linkage_log_probas}')
+
             if 2 in on:
                 # proba entropies
                 before_time = timer()

@@ -5,13 +5,13 @@ import tifffile
 from numba import njit
 from FileIO import write_localization, read_localization
 from numba.typed import List as nbList
-from ImageModule import read_tif
+from ImageModule import read_tif, draw_cross
 from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
-#images = read_tif('SimulData/receptor_4_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
@@ -38,10 +38,10 @@ P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
-THRESHOLDS = [.3, .3, .3]
+THRESHOLDS = [.35, .35, .35]
 BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
 BACKWARD_RADIUS = [.7, 1.1]
-BACKWARD_THRESHOLDS = [.3, .3]
+BACKWARD_THRESHOLDS = [.35, .35]
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
 SIGMA = 4  # 3.5
 DIV_Q = 5
@@ -845,13 +845,15 @@ def make_red_circles(original_imgs, circle_imgs, localized_xys):
                 print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
             x, y = int(round(center_coord[0])), int(round(center_coord[1]))
             if (x, y) in xy_cum:
-                circle_imgs[img_n][x][y][0] = 0
-                circle_imgs[img_n][x][y][1] = 0
-                circle_imgs[img_n][x][y][2] = 1
+                circle_imgs[img_n] = draw_cross(circle_imgs[img_n], x, y, (0, 0, 1))
+                #circle_imgs[img_n][x][y][0] = 0
+                #circle_imgs[img_n][x][y][1] = 0
+                #circle_imgs[img_n][x][y][2] = 1
             else:
-                circle_imgs[img_n][x][y][0] = 1
-                circle_imgs[img_n][x][y][1] = 0
-                circle_imgs[img_n][x][y][2] = 0
+                circle_imgs[img_n] = draw_cross(circle_imgs[img_n], x, y, (1, 0, 0))
+                #circle_imgs[img_n][x][y][0] = 1
+                #circle_imgs[img_n][x][y][1] = 0
+                #circle_imgs[img_n][x][y][2] = 0
             xy_cum.append((x, y))
         stacked_imgs.append(np.hstack((original_imgs[img_n], circle_imgs[img_n])))
     return stacked_imgs

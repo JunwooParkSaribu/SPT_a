@@ -174,13 +174,9 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                     xy = np.array([[int(np.around(x)), int(np.around(y))]
                                    for x, y, _ in traj.get_positions()[indices]], np.int32)
                     if local_img[xy[0][1], xy[0][0], 0] == 1 and local_img[xy[0][1], xy[0][0], 1] == 0 and local_img[xy[0][1], xy[0][0], 2] == 0:
-                        local_img[xy[0][1], xy[0][0], 0] = 0
-                        local_img[xy[0][1], xy[0][0], 1] = 0
-                        local_img[xy[0][1], xy[0][0], 2] = 1
+                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (0, 0, 1))
                     else:
-                        local_img[xy[0][1], xy[0][0], 0] = 1
-                        local_img[xy[0][1], xy[0][0], 1] = 0
-                        local_img[xy[0][1], xy[0][0], 2] = 0
+                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (1, 0, 0))
             local_img[:, -1, :] = 1
         for traj in trajectory_list:
             times = traj.get_times()
@@ -249,6 +245,18 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         result_stack.append(hstacked_img)
     result_stack = (np.array(result_stack) * 255).astype(np.uint8)
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
+
+
+def draw_cross(img, row, col, color):
+    comb = [[row-2, col], [row-1, col], [row, col], [row+1, col], [row+2, col], [row, col-2], [row, col-1], [row, col+1], [row, col+2]]
+    for r, c in comb:
+        if 0 <= r < img.shape[0] and 0 <= c < img.shape[1]:
+            for i, couleur in enumerate(color):
+                if couleur >= 1:
+                    img[r, c, i] = 1
+                else:
+                    img[r, c, i] = 0
+    return img
 
 
 def compare_two_localization_visual(output_dir, images, localized_xys_1, localized_xys_2):

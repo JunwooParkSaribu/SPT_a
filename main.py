@@ -1012,19 +1012,19 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./tif_trxyt/{scenario}_{snr}_{density}.tif'
+    input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_trxyt = f'{WINDOWS_PATH}/receptor_7_low.rpt_tracked.trxyt'
-    gt_xml = f'./ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
+    gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
-    output_xml = f'./mymethod.xml'
-    output_img = f'./mymethod.tif'
+    output_xml = f'{WINDOWS_PATH}/mymethod.xml'
+    output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
     images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    loc, loc_infos = read_localization(f'./receptor_7_low.txt')
+    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
@@ -1068,7 +1068,7 @@ if __name__ == '__main__':
         """
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
-        likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
+        #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         trajectory_list = simple_connect(localization=loc, localization_infos=loc_infos, time_steps=time_steps,
                                          distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)

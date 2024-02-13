@@ -975,7 +975,7 @@ def dm_likelihood(sigma, traget_position, center_pos):
 
 
 def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs):
-    t = 2
+    t = 3
     k = 5
     directed_log_likelihood = []
     for traj, (prev_pos, target_pos) in zip(trajectories, linkage_positions):

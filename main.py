@@ -1013,20 +1013,21 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
+    #input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
+    input_tif = f'./SimulData/videos_fov_0.tif'
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
-    images = read_tif(input_tif)
+    images = read_tif(input_tif)[1:]
     print(f'Read_tif: {timer() - start_time:.2f}s')
     #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
     #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
-    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
+    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
+    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
     window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
@@ -1082,4 +1083,4 @@ if __name__ == '__main__':
     trajectory_list = xml_to_object(output_xml)
     gt_list = xml_to_object(gt_xml)
     make_image_seqs(trajectory_list, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
-                    add_index=False, local_img=True, gt_trajectory=gt_list)
+                    add_index=False, local_img=True, gt_trajectory=None)

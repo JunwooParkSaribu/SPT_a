@@ -998,7 +998,7 @@ if __name__ == '__main__':
     cutoff = 2
     methods = [1, 3, 4]
     var_parallel = True
-    confidence = 0.99
+    confidence = 0.995
     amp = 1.3
     THRESHOLDS = None  #[8, 14.5]
 

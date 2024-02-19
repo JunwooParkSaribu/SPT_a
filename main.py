@@ -6,6 +6,8 @@ import concurrent.futures
 from scipy.stats import gmean
 from scipy.spatial import KDTree
 from numba import jit, njit, cuda, vectorize, int32, int64, float32, float64
+from numba.typed import Dict, List
+from numba.core import types
 from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif, compare_two_localization_visual
 from TrajectoryObject import TrajectoryObj
 from XmlModule import xml_to_object, write_xml, read_xml
@@ -111,14 +113,7 @@ def count_localizations(localization, images):
         xyz_max = [max(xyz_max[0], np.max(x_)), max(xyz_max[1], np.max(y_)), max(xyz_max[2], np.max(z_))]
         nb += len(localization[t])
     nb_per_time = nb / len(time_steps)
-    mean_pixel_size_per_local = np.sqrt((images.shape[1] * images.shape[2]) / nb_per_time)
-    if mean_pixel_size_per_local > 50:
-        window_size = (11, 11)
-    elif mean_pixel_size_per_local > 25:
-        window_size = (9, 9)
-    else:
-        window_size = (7, 7)
-    return window_size, np.array(time_steps), nb_per_time, np.array(xyz_min), np.array(xyz_max)
+    return np.array(time_steps), nb_per_time, np.array(xyz_min), np.array(xyz_max)
 
 
 def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
@@ -200,7 +195,7 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
                 if thresholds is not None:
                     approx_distribution[lag] = [thresholds[index], pdf_obv, bins_obv, cdf_obv, distrib]
                 else:
-                    approx_distribution[lag] = [seg_len_obv*amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
+                    approx_distribution[lag] = [seg_len_obv * amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
     else:
         for index, lag in enumerate(real_distribution.keys()):
             seg_len_obv, pdf_obv, bins_obv, cdf_obv, distrib = (
@@ -210,6 +205,15 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
                 approx_distribution[lag] = [thresholds[index], pdf_obv, bins_obv, cdf_obv, distrib]
             else:
                 approx_distribution[lag] = [seg_len_obv * amp_factor, pdf_obv, bins_obv, cdf_obv, distrib]
+
+    bin_max = -1
+    for lag in real_distribution.keys():
+        bin_max = max(bin_max, len(approx_distribution[lag][1]))
+    for lag in real_distribution.keys():
+        for index in [1, 2]:
+            tmp = np.zeros(bin_max)
+            tmp[:len(approx_distribution[lag][index]) - index] = approx_distribution[lag][index][:-1 - index + 1]   # it takes one less (last index), need to modify.
+            approx_distribution[lag][index] = tmp
     return approx_distribution
 
 
@@ -240,30 +244,32 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
     return np.array(samples)[int(len(samples)*burn):]
 
 
-@njit(parallel=True)
+@njit
 def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=True):
     pdf_indices = []
     bin_size = bins[0][1] - bins[0][0]
+    pdf_length = len(pdfs[0])
     alphas = np.ceil((np.sign((thresholds / limits) - 1) + 1)/2.) + 1e-8
+    trav_list = ((limits / alphas) // bin_size).astype(np.uint64)
+
     if cut:
-        for n, index in enumerate(((limits / alphas) // bin_size).astype(np.uint64)):
+        for n, index in enumerate(trav_list):
             if limits[n] < thresholds[n]:
                 #print(index, limits[n], pdfs[n][index])
-                if index < pdfs.shape[1]:
+                if index < pdf_length:
                     if pdfs[n][index] > 0.:
                         pdf_indices.append([n, pdfs[n][index]])
                     else:
                         print('there is a proba 0 even lower than thresholds')
-                        pdf_indices.append([n, 1e-8])
+                        #pdf_indices.append([n, 1e-8])
                 else:
                     pdf_indices.append([n, np.min(pdfs[n])])
     else:
-        for n, index in enumerate(((limits / alphas) // bin_size).astype(np.uint64)):
-            if index < pdfs.shape[1]:
+        for n, index in enumerate(trav_list):
+            if index < pdf_length:
                 pdf_indices.append([n, pdfs[n][index]])
             else:
                 pdf_indices.append([n, np.min(pdfs[n])])
-
     if len(pdf_indices) == 0:
         return None, None
     pdf_indices = np.array(pdf_indices)
@@ -278,22 +284,16 @@ def unpack_distribution(distrib, paused_times):
     thresholds = []
     pdfs = []
     bins = []
-    bin_max = 1e4
-    for paused_time in paused_times:
-        bin_max = min(bin_max, len(distrib[paused_time][1]))
     for paused_time in paused_times:
         thresholds.append(distrib[paused_time][0])
-        pdfs.append(distrib[paused_time][1][:bin_max])
-        bins.append(distrib[paused_time][2][:bin_max])
-    thresholds = np.array(thresholds)
-    pdfs = np.array(pdfs)
-    bins = np.array(bins)
+        pdfs.append(distrib[paused_time][1])
+        bins.append(distrib[paused_time][2])
     return thresholds, pdfs, bins
 
 
+@njit
 def pair_permutation(pair1, pair2, localization, local_info):
     permutated_pair = []
-    crop_image_pair = []
     pos1s = []
     pos2s = []
     pair_infos1 = []
@@ -303,17 +303,12 @@ def pair_permutation(pair1, pair2, localization, local_info):
             permutated_pair.append([t, i, next_t, next_i])
             pos1s.append([localization[t][i][0], localization[t][i][1], localization[t][i][2]])
             pos2s.append([localization[next_t][next_i][0], localization[next_t][next_i][1], localization[next_t][next_i][2]])
-            if len(localization[t][i]) < 4:
-                crop_image_pair.append([0, 0])
-            else:
-                crop_image_pair.append([localization[t][i][3], localization[next_t][next_i][3]])
             pair_infos1.append(local_info[t][i])
             pair_infos2.append(local_info[next_t][next_i])
     pos1s = np.array(pos1s)
     pos2s = np.array(pos2s)
     segLengths = euclidian_displacement(pos1s, pos2s)
-    return (np.array(permutated_pair), np.array(segLengths), np.array(crop_image_pair),
-            np.stack((pos1s, pos2s), axis=1), np.stack((pair_infos1, pair_infos2), axis=1))
+    return permutated_pair, segLengths, (pos1s, pos2s), (pair_infos1, pair_infos2)
 
 
 def create_2d_window(images, localizations, time_steps, pixel_size=1., window_size=(7, 7)):
@@ -427,77 +422,7 @@ def proba_from_angle(p, radian):
     return proba
 
 
-def proba_direction2(paired_probas, paired_images, paired_positions, my_vec):
-    rotate90_mat = np.array([[np.cos(np.pi / 2), -np.sin(np.pi / 2)], [np.sin(np.pi / 2), np.cos(np.pi / 2)]])
-    new_proba_pairs = paired_probas.copy()
-    for i, (pair, positions) in enumerate(zip(paired_images, paired_positions)):
-        proba_range = []
-        image1 = pair[0]
-        image2 = pair[1]
-        cur_pos = positions[0]
-        next_pos = positions[1]
-        next_vector = np.array([next_pos[0] - cur_pos[0], next_pos[1] - cur_pos[1]])
-        if next_vector[0] == 0 and next_vector[1] == 0:
-            next_vector = next_vector
-        else:
-            next_vector = next_vector / euclidian_displacement(np.array([[0, 0]]), np.array([next_vector]))
-        image1 = (image1 - np.min(image1)) / np.max(image1 - np.min(image1))
-        contours1 = measure.find_contours(image1, 0.4)
-        contours2 = measure.find_contours(image1, 0.6)
-        x_pts = []
-        y_pts = []
-        for contour in contours1:
-            x_pts.extend(list(contour[:, 1]))
-            y_pts.extend(list(contour[:, 0]))
-        for contour in contours2:
-            x_pts.extend(list(contour[:, 1]))
-            y_pts.extend(list(contour[:, 0]))
-        x_pts = np.array(x_pts)
-        y_pts = np.array(y_pts)
-
-        """
-        plt.figure()
-        plt.imshow(image1, cmap='gray', origin='lower')
-        plt.plot(x_pts, y_pts, linewidth=2, c='cyan', alpha=0.5)
-        plt.show()
-        """
-
-        coeffs = fit_ellipse(x_pts, y_pts)
-        if len(coeffs) != 0:
-            x0, y0, ap, bp, e, phi = cart_to_pol(coeffs)
-            proba_range = np.array([bp / (ap + bp), ap / (ap + bp)])
-            major_axis_vector = np.array([1, np.tan(phi)])
-            major_axis_vector = major_axis_vector / euclidian_displacement(np.array([[0, 0]]), np.array([major_axis_vector]))
-            minor_axis_vector = np.dot(major_axis_vector, rotate90_mat)
-            angle = np.arccos(next_vector @ major_axis_vector.T)
-            p = proba_from_angle(proba_range, angle)
-        else:
-            p = 1.
-        print(f'ellipse fitting: ', p, 'proba range: ',proba_range)
-        new_proba_pairs[i] += np.log(p)
-
-
-        if len(proba_range) != 0:
-            plt.figure(1)
-            plt.title(f'probability distribution\nminor to major axis[{proba_range[0]}, {proba_range[1]}]')
-            plt.imshow(image1, cmap='gray')
-            plt.plot(x_pts, y_pts, linewidth=2, c='cyan', alpha=0.5)
-            plt.plot([x0, (x0 + major_axis_vector[0])], [y0, (y0 + major_axis_vector[1])], c='r', label='major')
-            plt.plot([x0, (x0 + minor_axis_vector[0])], [y0, (y0 + minor_axis_vector[1])], c='b', label='minor')
-            plt.plot([x0, (x0 + next_vector[0])], [y0, (y0 + next_vector[1])], c='g', label='vector_to_next_pos')
-            plt.plot([x0, (x0 + my_vec[0])], [y0, (y0 + my_vec[1])], c='black', label='eig_vec')
-            plt.plot(get_ellipse_pts((x0, y0, ap, bp, e, phi))[0],
-                     get_ellipse_pts((x0, y0, ap, bp, e, phi))[1], c='m', label='fitted ellipse')
-            plt.legend()
-            plt.figure(2)
-            plt.imshow(image2, cmap='gray')
-            plt.show()
-
-
-    return new_proba_pairs
-
-
-def proba_direction(paired_probas, paired_infos, paired_positions, paired_imgs):
+def proba_direction(paired_probas, paired_infos, paired_positions):
     new_proba_pairs = paired_probas.copy()
     for i, (pair, positions) in enumerate(zip(paired_infos, paired_positions)):
         info1 = pair[0]  # xvar, yvar, rho, amp
@@ -531,25 +456,17 @@ def proba_direction(paired_probas, paired_infos, paired_positions, paired_imgs):
                                        (possible_next_pos[1] - cur_pos) / euclidian_displacement(possible_next_pos[1], cur_pos)])
         angles = np.array([np.arccos(possible_next_vecs[0] @ major_axis_vector.T),
                            np.arccos(possible_next_vecs[1] @ major_axis_vector.T)])
-
-        #angles = np.array([np.arccos(((next_pos - cur_pos) / euclidian_displacement(next_pos, cur_pos)) @ major_axis_vector.T)])
         proba_range = np.array([eig_vals[0][1-major_args[0]] / np.sum(eig_vals[0]), eig_vals[0][major_args[0]] / np.sum(eig_vals[0])])
         ps = []
         for angle in angles:
             ps.append(proba_from_angle(proba_range, angle))
         p = np.max(ps)
-
-        """
-        print('eig vals: ', eig_vals_1)
-        print('eig vecs: ', eig_vecs_1)
-        print('eig vecs proba: ', p, 'proba range: ',proba_range)
-        proba_direction2(paired_probas, paired_imgs[i:i+1], paired_positions[i:i+1], major_axis_vector)
-        """
         new_proba_pairs[i] += np.log(p)
     return new_proba_pairs
 
 
-def simple_connect(localization: dict, localization_infos: dict, time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
+def simple_connect(localization: dict, localization_infos: dict,
+                   time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
     if on is None:
         on = [1, 2, 3, 4]
     trajectory_dict = {}
@@ -576,43 +493,47 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
 
         # Combination with permutation
         before_time = timer()
-        pairs, seg_lengths, pair_crop_images, pair_positions, pair_infos = pair_permutation(srcs_pairs, dests_pairs, localization, localization_infos)
-        print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
+        pairs, seg_lengths, pair_positions, pair_infos = (
+            pair_permutation(np.array(srcs_pairs), np.array(dests_pairs), localization, localization_infos))
+        pairs = np.array(pairs)
+        pair_positions = np.stack(pair_positions, axis=1)
+        pair_infos = np.stack(pair_infos, axis=1)
         paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
         track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
         thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
+        print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
 
         before_time = timer()
-        linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins, sorted=False)
-
+        seg_lengths = np.array(seg_lengths)
+        thresholds = np.array(thresholds)
+        linkage_indices, linkage_log_probas = (
+            displacement_probability(seg_lengths, thresholds,
+                                     List(pdfs), List(bins), sorted=False))
         print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
             track_lengths = track_lengths[linkage_indices]
             linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
-
-            linkage_imgs = pair_crop_images[linkage_indices]
             linkage_positions = pair_positions[linkage_indices]
             linkage_infos = pair_infos[linkage_indices]
-            #print(f'TIMESTEP{i}_(1): {linkage_log_probas}')
+
             if 2 in on:
-                # proba entropies
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
                 print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
-                # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
-                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions)
                 print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
             if 4 in on:
                 before_time = timer()
                 trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
-                linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                linkage_log_probas = (
+                    directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions))
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
-                #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
 
         before_time = timer()
         linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
@@ -627,25 +548,6 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
         for link_pair in link_pairs:
             dests_pairs.remove(link_pair[1])
         link_pairs = np.array(link_pairs)
-
-        """
-        if linkage_indices is not None:
-            # sort by probabilities
-            linkage_indices = np.argsort(linkage_log_probas)[::-1]
-            linkage_log_probas = linkage_log_probas[linkage_indices]
-            linkage_pairs = linkage_pairs[linkage_indices]
-        before_time = timer()
-        link_pairs = []
-        for pair in linkage_pairs:
-            t, src_i, next_t, dest_i = pair
-            if (t, src_i) not in srcs_linked and (next_t, dest_i) not in dests_linked:
-                link_pairs.append([[t, src_i], [next_t, dest_i]])
-                srcs_linked.append((t, src_i))
-                dests_linked.append((next_t, dest_i))
-        for link_pair in link_pairs:
-            dests_pairs.remove(link_pair[1])
-        link_pairs = np.array(link_pairs)
-        """
 
         # trajectory objects update
         if len(link_pairs) > 0:
@@ -678,13 +580,15 @@ def simple_connect(localization: dict, localization_infos: dict, time_steps: np.
             del trajectory_dict[src_key]
             end_trajectories.append(suspended_trajectories[src_key])
         for dests_pair in dests_pairs:
-            trajectory_dict[(dests_pair[0], dests_pair[1])] = TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag)
+            trajectory_dict[(dests_pair[0], dests_pair[1])] = (
+                TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag))
             trajectory_dict[(dests_pair[0], dests_pair[1])].add_trajectory_tuple(dests_pair[0], dests_pair[1])
             trajectory_index += 1
         srcs_pairs = []
         for src_key in trajectory_dict:
             traj = trajectory_dict[src_key]
-            srcs_pairs.append(traj.get_trajectory_tuples()[-1])
+            cur_t, cur_i = traj.get_trajectory_tuples()[-1]
+            srcs_pairs.append([cur_t, cur_i])
         print(f'linkage duration: {(timer() - before_time):.2f}s')
 
     for src_key in trajectory_dict:
@@ -974,7 +878,7 @@ def dm_likelihood(sigma, traget_position, center_pos):
     return likelihood
 
 
-def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs):
+def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions):
     t = 3
     k = 5
     directed_log_likelihood = []
@@ -1013,24 +917,22 @@ if __name__ == '__main__':
     #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
     #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
 
-    #input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
+    input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'./SimulData/videos_fov_0.tif'
+    #input_tif = f'./SimulData/videos_fov_0.tif'
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
-    images = read_tif(input_tif)[1:]
+    images = read_tif(input_tif)
     print(f'Read_tif: {timer() - start_time:.2f}s')
-    #localizations = read_trajectory(input_trxyt)
     #localizations = read_xml(gt_xml)
-    #localizations = read_mosaic(f'{WINDOWS_PATH}/Results.csv')
-    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
-    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
+    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
+    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
-    window_size, time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
+    time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
     start_time = timer()

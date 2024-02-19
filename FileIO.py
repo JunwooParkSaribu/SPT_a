@@ -1,4 +1,6 @@
 import numpy as np
+from numba.typed import Dict
+from numba.core import types
 
 
 def read_trajectory(file: str) -> dict:
@@ -134,4 +136,17 @@ def read_localization(input_file):
                 info_line.append(np.round(float(dt), 5))
             locals[int(line[0])].append(pos_line)
             locals_info[int(line[0])].append(info_line)
-    return locals, locals_info
+
+    numba_locals = Dict.empty(
+        key_type=types.int64,
+        value_type=types.float64[:, :],
+    )
+    numba_locals_info = Dict.empty(
+        key_type=types.int64,
+        value_type=types.float64[:, :],
+    )
+
+    for t in locals.keys():
+        numba_locals[t] = np.array(locals[t])
+        numba_locals_info[t] = np.array(locals_info[t])
+    return numba_locals, numba_locals_info

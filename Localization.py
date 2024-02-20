@@ -644,42 +644,6 @@ def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
         return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2)))
 
 
-def background(imgs, window_sizes):
-    bins = 0.01
-    bgs = {}
-    bg_means = []
-    bg_stds = []
-    #bg_instensity = stats.mode(
-    #    (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8), axis=1, keepdims=False)[0] / 100
-    bg_intensities = (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8) / 100
-    max_itensities = np.max(imgs, axis=(1, 2))
-    mean_intensities = np.mean(imgs, axis=(1, 2))
-    for i in range(len(bg_intensities)):
-        args = np.arange(len(bg_intensities[i]))
-        post_mask_args = args.copy()
-        for _ in range(3):
-            it_hist, bin_width = np.histogram(bg_intensities[i][post_mask_args],
-                                              bins=np.arange(0, np.max(bg_intensities[i][post_mask_args]) + bins, bins))
-            mask_sums_mode = (np.argmax(it_hist) * bins + (bins / 2))
-            mask_std = np.std(bg_intensities[i][post_mask_args])
-            post_mask_args = np.array([arg for arg, val in zip(args, bg_intensities[i]) if
-                                       (mask_sums_mode - 3. * mask_std) < val < (mask_sums_mode + 3. * mask_std)])
-        it_data = bg_intensities[i][post_mask_args]
-        bg_means.append(np.mean(it_data))
-        bg_stds.append(np.std(it_data))
-    bg_means = np.array(bg_means)
-    bg_stds = np.array(bg_stds)
-
-    #for xxx in range(imgs.shape[0]):
-    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
-    #exit(1)
-    for window_size in window_sizes:
-        bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
-        bg *= bg_means.reshape(-1, 1)
-        bgs[window_size[0]] = bg
-    return bgs, bg_stds
-
-
 def kl_divergence2(cov1, cov2):
     a = np.linalg.inv(cov2) * cov1
     return 1./2 * (a[:, 0, 0] + a[:, 1, 1] - 2 + np.log(np.linalg.det(cov2)/np.linalg.det(cov1)))
@@ -862,21 +826,11 @@ def make_red_circles(original_imgs, circle_imgs, localized_xys):
     for img_n, coords in enumerate(localized_xys):
         xy_cum = []
         for center_coord in coords:
-            if (center_coord[0] > original_imgs.shape[1] or center_coord[0] < 0
-                    or center_coord[1] > original_imgs.shape[2] or center_coord[1] < 0):
-                print("ERR")
-                print(img_n, 'row:', center_coord[0], 'col:', center_coord[1])
             x, y = int(round(center_coord[0])), int(round(center_coord[1]))
             if (x, y) in xy_cum:
                 circle_imgs[img_n] = draw_cross(circle_imgs[img_n], x, y, (0, 0, 1))
-                #circle_imgs[img_n][x][y][0] = 0
-                #circle_imgs[img_n][x][y][1] = 0
-                #circle_imgs[img_n][x][y][2] = 1
             else:
                 circle_imgs[img_n] = draw_cross(circle_imgs[img_n], x, y, (1, 0, 0))
-                #circle_imgs[img_n][x][y][0] = 1
-                #circle_imgs[img_n][x][y][1] = 0
-                #circle_imgs[img_n][x][y][2] = 0
             xy_cum.append((x, y))
         stacked_imgs.append(np.hstack((original_imgs[img_n], circle_imgs[img_n])))
     return stacked_imgs
@@ -890,7 +844,41 @@ def visualilzation(output_dir, images, localized_xys):
     tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
-def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=5):
+def background(imgs, window_sizes):
+    bins = 0.01
+    bgs = {}
+    bg_means = []
+    bg_stds = []
+    bg_intensities = (imgs.reshape(imgs.shape[0], imgs.shape[1] * imgs.shape[2]) * 100).astype(np.uint8) / 100
+    max_itensities = np.max(imgs, axis=(1, 2))
+    mean_intensities = np.mean(imgs, axis=(1, 2))
+    for i in range(len(bg_intensities)):
+        args = np.arange(len(bg_intensities[i]))
+        post_mask_args = args.copy()
+        for _ in range(3):
+            it_hist, bin_width = np.histogram(bg_intensities[i][post_mask_args],
+                                              bins=np.arange(0, np.max(bg_intensities[i][post_mask_args]) + bins, bins))
+            mask_sums_mode = (np.argmax(it_hist) * bins + (bins / 2))
+            mask_std = np.std(bg_intensities[i][post_mask_args])
+            post_mask_args = np.array([arg for arg, val in zip(args, bg_intensities[i]) if
+                                       (mask_sums_mode - 3. * mask_std) < val < (mask_sums_mode + 3. * mask_std)])
+        it_data = bg_intensities[i][post_mask_args]
+        bg_means.append(np.mean(it_data))
+        bg_stds.append(np.std(it_data))
+    bg_means = np.array(bg_means)
+    bg_stds = np.array(bg_stds)
+
+    #for xxx in range(imgs.shape[0]):
+    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
+    #exit(1)
+    for window_size in window_sizes:
+        bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
+        bg *= bg_means.reshape(-1, 1)
+        bgs[window_size[0]] = bg
+    return bgs, bg_stds
+
+
+def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=3.5):
     new_pdfs = []
     new_coords = []
     new_infos = []

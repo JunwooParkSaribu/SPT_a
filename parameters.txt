@@ -1,6 +1,5 @@
 ## receptor snr 7
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
 THRESHOLDS = [.3, .3, .3]
@@ -11,7 +10,6 @@ BACKWARD_THRESHOLDS = [.3, .3]
 
 ## receptor snr 4
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
 THRESHOLDS = [.35, .35, .35]
@@ -22,7 +20,6 @@ BACKWARD_THRESHOLDS = [.35, .35]
 
 ## Real data
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
 RADIUS = [1.1, 1.7, 3.]
 THRESHOLDS = [.35, .35, .20]
@@ -33,7 +30,6 @@ BACKWARD_THRESHOLDS = [.25, .25, .20]
 
 ## microtubule snr 7 ### NOT GOOD
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(15, 15), (13, 13)]
 RADIUS = [4., 3.]
 THRESHOLDS = [.7, .7]
@@ -44,7 +40,6 @@ BACKWARD_THRESHOLDS = [.7]
 
 ## andi2 data ###
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
 WINDOW_SIZES = [(5, 5)]
 RADIUS = [1.1]
 THRESHOLDS = [.15,]

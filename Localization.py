@@ -20,7 +20,7 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/vesicle_7_mid.tif')
 #images = read_tif('SimulData/vesicle_4_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/receptor_7_low.tif')
+images = read_tif('tif_trxyt/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/vesicle_4_low.tif')
 #images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
@@ -28,25 +28,27 @@ from timeit import default_timer as timer
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
-images = read_tif('SimulData/videos_fov_0.tif')
+#images = read_tif('SimulData/videos_fov_0.tif')
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
-OUTPUT_DIR = f'{WINDOWS_PATH}'
+#OUTPUT_DIR = f'{WINDOWS_PATH}'
+OUTPUT_DIR = f'./'
 
 
 P0 = [1.5, 0., 1.5, 0., 0., 0.5]
-GAUSS_SEIDEL_DECOMP = 5
-WINDOW_SIZES = [(5, 5)]
-RADIUS = [1.1]
-THRESHOLDS = [.15,]
-BACKWARD_WINDOW_SIZES = [(3, 3), (5, 5)]
-BACKWARD_RADIUS = [.5, 1.1]
-BACKWARD_THRESHOLDS = [.10, .15]
+WINDOW_SIZES = [(7, 7), (9, 9), (13, 13)]
+RADIUS = [1.1, 1.7, 3.]
+THRESHOLDS = [.3, .3, .3]
+BACKWARD_WINDOW_SIZES = [(5, 5), (7, 7)]
+BACKWARD_RADIUS = [.7, 1.1]
+BACKWARD_THRESHOLDS = [.3, .3]
 SIGMA = 3.5  # 3.5
-DIV_Q = 5
+DIV_Q = 10
+GAUSS_SEIDEL_DECOMP = 2
+SHIFT = 2
 ALL_WINDOW_SIZES = sorted(list(set(WINDOW_SIZES + BACKWARD_WINDOW_SIZES)))
-images = images[1:]
+images = images
 
 
 @njit
@@ -152,12 +154,18 @@ def gauss_psf(window_sizes, radiuss):
 
 
 def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
-    crop_imgs = np.ascontiguousarray(crop_imgs)
+    #crop_imgs = np.ascontiguousarray(crop_imgs)
     surface_window = window_size[0] * window_size[1]
     #gauss_grid = gauss_grid / np.sum(gauss_grid)
     g_bar = (gauss_grid - (np.sum(gauss_grid) / surface_window)).reshape(window_size[0]*window_size[1], 1)
     g_squared_sum = np.sum(g_bar ** 2)
-    i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1)) @ g_bar / g_squared_sum
+
+    before_time = timer()
+    i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1))
+    print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
+    before_time = timer()
+    i_hat = i_hat @ g_bar / g_squared_sum
+    print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
@@ -343,7 +351,6 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
 
 def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
     index = 0
-    shift = 1
     extend = 30
     forward_linkage = {i: ws[0] for i, ws in enumerate(WINDOW_SIZES)}
     backward_linkage = {ws[0]: i for i, ws in enumerate(BACKWARD_WINDOW_SIZES)}
@@ -371,7 +378,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS, BACKWARD_THRESHOLDS))):
-                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
+                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
@@ -449,19 +456,36 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids):
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(g_grids, window_sizes, radiuss, thresholds))):
                 print(f'{step} : {imgs.shape}')
-                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=shift)
-                crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                before_time = timer()
+                h_map = np.zeros_like(imgs)
+                crop_imgs = np.array(image_cropping(extended_imgs, extend, window_size, shift=SHIFT))
+                crop_imgs = crop_imgs.reshape(crop_imgs.shape[0], crop_imgs.shape[1],
                                                         window_size[0] * window_size[1])
+                print(f'{step}{": 1 calcul":<35}:{(timer() - before_time):.2f}s')
+
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                all_crop_imgs[window_size[0]] = crop_imgs.copy()
+                all_crop_imgs[window_size[0]] = crop_imgs
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
-                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
-                h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+
+                before_time = timer()
+                c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
+                print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
+                before_time = timer()
+                h_map = mapping(h_map, c, SHIFT)
+                #h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+                h_maps.append(h_map)
+                print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
+            #for hm in h_maps:
+            #    plt.figure()
+            #    plt.imshow(hm[0])
+            #plt.show()
             indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
-                    win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c],
+                    #win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c], bgs[ws][n], n, r, c])
+                    win_s_dict[ws].append([all_crop_imgs[ws][n]
+                                           [int((r//SHIFT) * (imgs.shape[2]//SHIFT) + (c//SHIFT))],
                                            bgs[ws][n], n, r, c])
                 ws = window_sizes[0][0]
                 if len(win_s_dict[ws]) != 0:
@@ -564,6 +588,19 @@ def image_cropping(extended_imgs: np.ndarray, extend, window_size, shift):
     return cropped_imgs
 
 
+@njit
+def mapping(img1, img2, shift):
+    if shift == 1:
+        return img2.reshape(img1.shape[0], img1.shape[1], img1.shape[2])
+
+    index = 0
+    for row in range(0, len(img1[1]), shift):
+        for col in range(0, len(img1[2]), shift):
+            img1[:, row, col] = img2[:, index, 0]
+            index += 1
+    return img1
+
+
 def empiric_cov_matrix(grid, qt):
     observations = qt * grid
     nbs = np.sum(qt, axis=1)
@@ -575,7 +612,6 @@ def empiric_cov_matrix(grid, qt):
 
 
 def cov_matrix(grid, qt, x_means, y_means):
-    observations = qt * grid
     grids = []
     for n in range(x_means.shape[0]):
         grids.append(grid)
@@ -585,14 +621,6 @@ def cov_matrix(grid, qt, x_means, y_means):
          (grids[:, :, 0] - x_means.reshape(-1, 1)) *
          (grids[:, :, 1] - y_means.reshape(-1, 1))), axis=1)
     return cov
-    #nbs = np.sum(qt, axis=(1, 2))
-    nbs = np.sum(observations[:, :, 0], 1) / x_means
-    qt_x_sum = qt * x_means.reshape(-1, 1, 1)
-    qt_y_sum = qt * y_means.reshape(-1, 1, 1)
-    aaa = ((observations[:, :, 0].reshape((qt_x_sum.shape[0], qt_x_sum.shape[1], 1)) - qt_x_sum) *
-           (observations[:, :, 1].reshape((qt_y_sum.shape[0], qt_y_sum.shape[1], 1)) - qt_y_sum))
-    cov_val = np.sum(aaa, axis=(1, 2)) / (nbs - 1)
-    return cov_val
 
 
 def quantification(imgs, window_size, amp):
@@ -686,12 +714,6 @@ def image_regression(imgs, bgs, window_size, amp=0):
     cov_mat = np.array([variables[:, 0], variables[:, 4] * np.sqrt(variables[:, 0]) * np.sqrt(variables[:, 2]),
                         variables[:, 4] * np.sqrt(variables[:, 0] * np.sqrt(variables[:, 2])), variables[:, 2]]
                        ).T.reshape(variables.shape[0], 2, 2)
-    """
-    cov_val = cov_matrix(grid, qt_imgs, variables[:, 2],  variables[:, 3])
-    cov_mat = np.array([variables[:, 0], cov_val,
-                        cov_val, variables[:, 1]]).T.reshape(variables.shape[0], 2, 2)
-    """
-    #cov_mat = empiric_cov_matrix(grid, qt_imgs)
     pdfs = bi_variate_normal_pdf(grid, cov_mat, mu=np.array([0, 0]), normalization=False)
     pdfs = variables[:, 5].reshape(-1, 1) * pdfs + bgs
     for err_i in err_indices:
@@ -906,8 +928,12 @@ forward_gauss_grids = gauss_psf(WINDOW_SIZES, RADIUS)
 backward_gauss_grids = gauss_psf(BACKWARD_WINDOW_SIZES, BACKWARD_RADIUS)
 for div_q in range(0, len(images), DIV_Q):
     print(f'{div_q} epoch')
+    before_time = timer()
     bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=ALL_WINDOW_SIZES)
+    print(f'{div_q}{": background calcul":<35}:{(timer() - before_time):.2f}s')
+    before_time = timer()
     xy_coord, pdf, info = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids)
+    print(f'{div_q}{": localization calcul":<35}:{(timer() - before_time):.2f}s')
     xy_coords.extend(xy_coord)
     reg_pdfs.extend(pdf)
     reg_infos.extend(info)

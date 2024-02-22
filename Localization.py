@@ -11,7 +11,7 @@ from timeit import default_timer as timer
 
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
@@ -26,15 +26,17 @@ images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
-#images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
+#images = read_tif('tif_trxyt/videos_fov_0.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 #images = read_tif('SimulData/videos_fov_0.tif')
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
-OUTPUT_DIR = f'{WINDOWS_PATH}'
-images = images
+#OUTPUT_DIR = f'{WINDOWS_PATH}'
+OUTPUT_DIR = f'./'
+images = images[:100]
 
 
 @njit
@@ -415,11 +417,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
                 before_time = timer()
                 h_map = mapping(h_map, c, args[7])
-                #h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
                 h_maps.append(h_map)
                 print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
-            indices = region_max_filter(h_maps.copy(), window_sizes, thresholds)
+            indices = region_max_filter(h_maps, window_sizes, thresholds)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
                     #win_s_dict[ws].append([all_crop_imgs[ws][n][imgs.shape[2] * r + c], bgs[ws][n], n, r, c])
@@ -442,54 +443,12 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         cs.append(i5)
                     pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                 (ws, ws), p0=args[6], decomp_n=args[8])
-                    """
-                    for mypdf, rgpdf, aa,bb,cc in zip(pdfs, regress_imgs, rhos, x_vars, y_vars):
-                        if bb < 0 or cc < 0:
-                            print(aa, bb, cc)
-                            print(aa * np.sqrt(bb) * np.sqrt(cc))
-                            plt.figure()
-                            plt.imshow(mypdf.reshape((ws, ws)))
-                            plt.figure()
-                            plt.imshow(rgpdf.reshape((ws, ws)))
-                            plt.show()
-                    """
                     for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
                         if x_var < 0 or y_var < 0 or x_var > 2*ws or y_var > 2*ws:
                             err_indice.append(err_i)
                     if len(err_indice) == len(pdfs):
-                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
+                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
                         index += 1
-                        continue
-
-                        """
-                    if len(err_indice) > 0:
-                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
-                        for err_i in err_indice:
-                            err_cond = np.argmax(regress_imgs[err_i])
-                            err_r = err_cond // ws
-                            err_c = err_cond % ws
-                            err_ws = ws
-                            err_reg_img = extended_imgs[ns[err_i]][rs[err_i] + err_r - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
-                                                                   rs[err_i] + err_r - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1,
-                                          cs[err_i] + err_c - int((ws-1) / 2) - int((err_ws-1)/2) + int(extend/2):
-                                          cs[err_i] + err_c - int((ws-1) / 2) + int((err_ws-1)/2) + int(extend/2) + 1]
-                            err_bg_img = bgs[err_ws][ns[err_i]]
-                            err_pdfs, err_xs, err_ys, err_x_vars, err_y_vars = image_regression([err_reg_img], [err_bg_img], (err_ws, err_ws))
-                            err_ns = [ns[err_i]]
-                            err_rs = [rs[err_i] + err_r - int((ws-1) / 2)]
-                            err_cs = [cs[err_i] + err_c - int((ws-1) / 2)]
-                            for n, r, c, dx, dy, pdf, x_var, y_var in zip(err_ns, err_rs, err_cs, err_xs, err_ys, err_pdfs, err_x_vars, err_y_vars):
-                                if r + dy <= -1 or r + dy >= imgs.shape[1] or c + dx <= -1 or c + dx >= imgs.shape[2]:
-                                    continue
-                                row_coord = max(0, min(r + dy, imgs.shape[1] - 1))
-                                col_coord = max(0, min(c + dx, imgs.shape[2] - 1))
-                                coords[n].append([row_coord, col_coord])
-                                reg_pdfs[n].append(pdf)
-                            del_indices = np.array([err_ns, np.round(err_rs+err_ys), np.round(err_cs+err_xs)]).T.astype(np.uint32)
-                            new_imgs = subtract_pdf(extended_imgs, err_pdfs, del_indices, (err_ws, err_ws), bg_means, extend)
-                            extended_imgs = new_imgs
-                        """
-
                     else:
                         pdfs = np.delete(pdfs, err_indice, 0)
                         xs = np.delete(xs, err_indice, 0)
@@ -807,8 +766,8 @@ def background(imgs, window_sizes):
     bg_means = np.array(bg_means)
     bg_stds = np.array(bg_stds)
 
-    #for xxx in range(imgs.shape[0]):
-    #    print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
+    for xxx in range(imgs.shape[0]):
+        print(f'{xxx}: {bg_means[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
     #exit(1)
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
@@ -866,8 +825,12 @@ def params_gen(lowest, highest):
 
 
 def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
+    before_time = timer()
     bgs, bg_stds = background(imgs, window_sizes=args[3])
+    print(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
+    before_time = timer()
     xy_coord, pdf, info = localization(imgs, bgs, forward_gauss_grids, backward_gauss_grids, *args)
+    print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
     return xy_coord, pdf, info
 
 
@@ -879,7 +842,7 @@ if __name__ == '__main__':
     MULTI_THRESHOLDS = [.15, .15, .15]
     DIV_Q = 5
     CORE = 4
-    PARALLEL = True
+    PARALLEL = False
     SHIFT = 2
     GAUSS_SEIDEL_DECOMP = 2
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]
@@ -897,9 +860,8 @@ if __name__ == '__main__':
     if PARALLEL:
         for div_q in range(0, len(images), CORE * DIV_Q):
             print(f'{div_q} epoch')
-            before_time = timer()
             with concurrent.futures.ProcessPoolExecutor() as executor:
-                executors = {i: [] for i in range(CORE)}
+                executors = {i: None for i in range(CORE)}
                 for cc in range(CORE):
                     if div_q + cc*DIV_Q < len(images):
                         future = executor.submit(main_process, images[div_q + cc*DIV_Q: div_q + cc*DIV_Q + DIV_Q],
@@ -914,19 +876,13 @@ if __name__ == '__main__':
                         xy_coords.extend(xy_coord)
                         reg_pdfs.extend(pdf)
                         reg_infos.extend(info)
-            print(f'{div_q}{": localization calcul":<35}:{(timer() - before_time):.2f}s')
     else:
         for div_q in range(0, len(images), DIV_Q):
             print(f'{div_q} epoch')
-            before_time = timer()
-            bgs, bg_stds = background(images[div_q:div_q+DIV_Q], window_sizes=MULTI_COMP_WINSIZES)
-            print(f'{div_q}{": background calcul":<35}:{(timer() - before_time):.2f}s')
-            before_time = timer()
-            xy_coord, pdf, info = localization(images[div_q:div_q+DIV_Q], bgs, forward_gauss_grids, backward_gauss_grids,
+            xy_coord, pdf, info = main_process(images[div_q:div_q+DIV_Q], forward_gauss_grids, backward_gauss_grids,
                                                BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
                                                MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
                                                P0, SHIFT, GAUSS_SEIDEL_DECOMP)
-            print(f'{div_q}{": localization calcul":<35}:{(timer() - before_time):.2f}s')
             xy_coords.extend(xy_coord)
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)

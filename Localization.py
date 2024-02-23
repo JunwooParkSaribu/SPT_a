@@ -12,9 +12,9 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
-#images = read_tif('SimulData/vesicle_7_low.tif')
+images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
@@ -313,6 +313,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
     while 1:
         print(f'INDEX: {index}')
+        h_img_copy = (extended_imgs - np.min(extended_imgs, axis=(1, 2)).reshape(-1, 1, 1)).copy()
         h_maps = []
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[index:]
@@ -327,7 +328,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius, multi_thresholds))):
-                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
+                crop_imgs = image_cropping(h_img_copy, extend, window_size, shift=1)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
@@ -415,7 +416,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 print(f'{step} : {imgs.shape}')
                 before_time = timer()
                 h_map = np.zeros_like(imgs)
-                crop_imgs = np.array(image_cropping(extended_imgs, extend, window_size, shift=args[7]))
+                crop_imgs = np.array(image_cropping(h_img_copy, extend, window_size, shift=args[7]))
                 crop_imgs = crop_imgs.reshape(crop_imgs.shape[0], crop_imgs.shape[1],
                                                         window_size[0] * window_size[1])
                 print(f'{step}{": 1 calcul":<35}:{(timer() - before_time):.2f}s')
@@ -859,10 +860,10 @@ if __name__ == '__main__':
     SIGMA = 3.5  # 3.5
     MIN_WIN = 5
     MAX_WIN = 15
-    BINARY_THRESHOLDS = [.15, .15]
-    MULTI_THRESHOLDS = [.15, .15, .15]
+    BINARY_THRESHOLDS = [.2, .2]
+    MULTI_THRESHOLDS = [.2, .2, .2]
 
-    PARALLEL = False
+    PARALLEL = True
     CORE = 4
     DIV_Q = 5
     SHIFT = 2

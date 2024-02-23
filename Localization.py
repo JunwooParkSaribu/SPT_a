@@ -336,10 +336,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
-            for hm in h_maps:
-                plt.figure()
-                plt.imshow(hm[0], vmin=0., vmax=1.)
-            plt.show()
+            #for hm in h_maps:
+            #    plt.figure()
+            #    plt.imshow(hm[0], vmin=0., vmax=1.)
+            #plt.show()
             back_indices = [[] for _ in range(len(multi_thresholds))]
             for backward_index in range(len(multi_thresholds)-1, -1, -1):
                 back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],

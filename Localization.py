@@ -12,9 +12,9 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
-images = read_tif('SimulData/vesicle_7_low.tif')
+#images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
@@ -314,6 +314,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     while 1:
         print(f'INDEX: {index}')
         h_img_copy = (extended_imgs - np.min(extended_imgs, axis=(1, 2)).reshape(-1, 1, 1)).copy()
+        #h_img_copy = extended_imgs
         h_maps = []
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[index:]

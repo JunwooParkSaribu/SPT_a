@@ -12,7 +12,7 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
@@ -28,7 +28,7 @@ images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
-#images = read_tif('tif_trxyt/videos_fov_0.tif')
+images = read_tif('tif_trxyt/videos_fov_0.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 #images = read_tif('SimulData/videos_fov_0.tif')
@@ -36,7 +36,7 @@ images = read_tif('SimulData/receptor_7_low.tif')
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 OUTPUT_DIR = f'{WINDOWS_PATH}'
-images = images
+images = images[1:2]
 
 
 @njit
@@ -310,10 +310,13 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
+    bg_mins = np.min(imgs, axis=(1, 2)).reshape(-1, 1, 1)
 
     while 1:
         print(f'INDEX: {index}')
-        h_img_copy = (extended_imgs - np.min(extended_imgs, axis=(1, 2)).reshape(-1, 1, 1)).copy()
+        h_img_copy = (extended_imgs - bg_mins).copy()
+        h_bg_means = bg_means - bg_mins.reshape(bg_means.shape)
+        print(h_bg_means, bg_means, bg_mins)
         #h_img_copy = extended_imgs
         h_maps = []
         window_sizes = bin_winsizes[index:]
@@ -334,8 +337,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
-                bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
-                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
+                bg_squared_sums = window_size[0] * window_size[1] * h_bg_means ** 2
+                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, h_bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
             #for hm in h_maps:
@@ -424,20 +427,20 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
-                bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
+                bg_squared_sums = window_size[0] * window_size[1] * h_bg_means**2
 
                 before_time = timer()
-                c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
+                c = likelihood(crop_imgs, g_grid, bg_squared_sums, h_bg_means, window_size)
                 print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
                 before_time = timer()
                 h_map = mapping(h_map, c, args[7])
                 h_maps.append(h_map)
                 print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
-            #for hm in h_maps:
-            #    plt.figure()
-            #    plt.imshow(hm[0], vmin=0., vmax=1.)
-            #plt.show()
+            for hm in h_maps:
+                plt.figure()
+                plt.imshow(hm[0], vmin=0., vmax=1.)
+            plt.show()
             indices = region_max_filter(h_maps, window_sizes, thresholds)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
@@ -864,10 +867,10 @@ if __name__ == '__main__':
     BINARY_THRESHOLDS = [.2, .2]
     MULTI_THRESHOLDS = [.2, .2, .2]
 
-    PARALLEL = True
+    PARALLEL = False
     CORE = 4
     DIV_Q = 5
-    SHIFT = 2
+    SHIFT = 1
     GAUSS_SEIDEL_DECOMP = 2
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 

@@ -23,15 +23,18 @@ from timeit import default_timer as timer
 #images = read_tif('SimulData/vesicle_4_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/receptor_7_low.tif')
-#images = read_tif('tif_trxyt/vesicle_4_low.tif')
+images = read_tif('tif_trxyt/vesicle_4_low.tif')
 #images = read_tif('tif_trxyt/vesicle_7_low.tif')
 #images = read_tif('tif_trxyt/receptor_7_mid.tif')
 #images = read_tif('tif_trxyt/microtubule_7_mid.tif')
 #images = read_tif('tif_trxyt/U2OS-H2B-Halo_0.25%50ms_field1.tif')
-images = read_tif('tif_trxyt/videos_fov_0.tif')
+#images = read_tif('tif_trxyt/videos_fov_0.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 #images = read_tif('SimulData/videos_fov_0.tif')
+
+## background low, std high -> high threshold
+## background high, std low -> low threshold
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
@@ -310,14 +313,9 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
     extended_imgs = add_block_noise(extended_imgs, extend)
-    bg_mins = np.min(imgs, axis=(1, 2)).reshape(-1, 1, 1)
 
     while 1:
         print(f'INDEX: {index}')
-        h_img_copy = (extended_imgs - bg_mins).copy()
-        h_bg_means = bg_means - bg_mins.reshape(bg_means.shape)
-        print(h_bg_means, bg_means, bg_mins)
-        #h_img_copy = extended_imgs
         h_maps = []
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[index:]
@@ -332,13 +330,13 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             print(f'BACKWARD PROCESS')
             for step, (g_grid, window_size, radius, threshold) in (
                     enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius, multi_thresholds))):
-                crop_imgs = image_cropping(h_img_copy, extend, window_size, shift=1)
+                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
                 crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                         window_size[0] * window_size[1])
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
-                bg_squared_sums = window_size[0] * window_size[1] * h_bg_means ** 2
-                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, h_bg_means, window_size)
+                bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
+                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
             #for hm in h_maps:
@@ -420,27 +418,30 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 print(f'{step} : {imgs.shape}')
                 before_time = timer()
                 h_map = np.zeros_like(imgs)
-                crop_imgs = np.array(image_cropping(h_img_copy, extend, window_size, shift=args[7]))
+                crop_imgs = np.array(image_cropping(extended_imgs, extend, window_size, shift=args[7]))
                 crop_imgs = crop_imgs.reshape(crop_imgs.shape[0], crop_imgs.shape[1],
                                                         window_size[0] * window_size[1])
                 print(f'{step}{": 1 calcul":<35}:{(timer() - before_time):.2f}s')
 
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
-                bg_squared_sums = window_size[0] * window_size[1] * h_bg_means**2
+                bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
 
                 before_time = timer()
-                c = likelihood(crop_imgs, g_grid, bg_squared_sums, h_bg_means, window_size)
+                c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
                 print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
                 before_time = timer()
                 h_map = mapping(h_map, c, args[7])
                 h_maps.append(h_map)
                 print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
+            plt.figure()
+            plt.imshow(extended_imgs[0])
             for hm in h_maps:
                 plt.figure()
                 plt.imshow(hm[0], vmin=0., vmax=1.)
             plt.show()
+            exit(1)
             indices = region_max_filter(h_maps, window_sizes, thresholds)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
@@ -794,7 +795,8 @@ def background(imgs, window_sizes):
 
     for xxx in range(imgs.shape[0]):
         print(f'{xxx}: {bg_means[xxx]}, {bg_stds[xxx]}, {max_itensities[xxx]}, {mean_intensities[xxx]}')
-    #exit(1)
+        print(bg_stds[xxx]/bg_means[xxx])
+
     for window_size in window_sizes:
         bg = np.ones((bg_intensities.shape[0], window_size[0] * window_size[1]))
         bg *= bg_means.reshape(-1, 1)
@@ -845,8 +847,8 @@ def params_gen(lowest, highest):
     else:
         bin_winsizes = [(lowest, lowest), (highest, highest)]
         multi_winsizes = [(lowest, lowest), (mid, mid), (highest, highest)]
-        bin_radius = [((r[0]//2) / 2) for r in bin_winsizes]
-        multi_radius = [((r[0]//2) / 2) for r in multi_winsizes]
+        bin_radius = [((r[0]//2) / 2.) for r in bin_winsizes]
+        multi_radius = [((r[0]//2) / 2.) for r in multi_winsizes]
     return bin_winsizes, bin_radius, multi_winsizes, multi_radius
 
 

@@ -99,7 +99,7 @@ def trajectory_to_segments(trajectory_list, blink_lag):
     return segment_distrib
 
 
-def count_localizations(localization, images):
+def count_localizations(localization):
     nb = 0
     xyz_min = np.array([1e5, 1e5, 1e5])
     xyz_max = np.array([-1e5, -1e5, -1e5])
@@ -932,7 +932,7 @@ if __name__ == '__main__':
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     #compare_two_localization_visual('.', images, localizations1, localizations2)
-    time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc, images)
+    time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
     start_time = timer()

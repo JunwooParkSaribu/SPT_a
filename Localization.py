@@ -12,13 +12,13 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
-#images = read_tif('SimulData/receptor_7_low.tif')
+images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
 #images = read_tif('SimulData/microtubule_7_low.tif')
 #images = read_tif('SimulData/receptor_7_mid.tif')
-images = read_tif('SimulData/receptor_4_mid.tif')
+#images = read_tif('SimulData/receptor_4_mid.tif')
 #images = read_tif('SimulData/vesicle_7_mid.tif')
 #images = read_tif('SimulData/vesicle_4_mid.tif')
 #images = read_tif('SimulData/microtubule_7_mid.tif')
@@ -45,10 +45,8 @@ images = images
 @njit
 def region_max_filter2(maps, window_size, thresholds):
     indices = []
-    #r_start_index = int((window_size[1]-1) / 2)
-    #col_start_index = int((window_size[0]-1) / 2)
-    r_start_index = 1
-    col_start_index = 1
+    r_start_index = int(window_size[1] // 2)
+    col_start_index = int(window_size[0] // 2)
     args_map = maps > thresholds.reshape(-1, 1, 1)
     maps = maps * args_map
     img_n, row, col = np.where(args_map == True)
@@ -66,10 +64,8 @@ def region_max_filter(maps, window_sizes, thresholds):
     for i, (hmap, window_size) in enumerate(zip(maps, window_sizes)):
         args_map = hmap > thresholds[:, i].reshape(-1, 1, 1)
         maps[i] = hmap * args_map
-        #r_start_index = int((window_size[1] - 1) / 2)
-        #col_start_index = int((window_size[0] - 1) / 2)
-        r_start_index = 1
-        col_start_index = 1
+        r_start_index = int(window_size[1] // 2)
+        col_start_index = int(window_size[0] // 2)
         img_n, row, col = np.where(args_map == True)
         for n, r, c in zip(img_n, row, col):
             if maps[i][n][r][c] == np.max(
@@ -112,7 +108,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
-    borders = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    borders = [x for x in range(50)]
     erase_space = 2
     for border in borders:
         row_min = max(0, row_indice[0]-1+border)
@@ -375,17 +371,17 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     if len(regress_imgs) > 0:
                         pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                     (ws, ws), p0=args[6], decomp_n=args[8])
-                        penalty = 1
-                        for x_var, y_var in zip(x_vars, y_vars):
-                            if x_var < 0 or y_var < 0 or x_var > 2*ws or y_var > 2*ws:
-                                penalty *= 1e6
+                        penalty = 0
+                        for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
+                            if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
+                                penalty += 1e6
                         regressed_imgs = []
                         for regress_index, dx, dy in zip(win_s_set, xs, ys):
                             reged_img = extended_imgs[regress_index[0],
-                                                  regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
-                                                  regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
-                                                  regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
-                                                  regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
+                                        regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
+                                        regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
+                                        regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
+                                        regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
                             if reged_img.shape == (ws, ws):
                                 regressed_imgs.append(reged_img)
                         regressed_imgs = np.array(regressed_imgs)
@@ -394,8 +390,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             ## x_var or y_var is (-)
                             loss_vals.append(penalty)
                         else:
-                            loss = np.mean(np.sort(np.mean((regressed_imgs - pdfs.reshape(regress_imgs.shape))**2, axis=0).
-                                                   flatten())[::-1][:multi_winsizes[0][0] * multi_winsizes[0][1]]) * penalty
+                            loss = np.mean(np.sort(np.mean(np.log(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))), axis=0).
+                                                   flatten())[::-1][:multi_winsizes[0][0] * multi_winsizes[0][1]]) + penalty
                             #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
                             #loss = np.mean(abs(kl_divergence(pdfs, regressed_imgs.reshape(pdfs.shape)))) * penalty
                             loss_vals.append(loss)
@@ -407,7 +403,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 #print(loss_vals)
                 #print(regress_comp_set)
 
-                if np.sum(np.array(loss_vals) < 1.) >= 1:
+                if np.sum(np.array(loss_vals) < 0.) >= 1:
                     selec_arg = np.argmin(loss_vals)
                     pdfs, xs, ys, x_vars, y_vars, rhos, amps = selected_dt[selec_arg]
                     infos = regress_comp_set[selec_arg]
@@ -475,8 +471,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         cs.append(i5)
                     pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                 (ws, ws), p0=args[6], decomp_n=args[8])
-                    for err_i, (x_var, y_var) in enumerate(zip(x_vars, y_vars)):
-                        if x_var < 0 or y_var < 0 or x_var > 2*ws or y_var > 2*ws:
+                    for err_i, (x_var, y_var, rho) in enumerate(zip(x_vars, y_vars, rhos)):
+                        if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
                     if len(err_indice) == len(pdfs):
                         print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
@@ -584,8 +580,6 @@ def kl_divergence(base, compares):
     compares = abs(compares)
     base += 1e-8
     compares += 1e-8
-    #base = base / np.sum(base, axis=1).reshape(-1, 1)
-    #compares = compares / np.sum(compares, axis=1).reshape(-1, 1)
     a = np.mean((compares * np.log(compares / base)), axis=1)
     return a
 
@@ -670,7 +664,7 @@ def pack_vars(vars, len_img):
     return [[a, b, c, d, e, f] for _ in range(len_img)]
 
 
-def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=7, decomp_n=2):
+def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
     nb_imgs = imgs.shape[0]
     if p0 is None:
         p0 = [1.5, 0., 1.5, 0., 0., 0.5]  # x_var, x_mu, y_var, y_mu, rho, amp
@@ -849,10 +843,10 @@ def params_gen(lowest, highest):
     mid = int((highest + lowest) / 2)
     if mid % 2 == 0: mid += 1
     if lowest == highest:
-        bin_winsizes = ([(lowest, lowest)])
-        multi_winsizes = [(lowest // 2) / 2]
-        bin_radius = []
-        multi_radius = []
+        bin_winsizes = [(lowest, lowest)]
+        multi_winsizes = [(lowest, lowest)]
+        bin_radius = [(lowest // 2) / 2]
+        multi_radius = [(lowest // 2) / 2]
     else:
         bin_winsizes = [(lowest, lowest), (highest, highest)]
         multi_winsizes = [(lowest, lowest), (mid, mid), (highest, highest)]
@@ -887,7 +881,7 @@ if __name__ == '__main__':
     MAX_WIN = 15
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 1.
+    THRES_ALPHA = 1.2
 
     PARALLEL = True
     CORE = 4

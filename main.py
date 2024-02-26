@@ -212,7 +212,10 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
     for lag in real_distribution.keys():
         for index in [1, 2]:
             tmp = np.zeros(bin_max)
-            tmp[:len(approx_distribution[lag][index]) - index] = approx_distribution[lag][index][:-1 - index + 1]   # it takes one less (last index), need to modify.
+            if index == 1:
+                tmp[:len(approx_distribution[lag][index]) - index] = approx_distribution[lag][index][:-1 - index + 1]
+            else:
+                tmp[:len(approx_distribution[lag][index]) - index + 1] = approx_distribution[lag][index][:-1 - index + 2]   # it takes one less (last index), need to modify.
             approx_distribution[lag][index] = tmp
     return approx_distribution
 
@@ -932,12 +935,12 @@ if __name__ == '__main__':
     bin_size = np.mean(xyz_max - xyz_min) / 5000.
 
     """
-    fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
+    fig, axs = plt.subplots((blink_lag + 1), 1)
     for lag in segment_distribution.keys():
-        axs[lag][0].hist(segment_distribution[lag],
+        axs[lag].hist(segment_distribution[lag],
                          bins=np.arange(0, np.max(segment_distribution[0]) + bin_size, bin_size),
                          alpha=0.5)
-        axs[lag][0].set_xlim([0, 20])
+        axs[lag].set_xlim([0, 20])
     plt.show()
     """
 
@@ -948,17 +951,15 @@ if __name__ == '__main__':
         print(f'MCMC duration: {timer() - start_time:.2f}s')
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
+
         """
-        fig, axs = plt.subplots((blink_lag + 1), 1, squeeze=False)
+        fig, axs = plt.subplots((blink_lag + 1), 1)
         for lag in segment_distribution.keys():
-            axs[lag][0].bar(segment_distribution[lag][2][:-1],
-                            np.histogram(segment_distribution[lag][4], bins=segment_distribution[lag][2])[0] / len(segment_distribution[lag][4]),
-                            width=segment_distribution[lag][2][1]-segment_distribution[lag][2][0], alpha=0.5)
-            axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][1], label=f'{lag}_PDF')
-            axs[lag][0].plot(segment_distribution[lag][2][:-1], segment_distribution[lag][3](segment_distribution[lag][2][:-1]), label=f'{lag}_CDF')
-            axs[lag][0].vlines(segment_distribution[lag][0], ymin=0, ymax=1., alpha=0.6, colors='r', label=f'{lag}_limit')
-            axs[lag][0].legend()
-            axs[lag][0].set_xlim([0, segment_distribution[lag][0] + 1])
+            axs[lag].plot(segment_distribution[lag][2][:200], segment_distribution[lag][1][:200], label=f'{lag}_PDF')
+            #axs[lag].plot(segment_distribution[lag][2][:200], segment_distribution[lag][3](segment_distribution[lag][2])[:200], label=f'{lag}_CDF')
+            axs[lag].vlines(segment_distribution[lag][0], ymin=0, ymax=.14, alpha=0.6, colors='r', label=f'{lag}_limit')
+            axs[lag].legend()
+            axs[lag].set_xlim([0, segment_distribution[lag][0] + 1])
         plt.show()
         """
 

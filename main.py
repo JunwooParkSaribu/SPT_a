@@ -648,8 +648,8 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
         for dest_i in range(len(tmp[next_time])):
             dests_pairs.append([next_time, dest_i])
         # Combination with permutation
-        pairs, seg_lengths, pair_crop_images, pair_positions, pair_infos = (
-            pair_permutation(srcs_pairs, dests_pairs, tmp, tmp_info))
+        pairs, seg_lengths, pair_positions, pair_infos = (
+            pair_permutation(np.array(srcs_pairs), np.array(dests_pairs), tmp, tmp_info))
         paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
         track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
         thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
@@ -661,7 +661,6 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
             linkage_pairs = pairs[linkage_indices]
             track_lengths = track_lengths[linkage_indices]
             linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
-            linkage_imgs = pair_crop_images[linkage_indices]
             linkage_positions = pair_positions[linkage_indices]
             linkage_infos = pair_infos[linkage_indices]
             #print(f'TIMESTEP{i}_(1): {linkage_log_probas}')
@@ -669,19 +668,19 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
             if 2 in on:
                 # proba entropies
                 before_time = timer()
-                linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
+                linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas)
                 print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
                 # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
-                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions)
                 print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
             if 4 in on:
                 before_time = timer()
                 trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
-                linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions, linkage_imgs)
+                linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions)
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
 

@@ -897,7 +897,6 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 
 
 if __name__ == '__main__':
-    start_time = timer()
     blink_lag = 1
     cutoff = 2
     methods = [1, 3, 4]
@@ -912,11 +911,6 @@ if __name__ == '__main__':
     input_dir = f'SimulData'
     output_dir = f'outputs'
 
-    #input_tif = f'{input_dir}/{scenario}_{snr}_{density}.tif'
-    #input_trxyt = f'{input_dir}/{scenario}_{snr}_{density}.rpt_tracked.trxyt'
-    #output_xml = f'{output_dir}/{scenario}_{snr}_{density}_retracked_conf0{int(confidence*1000)}_lag{blink_lag}.xml'
-    #output_img = f'{output_dir}/{scenario}_snr{snr}_{density}_conf0{int(confidence*1000)}_lag{blink_lag}.png'
-
     input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
     #input_tif = f'./SimulData/videos_fov_0.tif'
@@ -926,12 +920,8 @@ if __name__ == '__main__':
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
     images = read_tif(input_tif)
-    print(f'Read_tif: {timer() - start_time:.2f}s')
-    #localizations = read_xml(gt_xml)
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
-    #localizations, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
-    #compare_two_localization_visual('.', images, localizations1, localizations2)
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 

@@ -928,39 +928,40 @@ if __name__ == '__main__':
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
     start_time = timer()
-    segment_distribution = distribution_segments(loc, time_steps=time_steps, lag=blink_lag,
-                                                 parallel=False)
+    raw_segment_distribution = distribution_segments(loc, time_steps=time_steps, lag=blink_lag,
+                                                     parallel=False)
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 5000.
 
-    """
-    fig, axs = plt.subplots((blink_lag + 1), 1)
-    for lag in segment_distribution.keys():
-        axs[lag].hist(segment_distribution[lag],
-                         bins=np.arange(0, np.max(segment_distribution[0]) + bin_size, bin_size),
-                         alpha=0.5)
-        axs[lag].set_xlim([0, 20])
-    plt.show()
-    """
-
     for repeat in range(1):
         start_time = timer()
-        segment_distribution = mcmc_parallel(segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
+        segment_distribution = mcmc_parallel(raw_segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
                                              approx='metropolis_hastings', parallel=var_parallel, thresholds=THRESHOLDS)
         print(f'MCMC duration: {timer() - start_time:.2f}s')
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-        """
-        fig, axs = plt.subplots((blink_lag + 1), 1)
+
+        fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
+        show_x_max = 25
+        show_y_max = 0.15
         for lag in segment_distribution.keys():
-            axs[lag].plot(segment_distribution[lag][2][:200], segment_distribution[lag][1][:200], label=f'{lag}_PDF')
+            raw_segs_hist, bin_edges = np.histogram(raw_segment_distribution[lag],
+                                                    bins=np.arange(0, show_x_max, bin_size * 2))
+            mcmc_segs_hist, _ = np.histogram(segment_distribution[lag][4], bins=bin_edges)
+            axs[lag][1].hist(bin_edges[:-1], bin_edges, weights=raw_segs_hist / np.sum(raw_segs_hist), alpha=0.5)
+            axs[lag][0].hist(bin_edges[:-1], bin_edges, weights=mcmc_segs_hist / np.sum(mcmc_segs_hist), alpha=0.5)
+            axs[lag][0].plot(segment_distribution[lag][2], segment_distribution[lag][1], label=f'{lag}_PDF')
             #axs[lag].plot(segment_distribution[lag][2][:200], segment_distribution[lag][3](segment_distribution[lag][2])[:200], label=f'{lag}_CDF')
-            axs[lag].vlines(segment_distribution[lag][0], ymin=0, ymax=.14, alpha=0.6, colors='r', label=f'{lag}_limit')
-            axs[lag].legend()
-            axs[lag].set_xlim([0, segment_distribution[lag][0] + 1])
+            axs[lag][0].vlines(segment_distribution[lag][0], ymin=0, ymax=.14, alpha=0.6, colors='r', label=f'{lag}_limit')
+            axs[lag][0].legend()
+            axs[lag][1].legend()
+            axs[lag][0].set_xlim([0, show_x_max])
+            axs[lag][1].set_xlim([0, show_x_max])
+            axs[lag][0].set_ylim([0, show_y_max])
+            axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-        """
+
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)

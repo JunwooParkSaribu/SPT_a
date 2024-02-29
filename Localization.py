@@ -12,7 +12,7 @@ from timeit import default_timer as timer
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
-images = read_tif('SimulData/receptor_7_low.tif')
+#images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('SimulData/receptor_4_low.tif')
 #images = read_tif('SimulData/vesicle_7_low.tif')
 #images = read_tif('SimulData/vesicle_4_low.tif')
@@ -31,7 +31,7 @@ images = read_tif('SimulData/receptor_7_low.tif')
 #images = read_tif('tif_trxyt/videos_fov_0.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
-#images = read_tif('SimulData/videos_fov_0.tif')
+images = read_tif('SimulData/videos_fov_0.tif')
 
 ## background low, std high -> high threshold
 ## background high, std low -> low threshold
@@ -39,7 +39,7 @@ images = read_tif('SimulData/receptor_7_low.tif')
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 OUTPUT_DIR = f'{WINDOWS_PATH}'
-images = images
+images = images[1:]
 
 
 @njit
@@ -876,7 +876,7 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
 
 
 if __name__ == '__main__':
-    SIGMA = 3.5  # 3.5
+    SIGMA = 4  # 3.5
     MIN_WIN = 5
     MAX_WIN = 15
     BINARY_THRESHOLDS = None

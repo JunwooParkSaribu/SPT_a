@@ -876,7 +876,8 @@ def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
 
 def dm_likelihood(sigma, traget_position, center_pos):
     cov_mat = np.array([[[sigma, 0], [0, sigma]]])
-    likelihood = bi_variate_normal_pdf(np.array([traget_position]), cov_mat, center_pos, normalization=False)[0]
+    likelihood = bi_variate_normal_pdf(
+        np.array([traget_position]), cov_mat, center_pos, normalization=False).flatten()[0]
     return likelihood
 
 
@@ -887,7 +888,7 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
     for traj, (prev_pos, target_pos) in zip(trajectories, linkage_positions):
         center_pos, vec_norm = traj.get_expected_pos(t)
         sigma = k
-        l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])[0]
+        l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])
         directed_log_likelihood.append(np.log(l))
 
     for i, l in enumerate(directed_log_likelihood):
@@ -908,20 +909,20 @@ if __name__ == '__main__':
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'
-    density = 'low'
+    density = 'mid'
     scenario = 'receptor'
     input_dir = f'SimulData'
     output_dir = f'outputs'
 
-    input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
+    #input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    #input_tif = f'./SimulData/videos_fov_0.tif'
+    input_tif = f'./SimulData/videos_fov_0.tif'
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
-    images = read_tif(input_tif)
+    images = read_tif(input_tif)[1:]
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
@@ -941,7 +942,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-
+        """
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 25
         show_y_max = 0.15
@@ -961,7 +962,7 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-
+        """
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)

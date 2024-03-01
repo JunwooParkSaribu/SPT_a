@@ -158,7 +158,6 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
 
 def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2,
                     add_index=True, local_img=None, gt_trajectory=None):
-    alpha = 1.
     if img_stacks.shape[1] * img_stacks.shape[2] < 512 * 512:
         upscailing_factor = int(512 / img_stacks.shape[1])
     else:
@@ -168,7 +167,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         img = cv2.resize(img, (img.shape[0]*upscailing_factor, img.shape[1]*upscailing_factor),
                          interpolation=cv2.INTER_AREA)
         if img.ndim == 2:
-            img = np.array([img, img, img, img])
+            img = np.array([img, img, img])
             img = np.moveaxis(img, 0, 2)
         img = np.ascontiguousarray(img)
         img_org = img.copy()
@@ -179,7 +178,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                 times = traj.get_times()
                 if frame in times:
                     indices = [i for i, time in enumerate(times) if time == frame]
-                    xy = np.array([[int(np.around(x, 5) * upscailing_factor), int(np.around(y, 5 ) * upscailing_factor)]
+                    xy = np.array([[int(np.around(x, 5) * upscailing_factor), int(np.around(y, 5) * upscailing_factor)]
                                    for x, y, _ in traj.get_positions()[indices]], np.int32)
                     if local_img[xy[0][1], xy[0][0], 0] == 1 and local_img[xy[0][1], xy[0][0], 1] == 0 and local_img[xy[0][1], xy[0][0], 2] == 0:
                         local_img = draw_cross(local_img, xy[0][1], xy[0][0], (0, 0, 1))
@@ -187,8 +186,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                         local_img = draw_cross(local_img, xy[0][1], xy[0][0], (1, 0, 0))
             local_img[:, -1, :] = 1
 
-        overlay = img.copy()
-        transparent_ = np.zeros((img.shape[0], img.shape[1], 4)) + 0.
+        overlay = np.zeros(img.shape)
         for traj in trajectory_list:
             times = traj.get_times()
             if times[-1] < frame:
@@ -198,7 +196,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                 xy = np.array([[int(np.around(x, 5) * upscailing_factor), int(np.around(y, 5) * upscailing_factor)]
                                for x, y, _ in traj.get_positions()[indices]], np.int32)
                 font_scale = 0.1 * 2
-                img_poly = cv2.polylines(transparent_, [xy],
+                img_poly = cv2.polylines(overlay, [xy],
                                          isClosed=False,
                                          color=(traj.get_color()[0],
                                                 traj.get_color()[1],
@@ -209,21 +207,21 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                         cv2.putText(overlay, f'[{times[indices[0]]},{times[indices[-1]]}]',
                                     org=[xy[0][0], xy[0][1] + 12], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                     fontScale=font_scale,
-                                    color=(int(traj.get_color()[0]),
-                                           int(traj.get_color()[1]),
-                                           int(traj.get_color()[2])))
+                                    color=(traj.get_color()[0],
+                                           traj.get_color()[1],
+                                           traj.get_color()[2]))
                         cv2.putText(overlay, f'{traj.get_index()}', org=xy[0], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                     fontScale=font_scale,
-                                    color=(int(traj.get_color()[0]),
-                                           int(traj.get_color()[1]),
-                                           int(traj.get_color()[2])))
+                                    color=(traj.get_color()[0],
+                                           traj.get_color()[1],
+                                           traj.get_color()[2]))
         img_org[:, -1, :] = 1
-        image_alpha = cv2.addWeighted(transparent_, alpha, img_org, 1, 0)
-        image_alpha = np.minimum(np.ones_like(image_alpha), image_alpha)
+        overlay = img_org + overlay
+        overlay = np.minimum(np.ones_like(overlay), overlay)
         if local_img is not None:
-            hstacked_img = np.hstack((local_img, image_alpha))
+            hstacked_img = np.hstack((local_img, overlay))
         else:
-            hstacked_img = image_alpha
+            hstacked_img = overlay
 
         if gt_trajectory is not None:
             overlay = img.copy()
@@ -238,26 +236,25 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                     font_scale = 0.1 * 2
                     img_poly = cv2.polylines(overlay, [xy],
                                              isClosed=False,
-                                             color=(int(traj.get_color()[0]),
-                                                    int(traj.get_color()[1]),
-                                                    int(traj.get_color()[2])),
+                                             color=(traj.get_color()[0],
+                                                    traj.get_color()[1],
+                                                    traj.get_color()[2]),
                                              thickness=1)
                     if len(indices) > 0:
                         if add_index:
                             cv2.putText(overlay, f'[{times[indices[0]]},{times[indices[-1]]}]',
                                         org=[xy[0][0], xy[0][1] + 12], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                         fontScale=font_scale,
-                                        color=(int(traj.get_color()[0]),
-                                               int(traj.get_color()[1]),
-                                               int(traj.get_color()[2])))
+                                        color=(traj.get_color()[0],
+                                               traj.get_color()[1],
+                                               traj.get_color()[2]))
                             cv2.putText(overlay, f'{traj.get_index()}', org=xy[0], fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                         fontScale=font_scale,
-                                        color=(int(traj.get_color()[0]),
-                                               int(traj.get_color()[1]),
-                                               int(traj.get_color()[2])))
+                                        color=(traj.get_color()[0],
+                                               traj.get_color()[1],
+                                               traj.get_color()[2]))
             hstacked_img[:, -1, :] = 1
-            image_alpha = cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
-            hstacked_img = np.hstack((hstacked_img, image_alpha))
+            hstacked_img = np.hstack((hstacked_img, overlay))
         result_stack.append(hstacked_img)
     result_stack = (np.array(result_stack) * 255).astype(np.uint8)
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)

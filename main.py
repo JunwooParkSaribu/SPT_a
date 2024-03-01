@@ -909,22 +909,23 @@ if __name__ == '__main__':
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'
-    density = 'mid'
+    density = 'low'
     scenario = 'receptor'
     input_dir = f'SimulData'
     output_dir = f'outputs'
 
     #input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
+    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
+
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
     input_tif = f'./SimulData/videos_fov_0.tif'
+    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
     images = read_tif(input_tif)[1:]
-    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
-    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 

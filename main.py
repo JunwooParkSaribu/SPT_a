@@ -264,7 +264,7 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
                         pdf_indices.append([n, pdfs[n][index]])
                     else:
                         print('there is a proba 0 even lower than thresholds')
-                        #pdf_indices.append([n, 1e-8])
+                        pdf_indices.append([n, 1e-8])
                 else:
                     pdf_indices.append([n, np.min(pdfs[n])])
     else:
@@ -905,7 +905,7 @@ if __name__ == '__main__':
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.995
-    amp = 1.3
+    amp = 1.3 #1.3
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'

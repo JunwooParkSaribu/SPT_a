@@ -158,6 +158,11 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
 
 def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2,
                     add_index=True, local_img=None, gt_trajectory=None):
+    if np.mean(img_stacks) < 0.25:
+        bright_ = 1
+    else:
+        bright_ = 0
+
     if img_stacks.shape[1] * img_stacks.shape[2] < 512 * 512:
         upscailing_factor = int(512 / img_stacks.shape[1])
     else:
@@ -186,7 +191,10 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                         local_img = draw_cross(local_img, xy[0][1], xy[0][0], (1, 0, 0))
             local_img[:, -1, :] = 1
 
-        overlay = np.zeros(img.shape)
+        if bright_:
+            overlay = np.zeros(img.shape)
+        else:
+            overlay = np.ones(img.shape)
         for traj in trajectory_list:
             times = traj.get_times()
             if times[-1] < frame:
@@ -216,7 +224,10 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                                            traj.get_color()[1],
                                            traj.get_color()[2]))
         img_org[:, -1, :] = 1
-        overlay = img_org + overlay
+        if bright_:
+            overlay = img_org + overlay
+        else:
+            overlay = img_org * overlay
         overlay = np.minimum(np.ones_like(overlay), overlay)
         if local_img is not None:
             hstacked_img = np.hstack((local_img, overlay))

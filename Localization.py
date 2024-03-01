@@ -9,6 +9,9 @@ from numba.typed import List as nbList
 from ImageModule import read_tif, draw_cross
 from timeit import default_timer as timer
 
+WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
+WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
+OUTPUT_DIR = f'{WINDOWS_PATH}'
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
@@ -31,14 +34,17 @@ from timeit import default_timer as timer
 #images = read_tif('tif_trxyt/videos_fov_0.tif')
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
-images = read_tif('SimulData/videos_fov_0.tif')
+#images = read_tif('SimulData/videos_fov_0.tif')
+images = read_tif(f'{WINDOWS_PATH}/single1.tif')
+#images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
+#images = read_tif(f'{WINDOWS_PATH}/immobile_traps1.tif')
+#images = read_tif(f'{WINDOWS_PATH}/dimer1.tif')
+#images = read_tif(f'{WINDOWS_PATH}/confinement1.tif')
 
 ## background low, std high -> high threshold
 ## background high, std low -> low threshold
 
-WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
-WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
-OUTPUT_DIR = f'{WINDOWS_PATH}'
+
 images = images[1:]
 
 

@@ -905,7 +905,7 @@ if __name__ == '__main__':
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.995
-    amp = 1.3 #1.3
+    amp = 1.5 #1.3
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'
@@ -918,7 +918,11 @@ if __name__ == '__main__':
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'./SimulData/videos_fov_0.tif'
+    input_tif = f'{WINDOWS_PATH}/single1.tif'
+    #input_tif = f'{WINDOWS_PATH}/multi3.tif'
+    #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
+    #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
+    #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
     gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 

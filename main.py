@@ -900,7 +900,7 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 
 
 if __name__ == '__main__':
-    blink_lag = 1
+    blink_lag = 2
     cutoff = 2
     methods = [1, 3, 4]
     var_parallel = True
@@ -918,8 +918,8 @@ if __name__ == '__main__':
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'{WINDOWS_PATH}/single1.tif'
-    #input_tif = f'{WINDOWS_PATH}/multi3.tif'
+    #input_tif = f'{WINDOWS_PATH}/single1.tif'
+    input_tif = f'{WINDOWS_PATH}/multi3.tif'
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
@@ -949,7 +949,7 @@ if __name__ == '__main__':
 
         """
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
-        show_x_max = 25
+        show_x_max = 20
         show_y_max = 0.15
         for lag in segment_distribution.keys():
             raw_segs_hist, bin_edges = np.histogram(raw_segment_distribution[lag],

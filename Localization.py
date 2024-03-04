@@ -35,8 +35,8 @@ OUTPUT_DIR = f'{WINDOWS_PATH}'
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 #images = read_tif('SimulData/videos_fov_0.tif')
-#images = read_tif(f'{WINDOWS_PATH}/single1.tif')
-images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
+images = read_tif(f'{WINDOWS_PATH}/single1.tif')
+#images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
 #images = read_tif(f'{WINDOWS_PATH}/immobile_traps1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/dimer1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/confinement1.tif')
@@ -646,8 +646,8 @@ def unpack_coefs(coefs, window_size):
     k = 1 - rho**2
     x_var = abs(1/(-2 * coefs[:, 0] * k))
     y_var = abs(1/(-2 * coefs[:, 2] * k))
-    for err_indice, (xvar_check, yvar_check) in enumerate(zip(x_var, y_var)):
-        if xvar_check < 0 or yvar_check < 0 or x_var > 3 * window_size[0] or y_var > 3 * window_size[1] or rho < -1 or rho > 1:
+    for err_indice, (xvar_check, yvar_check, r) in enumerate(zip(x_var, y_var, rho)):
+        if xvar_check < 0 or yvar_check < 0 or xvar_check > 3 * window_size[0] or yvar_check > 3 * window_size[1] or r < -1 or r > 1:
             err_indices.append(err_indice)
 
     for i, (b, d) in enumerate(zip(coefs[:, 1], coefs[:, 3])):
@@ -828,16 +828,17 @@ def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=3.5):
     new_pdfs = []
     new_coords = []
     new_infos = []
-    for img_n, (pdfs, xy_coord, info) in enumerate(zip(reg_pdfs, xy_coords, reg_infos)):
+    for img_n, (pdfs, xy_coord, infos) in enumerate(zip(reg_pdfs, xy_coords, reg_infos)):
         if len(pdfs) < 1:
             continue
         new_pdf_tmp = pdfs.copy()
         new_xy_coord_tmp = xy_coord.copy()
-        new_reg_tmp = info.copy()
+        new_reg_tmp = infos.copy()
         max_pdf_vals = []
 
-        for pdf in pdfs:
+        for pdf, info in zip(pdfs, infos):
             max_pdf_vals.append(pdf[int((pdf.shape[0] - 1)/2)])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
+            #max_pdf_vals.append(info[3])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
         max_pdf_vals = np.array(max_pdf_vals)
 
         bin_edgs = np.arange(0, np.max(max_pdf_vals) + 0.05, 0.05)
@@ -848,7 +849,7 @@ def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=3.5):
             if max_pdf_val > mode_sigma:
                 new_pdf_tmp.append(pdfs[i])
                 new_xy_coord_tmp.append(xy_coord[i])
-                new_reg_tmp.append(info[i])
+                new_reg_tmp.append(infos[i])
         new_pdfs.append(new_pdf_tmp)
         new_coords.append(new_xy_coord_tmp)
         new_infos.append(new_reg_tmp)
@@ -894,11 +895,11 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
 
 if __name__ == '__main__':
     SIGMA = 4  # 3.5
-    MIN_WIN = 3
-    MAX_WIN = 3
+    MIN_WIN = 5
+    MAX_WIN = 5
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 2.0
+    THRES_ALPHA = 1.2 #1.2
 
     PARALLEL = True
     CORE = 4

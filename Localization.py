@@ -57,6 +57,9 @@ def region_max_filter2(maps, window_size, thresholds):
         args_map = maps > thresholds.reshape(-1, 1, 1)
         maps = maps * args_map
         img_n, row, col = np.where(args_map == True)
+        plt.figure()
+        plt.imshow(maps[0])
+        plt.show()
         for n, r, c in zip(img_n, row, col):
             if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
                                        max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]) and maps[n][r][c] != 0:
@@ -385,6 +388,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         penalty = 0
                         for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
                             if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
+                                print(x_var, y_var, rho)
                                 penalty += 1e6
                         regressed_imgs = []
                         for regress_index, dx, dy in zip(win_s_set, xs, ys):
@@ -609,12 +613,15 @@ def intensity_reg(imgs, pdfs, center_i):
     return intensity, bg_i
 
 
-def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0):
+def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0, repeat=5):
     imgs = np.array(imgs)
     bgs = np.array(bgs)
     qt_imgs, grid = quantification(imgs, window_size, amp)
-    coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, decomp_n=decomp_n)
-    variables, err_indices = unpack_coefs(coefs)
+    coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, repeat=repeat, decomp_n=decomp_n)
+    variables, err_indices = unpack_coefs(coefs, window_size)
+    if len(err_indices) > 0:
+        coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, repeat=repeat+1, decomp_n=decomp_n)
+        variables, err_indices = unpack_coefs(coefs, window_size)
     variables = np.array(variables).T
     cov_mat = np.array([variables[:, 0], variables[:, 4] * np.sqrt(variables[:, 0]) * np.sqrt(variables[:, 2]),
                         variables[:, 4] * np.sqrt(variables[:, 0] * np.sqrt(variables[:, 2])), variables[:, 2]]
@@ -635,17 +642,18 @@ def matrix_decomp(matrix, q):
     return ret_mat
 
 
-def unpack_coefs(coefs):
+def unpack_coefs(coefs, window_size):
     err_indices = []
     x_mu = []
     y_mu = []
-    for err_indice, (acoef_check, ccoef_check) in enumerate(zip(coefs[:, 0], coefs[:, 2])):
-        if acoef_check >= 0 or ccoef_check >= 0:
-            err_indices.append(err_indice)
-    rho = coefs[:, 4] * np.sqrt(1/(4 * -abs(coefs[:, 0]) * -abs(coefs[:, 2])))
+    rho = coefs[:, 4] * np.sqrt(1/(4 * -(coefs[:, 0]) * -(coefs[:, 2])))
     k = 1 - rho**2
-    x_var = abs(1/(-2 * coefs[:, 0] * k))
-    y_var = abs(1/(-2 * coefs[:, 2] * k))
+    x_var = (1/(-2 * coefs[:, 0] * k))
+    y_var = (1/(-2 * coefs[:, 2] * k))
+    for err_indice, (xvar_check, yvar_check) in enumerate(zip(x_var, y_var)):
+        if xvar_check < 0 or yvar_check < 0 or x_var > 3 * window_size[0] or y_var > 3 * window_size[1] or rho < -1 or rho > 1:
+            err_indices.append(err_indice)
+
     for i, (b, d) in enumerate(zip(coefs[:, 1], coefs[:, 3])):
         if i in err_indices:
             x_mu.extend([0])
@@ -676,6 +684,7 @@ def pack_vars(vars, len_img):
 
 
 def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
+    k = 0
     nb_imgs = imgs.shape[0]
     if p0 is None:
         p0 = [1.5, 0., 1.5, 0., 0., 0.5]  # x_var, x_mu, y_var, y_mu, rho, amp
@@ -688,7 +697,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
               .reshape(-1, window_size[0], window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
               .reshape(-1, window_size[0], window_size[1]))
-    for k in range(0, repeat):
+    while k < repeat:
         if k != 0:
             yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
                           coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
@@ -743,6 +752,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
             break
         coef_vals = x_matrix
+        k += 1
     return coef_vals
 
 

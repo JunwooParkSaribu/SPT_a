@@ -894,11 +894,11 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
 
 if __name__ == '__main__':
     SIGMA = 4  # 3.5
-    MIN_WIN = 5
-    MAX_WIN = 5
+    MIN_WIN = 3
+    MAX_WIN = 3
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 1.2
+    THRES_ALPHA = 2.0
 
     PARALLEL = True
     CORE = 4

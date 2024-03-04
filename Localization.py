@@ -282,9 +282,11 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
         for index in indexx:
             mask[index[0], index[1], index[2]] += 1
             win_mask[index[0]][index[1]][index[2]].append(wins[0])
-    #plt.figure()
-    #plt.imshow(mask[0])
-    #plt.show()
+    """
+    plt.figure()
+    plt.imshow(mask[0])
+    plt.show()
+    """
     for indexx, regs in zip(indices[::-1], regions[::-1]):
         for index, reg in zip(indexx, regs):
             #if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
@@ -453,12 +455,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 h_maps.append(h_map)
                 print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
-            #plt.figure()
-            #plt.imshow(extended_imgs[0])
-            #for hm in h_maps:
-            #    plt.figure()
-            #    plt.imshow(hm[0], vmin=0., vmax=1.)
-            #plt.show()
+            """
+            plt.figure()
+            plt.imshow(extended_imgs[0])
+            for hm in h_maps:
+                plt.figure()
+                plt.imshow(hm[0], vmin=0., vmax=1.)
+            plt.show()
+            """
             indices = region_max_filter(h_maps, window_sizes, thresholds)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
@@ -824,7 +828,7 @@ def background(imgs, window_sizes, alpha):
     return bgs, bg_stds / bg_means / alpha
 
 
-def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=3.5):
+def intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=3.5):
     new_pdfs = []
     new_coords = []
     new_infos = []
@@ -836,14 +840,24 @@ def intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=3.5):
         new_reg_tmp = infos.copy()
         max_pdf_vals = []
 
-        for pdf, info in zip(pdfs, infos):
-            max_pdf_vals.append(pdf[int((pdf.shape[0] - 1)/2)])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
+        for pdf, xy, info in zip(pdfs, xy_coord, infos):
+            #max_pdf_vals.append(pdf[int((pdf.shape[0] - 1)/2)])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
+            max_pdf_vals.append(np.max(images[img_n,
+                                       max(0, int(np.round(xy[0])) - 1): min(images[img_n].shape[0], int(np.round(xy[0])) + 2),
+                                       max(0, int(np.round(xy[1])) - 1): min(images[img_n].shape[1], int(np.round(xy[1])) + 2)]))
             #max_pdf_vals.append(info[3])  # - bgs[int(np.sqrt(pdf.shape[0]))][0][0]
-        max_pdf_vals = np.array(max_pdf_vals)
 
-        bin_edgs = np.arange(0, np.max(max_pdf_vals) + 0.05, 0.05)
+        max_pdf_vals = np.array(max_pdf_vals)
+        bin_edgs = np.arange(0, np.max(max_pdf_vals) + 0.05, 0.025)
         max_pdf_vals_hist = np.histogram(max_pdf_vals, bins=bin_edgs)
         mode_sigma = (bin_edgs[:-1] + 0.025)[np.argmax(max_pdf_vals_hist[0])] + sigma * np.std(max_pdf_vals)
+
+        """
+        print(mode_sigma)
+        plt.figure()
+        plt.plot(max_pdf_vals_hist[1][:-1], max_pdf_vals_hist[0])
+        plt.show()
+        """
 
         for i, max_pdf_val in enumerate(max_pdf_vals):
             if max_pdf_val > mode_sigma:
@@ -863,8 +877,13 @@ def params_gen(lowest, highest):
     if lowest == highest:
         bin_winsizes = [(lowest, lowest)]
         multi_winsizes = [(lowest, lowest)]
-        bin_radius = [(lowest // 2) / 2]
-        multi_radius = [(lowest // 2) / 2]
+        bin_radius = [(lowest // 2) / 2.]
+        multi_radius = [(lowest // 2) / 2.]
+    elif mid == highest:
+        bin_winsizes = [(lowest, lowest), (highest, highest)]
+        multi_winsizes = [(lowest, lowest), (highest, highest)]
+        bin_radius = [((r[0]//2) / 2.) for r in bin_winsizes]
+        multi_radius = [((r[0]//2) / 2.) for r in multi_winsizes]
     else:
         bin_winsizes = [(lowest, lowest), (highest, highest)]
         multi_winsizes = [(lowest, lowest), (mid, mid), (highest, highest)]
@@ -894,12 +913,12 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
 
 
 if __name__ == '__main__':
-    SIGMA = 4  # 3.5
-    MIN_WIN = 5
+    SIGMA = 4.  # 3.5
+    MIN_WIN = 3
     MAX_WIN = 5
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 1.2 #1.2
+    THRES_ALPHA = 1.0 #1.2
 
     PARALLEL = True
     CORE = 4
@@ -945,7 +964,7 @@ if __name__ == '__main__':
             xy_coords.extend(xy_coord)
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)
-    reg_pdfs, xy_coords, reg_infos = intensity_distribution(reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
+    reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
     write_localization(OUTPUT_DIR, xy_coords, reg_infos)
     visualilzation(OUTPUT_DIR, images, xy_coords)
     print(f'{"Total time":<35}:{(timer() - start_time):.2f}s')

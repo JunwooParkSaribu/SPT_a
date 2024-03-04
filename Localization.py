@@ -48,7 +48,7 @@ images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
 images = images[1:]
 
 
-#@njit
+@njit
 def region_max_filter2(maps, window_size, thresholds):
     indices = []
     r_start_index = int(window_size[1] // 2)
@@ -57,9 +57,6 @@ def region_max_filter2(maps, window_size, thresholds):
         args_map = maps > thresholds.reshape(-1, 1, 1)
         maps = maps * args_map
         img_n, row, col = np.where(args_map == True)
-        plt.figure()
-        plt.imshow(maps[0])
-        plt.show()
         for n, r, c in zip(img_n, row, col):
             if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
                                        max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]) and maps[n][r][c] != 0:
@@ -388,7 +385,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         penalty = 0
                         for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
                             if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
-                                print(x_var, y_var, rho)
                                 penalty += 1e6
                         regressed_imgs = []
                         for regress_index, dx, dy in zip(win_s_set, xs, ys):
@@ -646,10 +642,10 @@ def unpack_coefs(coefs, window_size):
     err_indices = []
     x_mu = []
     y_mu = []
-    rho = coefs[:, 4] * np.sqrt(1/(4 * -(coefs[:, 0]) * -(coefs[:, 2])))
+    rho = coefs[:, 4] * np.sqrt(1/(4 * -abs(coefs[:, 0]) * -abs(coefs[:, 2])))
     k = 1 - rho**2
-    x_var = (1/(-2 * coefs[:, 0] * k))
-    y_var = (1/(-2 * coefs[:, 2] * k))
+    x_var = abs(1/(-2 * coefs[:, 0] * k))
+    y_var = abs(1/(-2 * coefs[:, 2] * k))
     for err_indice, (xvar_check, yvar_check) in enumerate(zip(x_var, y_var)):
         if xvar_check < 0 or yvar_check < 0 or x_var > 3 * window_size[0] or y_var > 3 * window_size[1] or rho < -1 or rho > 1:
             err_indices.append(err_indice)
@@ -906,7 +902,7 @@ if __name__ == '__main__':
 
     PARALLEL = True
     CORE = 4
-    DIV_Q = 5
+    DIV_Q = 25
     SHIFT = 2
     GAUSS_SEIDEL_DECOMP = 2
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]

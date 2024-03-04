@@ -900,12 +900,12 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 
 
 if __name__ == '__main__':
-    blink_lag = 2
+    blink_lag = 1
     cutoff = 2
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.995
-    amp = 1.5 #1.3
+    amp = 1.3 #1.3
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'

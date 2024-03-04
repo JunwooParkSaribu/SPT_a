@@ -48,18 +48,21 @@ images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
 images = images[1:]
 
 
-@njit
+#@njit
 def region_max_filter2(maps, window_size, thresholds):
     indices = []
     r_start_index = int(window_size[1] // 2)
     col_start_index = int(window_size[0] // 2)
-    args_map = maps > thresholds.reshape(-1, 1, 1)
-    maps = maps * args_map
-    img_n, row, col = np.where(args_map == True)
-    for n, r, c in zip(img_n, row, col):
-        if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
-                                   max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]):
-            indices.append([n, r, c])
+    for _ in range(2):
+        args_map = maps > thresholds.reshape(-1, 1, 1)
+        maps = maps * args_map
+        img_n, row, col = np.where(args_map == True)
+        for n, r, c in zip(img_n, row, col):
+            if maps[n][r][c] == np.max(maps[n, max(0, r-r_start_index):min(maps.shape[1]+1, r+r_start_index+1),
+                                       max(0, c-col_start_index):min(maps.shape[2]+1, c+col_start_index+1)]) and maps[n][r][c] != 0:
+                indices.append([n, r, c])
+                maps[n, max(0, r - r_start_index):min(maps.shape[1] + 1, r + r_start_index + 1),
+                max(0, c - col_start_index):min(maps.shape[2] + 1, c + col_start_index + 1)] = 0
     return indices
 
 
@@ -346,12 +349,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
             h_maps = np.array(h_maps)
 
-            #plt.figure()
-            #plt.imshow(extended_imgs[0])
-            #for hm in h_maps:
-            #    plt.figure()
-            #    plt.imshow(hm[0], vmin=0., vmax=1.)
-            #plt.show()
+            """
+            plt.figure()
+            plt.imshow(extended_imgs[0])
+            for hm in h_maps:
+                plt.figure()
+                plt.imshow(hm[0], vmin=0., vmax=1.)
+            plt.show()
+            """
 
             back_indices = [[] for _ in range(multi_thresholds.shape[1])]
             for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
@@ -884,7 +889,7 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
 if __name__ == '__main__':
     SIGMA = 4  # 3.5
     MIN_WIN = 5
-    MAX_WIN = 15
+    MAX_WIN = 5
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
     THRES_ALPHA = 1.2

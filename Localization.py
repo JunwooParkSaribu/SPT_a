@@ -45,7 +45,7 @@ images = read_tif(f'{WINDOWS_PATH}/single1.tif')
 ## background high, std low -> low threshold
 
 
-images = images[155:156]
+images = images[1:]
 
 
 @njit
@@ -267,26 +267,24 @@ def add_block_noise(imgs, extend):
 
 
 def indice_filtering(indices, window_sizes, img_shape, extend):
-    max_window = window_sizes[-1]
-    mask = np.zeros(img_shape)
-    win_mask = [[[[] for _ in range(img_shape[2])] for _ in range(img_shape[1])] for _ in range(img_shape[0])]
+    masks = np.zeros(img_shape)
+    win_masks = [[[[] for _ in range(img_shape[2])] for _ in range(img_shape[1])] for _ in range(img_shape[0])]
+    for indexx, wins in zip(indices[::-1], window_sizes[::-1]):
+        for index in indexx:
+            masks[index[0], index[1], index[2]] += 1
+            win_masks[index[0]][index[1]][index[2]].append(wins[0])
+    ret_indices = check_masks_overlaps(masks, win_masks, extend, window_sizes)
+
+    """
     regions = [[] for _ in range(len(indices))]
-    ret_indices = []
+    max_window = window_sizes[-1]
     for i, indexx in enumerate(indices):
         for index in indexx:
             r = [max(0, index[1] - int((max_window[1]-1)/2)), min(img_shape[1]-1, index[1] + int((max_window[1]-1)/2)),
             max(0, index[2] - int((max_window[0]-1)/2)), min(img_shape[2]-1, index[2] + int((max_window[0]-1)/2))]
             regions[i].append(r)
         #win_mask[index[0]][index[1]][index[2]].append(window_sizes[-1][0])
-    for indexx, wins in zip(indices[::-1], window_sizes[::-1]):
-        for index in indexx:
-            mask[index[0], index[1], index[2]] += 1
-            win_mask[index[0]][index[1]][index[2]].append(wins[0])
-    """
-    plt.figure()
-    plt.imshow(mask[0])
-    plt.show()
-    """
+    ret_indices = []
     for indexx, regs in zip(indices[::-1], regions[::-1]):
         for index, reg in zip(indexx, regs):
             #if np.sum(mask[index[0], reg[0]:reg[1]+1, reg[2]:reg[3]+1]) > len(indices) - 1:
@@ -302,7 +300,61 @@ def indice_filtering(indices, window_sizes, img_shape, extend):
                     al.append(ms[ws])
             if len(al) > 0:
                 ret_indices.append(al)
+
+    print(ret_indices)
+    """
     return ret_indices
+
+
+def check_masks_overlaps(masks, window_masks, extend, window_sizes):
+    nb_window_sizes = len(window_sizes)
+    w_size_dict = {ws[0]: i for i, ws in enumerate(window_sizes)}
+    all_groups = []
+    for img_n, (mask, window_mask) in enumerate(zip(masks, window_masks)):
+        groups = []
+        overlay_mask = np.zeros_like(mask, dtype=np.uint8)
+        rs, cs = np.where(mask >= 1)
+        coords = np.vstack((rs, cs)).T
+        while 1:
+            group = [[] for _ in range(nb_window_sizes)]
+            selected_args = []
+            piv_coord = coords[0]
+
+            for window_size in window_mask[piv_coord[0]][piv_coord[1]]:
+                group[w_size_dict[window_size]].append([img_n, piv_coord[0] + extend, piv_coord[1] + extend, window_size])
+                row_min = max(0, piv_coord[0] - (window_size // 2))
+                row_max = min(mask.shape[0] - 1, piv_coord[0] + (window_size // 2))
+                col_min = max(0, piv_coord[1] - (window_size // 2))
+                col_max = min(mask.shape[1] - 1, piv_coord[1] + (window_size // 2))
+                overlay_mask[row_min: row_max+1, col_min: col_max+1] += 1
+
+            explorer_coords = coords[1:].copy()
+            while 1:
+                group_added = 0
+                for selected_index, coord in enumerate(explorer_coords):
+                    if selected_index in selected_args:
+                        continue
+                    if overlay_mask[coord[0]][coord[1]] >= 1:
+                        selected_args.append(selected_index)
+                        for window_size in window_mask[coord[0]][coord[1]]:
+                            row_min = max(0, coord[0] - (window_size // 2))
+                            row_max = min(mask.shape[0] - 1, coord[0] + (window_size // 2))
+                            col_min = max(0, coord[1] - (window_size // 2))
+                            col_max = min(mask.shape[1] - 1, coord[1] + (window_size // 2))
+                            overlay_mask[row_min: row_max + 1, col_min: col_max + 1] += 1
+                            group[w_size_dict[window_size]].append([img_n, coord[0] + extend, coord[1] + extend, window_size])
+                            group_added += 1
+
+                if group_added == 0:
+                    groups.append(group)
+                    break
+            selected_args = np.array(selected_args) + 1
+            selected_args = np.append(selected_args, 0).astype(np.uint32)
+            coords = np.delete(coords, selected_args, axis=0)
+            if len(coords) == 0:
+                break
+        all_groups.extend(groups)
+    return all_groups
 
 
 def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):

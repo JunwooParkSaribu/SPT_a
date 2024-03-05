@@ -131,11 +131,9 @@ def read_localization(input_file):
             pos_line = []
             info_line = []
             for dt in line[1:4]:
-                pos_line.append(np.round(float(dt), 5))
-            if len(line[1:4]) < 3:
-                pos_line.append(0.0)
+                pos_line.append(np.round(float(dt), 7))
             for dt in line[4:]:
-                info_line.append(np.round(float(dt), 5))
+                info_line.append(np.round(float(dt), 7))
             locals[int(line[0])].append(pos_line)
             locals_info[int(line[0])].append(info_line)
 

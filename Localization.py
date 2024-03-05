@@ -45,7 +45,7 @@ images = read_tif(f'{WINDOWS_PATH}/single1.tif')
 ## background high, std low -> low threshold
 
 
-images = images[1:]
+images = images[155:156]
 
 
 @njit

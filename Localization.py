@@ -35,12 +35,12 @@ OUTPUT_DIR = f'{WINDOWS_PATH}'
 #images = read_tif("C:/Users/jwoo/Desktop/U2OS-H2B-Halo_0.25%50ms_field1.tif")
 #images = read_tif('SimulData/videos_fov_0_dimer.tif')
 #images = read_tif('SimulData/videos_fov_0.tif')
-images = read_tif(f'{WINDOWS_PATH}/single1.tif')
+#images = read_tif(f'{WINDOWS_PATH}/single1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/multi3.tif')
 #images = read_tif(f'{WINDOWS_PATH}/immobile_traps1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/dimer1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/confinement1.tif')
-#images = read_tif(f'{WINDOWS_PATH}/videos_fov_0.tif')
+images = read_tif(f'{WINDOWS_PATH}/videos_fov_0.tif')
 
 ## background low, std high -> high threshold
 ## background high, std low -> low threshold
@@ -447,7 +447,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                         (ws, ws), p0=args[6], decomp_n=args[8])
                             penalty = 0
-                            for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
+                            for x_var, y_var, rho, dx, dy in zip(x_vars, y_vars, rhos, xs, ys):
                                 if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                                     penalty += 1e6
                             regressed_imgs = []

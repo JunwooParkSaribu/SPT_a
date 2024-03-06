@@ -888,10 +888,7 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
     for traj, (prev_pos, target_pos) in zip(trajectories, linkage_positions):
         center_pos, vec_norm = traj.get_expected_pos(t)
         sigma = k
-        if vec_norm is None:
-            l = 1e-5  ### IS THIS RIGHT? set low priority to new trajectories.
-        else:
-            l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])
+        l = dm_likelihood(sigma, target_pos[:2], center_pos[:2])
         directed_log_likelihood.append(np.log(l))
 
     for i, l in enumerate(directed_log_likelihood):
@@ -908,7 +905,7 @@ if __name__ == '__main__':
     methods = [1, 3, 4]
     var_parallel = True
     confidence = 0.995
-    amp = 1.5 #1.3
+    amp = 1.5  #1.3
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'

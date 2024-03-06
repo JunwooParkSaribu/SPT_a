@@ -318,6 +318,9 @@ def check_masks_overlaps(masks, window_masks, extend, window_sizes):
         groups = []
         overlay_mask = np.zeros_like(mask, dtype=np.uint8)
         rs, cs = np.where(mask >= 1)
+        if len(rs) == 0:
+            continue
+
         coords = np.vstack((rs, cs)).T
         while 1:
             group = [[] for _ in range(nb_window_sizes)]
@@ -423,6 +426,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
                                                                       multi_thresholds[:, backward_index])
                 reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
+                regress_imgs_copy = extended_imgs.copy()
                 for regress_comp_set in reregress_indice:
                     loss_vals = []
                     selected_dt = []
@@ -431,7 +435,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         bg_regress = []
                         for regress_index in win_s_set:
                             ws = regress_index[3]
-                            regress_imgs.append(extended_imgs[regress_index[0],
+                            regress_imgs.append(regress_imgs_copy[regress_index[0],
                                                 regress_index[1] - int((regress_index[3] - 1) / 2):regress_index[1] + int(
                                                     (regress_index[3] - 1) / 2) + 1,
                                                 regress_index[2] - int((regress_index[3] - 1) / 2):regress_index[2] + int(
@@ -448,7 +452,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                                     penalty += 1e6
                             regressed_imgs = []
                             for regress_index, dx, dy in zip(win_s_set, xs, ys):
-                                reged_img = extended_imgs[regress_index[0],
+                                reged_img = regress_imgs_copy[regress_index[0],
                                             regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
                                             regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
                                             regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
@@ -472,7 +476,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                     #print('------------------')
                     #print(loss_vals)
-                    #print(regress_comp_set)
+                    #print(regress_comp_set, ',  extend:', extend/2)
 
                     if np.sum(np.array(loss_vals) < 0.) >= 1:
                         selec_arg = np.argmin(loss_vals)
@@ -991,7 +995,7 @@ if __name__ == '__main__':
 
     PARALLEL = True
     CORE = 4
-    DIV_Q = 25
+    DIV_Q = 50
     SHIFT = 2
     GAUSS_SEIDEL_DECOMP = 2
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]

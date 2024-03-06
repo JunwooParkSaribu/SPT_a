@@ -919,7 +919,7 @@ if __name__ == '__main__':
     #gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
+    input_tif = f'{WINDOWS_PATH}/single1.tif'
     #input_tif = f'{WINDOWS_PATH}/multi3.tif'
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'

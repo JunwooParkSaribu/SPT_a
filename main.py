@@ -924,7 +924,7 @@ if __name__ == '__main__':
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
-    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
+    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.csv')
 
     #andi_gt = f'{WINDOWS_PATH}/trajs_fov_0.csv'
     #andi_gt_to_xml(andi_gt, '.'.join(andi_gt.split('.')[:-1])+'.xml')

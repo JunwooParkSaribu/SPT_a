@@ -96,7 +96,7 @@ def read_mosaic(file: str) -> dict:
 
 
 def write_localization(output_dir, coords, all_pdfs, infos):
-    lines = f''
+    lines = f'frame,x,y,z,xvar,yvar,rho,norm_cst,intensity,window_size\n'
     for frame, (coord, pdfs, info) in enumerate(zip(coords, all_pdfs, infos)):
         for pos, (x_var, y_var, rho, amp), pdf in zip(coord, info, pdfs):
             window_size = int(np.sqrt(len(pdf)))
@@ -114,7 +114,7 @@ def write_localization(output_dir, coords, all_pdfs, infos):
             lines += f',{x_var},{y_var},{rho},{amp},{peak_val},{window_size}'
             lines += f'\n'
 
-    with open(f'{output_dir}/localization.txt', 'w') as f:
+    with open(f'{output_dir}/localization.csv', 'w') as f:
         f.write(lines)
 
 
@@ -123,7 +123,7 @@ def read_localization(input_file):
     locals_info = {}
     with open(input_file, 'r') as f:
         lines = f.readlines()
-        for line in lines:
+        for line in lines[1:]:
             line = line.strip().split('\n')[0].split(',')
             if int(line[0]) not in locals:
                 locals[int(line[0])] = []

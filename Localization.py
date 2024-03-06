@@ -312,6 +312,9 @@ def check_masks_overlaps(masks, window_masks, extend, window_sizes):
     w_size_dict = {ws[0]: i for i, ws in enumerate(window_sizes)}
     all_groups = []
     for img_n, (mask, window_mask) in enumerate(zip(masks, window_masks)):
+        #plt.figure()
+        #plt.imshow(mask)
+        #plt.show()
         groups = []
         overlay_mask = np.zeros_like(mask, dtype=np.uint8)
         rs, cs = np.where(mask >= 1)

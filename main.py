@@ -10,7 +10,7 @@ from numba.typed import Dict, List
 from numba.core import types
 from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif, compare_two_localization_visual
 from TrajectoryObject import TrajectoryObj
-from XmlModule import xml_to_object, write_xml, read_xml
+from XmlModule import xml_to_object, write_xml, read_xml, andi_gt_to_xml
 from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localization
 from timeit import default_timer as timer
 from ElipseFit import cart_to_pol, fit_ellipse, get_ellipse_pts
@@ -916,15 +916,19 @@ if __name__ == '__main__':
 
     #input_tif = f'./SimulData/{scenario}_{snr}_{density}.tif'
     #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/my_test1/{scenario}_{snr}_{density}/localization.txt')
+    #gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'{WINDOWS_PATH}/single1.tif'
+    input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
     #input_tif = f'{WINDOWS_PATH}/multi3.tif'
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.txt')
-    gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
+
+    #andi_gt = f'{WINDOWS_PATH}/trajs_fov_0.csv'
+    #andi_gt_to_xml(andi_gt, '.'.join(andi_gt.split('.')[:-1])+'.xml')
+    #gt_list = xml_to_object('.'.join(andi_gt.split('.')[:-1])+'.xml')
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
@@ -980,6 +984,6 @@ if __name__ == '__main__':
     write_xml(output_file=output_xml, trajectory_list=trajectory_list,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     trajectory_list = xml_to_object(output_xml)
-    gt_list = xml_to_object(gt_xml)
+
     make_image_seqs(trajectory_list, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
                     add_index=False, local_img=True, gt_trajectory=None)

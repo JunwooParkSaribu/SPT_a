@@ -96,6 +96,48 @@ def trxyt_to_xml(input_file: str, output_file: str, cutoff=0):
         print(e)
 
 
+def andi_gt_to_xml(input_file: str, output_file: str, cutoff=0):
+    filetypes = ['csv']
+    trajectories = {}
+    # Check filetype.
+    assert input_file.strip().split('.')[-1].lower() in filetypes
+    # Read file and store the trajectory and time information in H2B object
+    try:
+        with open(input_file, 'r', encoding="utf-8") as f:
+            input = f.read()
+        lines = input.strip().split('\n')
+        for line in lines[1:]:
+            temp = line.split(',')
+            index = int(float(temp[0].strip()))
+            x_pos = float(temp[2].strip())
+            y_pos = float(temp[3].strip())
+            time_step = int(float(temp[1].strip()))
+            if index in trajectories:
+                trajectories[index].append([x_pos, y_pos, time_step])
+            else:
+                trajectories[index] = [[x_pos, y_pos, time_step]]
+        f.close()
+
+        with open(output_file, 'w', encoding="utf-8") as fxml:
+            input = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
+            input += '<root>\n'
+            input += ('<TrackContestISBI2012 SNR="7" density="mid" '
+                      'generationDateTime="Mon Mar 12 17:20:58 CET 2012" info="http://bioimageanalysis.org/track/" scenario="VESICLE">\n')
+            for index in list(trajectories.keys()):
+                if len(trajectories[index]) >= cutoff:
+                    input += '<particle>\n'
+                    for xpos, ypos, t in trajectories[index]:
+                        input += f'<detection t="{t}" x="{xpos}" y="{ypos}" z="0"/>\n'
+                    input += '</particle>\n'
+            input += '</TrackContestISBI2012>\n'
+            input += '</root>\n'
+            fxml.write(input)
+
+    except Exception as e:
+        print(f"Unexpected error, check the file: {input_file}")
+        print(e)
+
+
 def mosaic_to_xml(input_file: str, output_file: str, cutoff=0):
     filetypes = ['csv']
     tmp = {}

@@ -366,13 +366,13 @@ def check_masks_overlaps(masks, window_masks, extend, window_sizes):
 
 def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     index = 0
-    deflation_loop_backward = 2
     bin_winsizes = args[0]
     bin_radius = args[1]
     bin_thresholds = args[2]
     multi_winsizes = args[3]
     multi_radius = args[4]
     multi_thresholds = args[5]
+    deflation_loop_backward = args[10]
     extend = multi_winsizes[-1][0]*4
 
     forward_linkage = {i: ws[0] for i, ws in enumerate(bin_winsizes)}
@@ -992,6 +992,7 @@ if __name__ == '__main__':
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
     THRES_ALPHA = 1.0 #1.25
+    DEFLATION_LOOP_IN_BACKWARD = 2
 
     PARALLEL = True
     CORE = 4
@@ -1019,7 +1020,7 @@ if __name__ == '__main__':
                                                  forward_gauss_grids, backward_gauss_grids,
                                                  BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
                                                  MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
-                                                 P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA)
+                                                 P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA, DEFLATION_LOOP_IN_BACKWARD)
                         executors[cc] = future
                 for wait_ in executors:
                     if type(executors[wait_]) is concurrent.futures.Future:
@@ -1033,7 +1034,7 @@ if __name__ == '__main__':
             xy_coord, pdf, info = main_process(images[div_q:div_q+DIV_Q], forward_gauss_grids, backward_gauss_grids,
                                                BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
                                                MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
-                                               P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA)
+                                               P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA, DEFLATION_LOOP_IN_BACKWARD)
             xy_coords.extend(xy_coord)
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)

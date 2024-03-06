@@ -991,7 +991,7 @@ if __name__ == '__main__':
     MAX_WIN = 5
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 1.0 #1.2
+    THRES_ALPHA = 1.0 #1.25
 
     PARALLEL = True
     CORE = 4

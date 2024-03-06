@@ -121,10 +121,10 @@ def boundary_smoothing(img, row_indice, col_indice):
     borders = [x for x in range(50)]
     erase_space = 2
     for border in borders:
-        row_min = max(0, row_indice[0]-1+border)
-        row_max = min(img.shape[0]-1, row_indice[1]+1-border)
-        col_min = max(0, col_indice[0]-1+border)
-        col_max = min(img.shape[1]-1, col_indice[1]+1-border)
+        row_min = max(0, row_indice[0]+border)
+        row_max = min(img.shape[0]-1, row_indice[1]-border)
+        col_min = max(0, col_indice[0]+border)
+        col_max = min(img.shape[1]-1, col_indice[1]-border)
         for col in range(col_min, col_max+1):
             center_xy.append([row_min, col])
         for row in range(row_min, row_max+1):
@@ -363,13 +363,14 @@ def check_masks_overlaps(masks, window_masks, extend, window_sizes):
 
 def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     index = 0
-    extend = 30
+    deflation_loop_backward = 2
     bin_winsizes = args[0]
     bin_radius = args[1]
     bin_thresholds = args[2]
     multi_winsizes = args[3]
     multi_radius = args[4]
     multi_thresholds = args[5]
+    extend = multi_winsizes[-1][0]*4
 
     forward_linkage = {i: ws[0] for i, ws in enumerate(bin_winsizes)}
     backward_linkage = {ws[0]: i for i, ws in enumerate(multi_winsizes)}
@@ -383,7 +384,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
     while 1:
         print(f'INDEX: {index}')
-        h_maps = []
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[:, index:]
         radiuss = bin_radius[index:]
@@ -395,100 +395,110 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
         if index == bin_thresholds.shape[1] - 1:
             print(f'BACKWARD PROCESS')
-            for step, (g_grid, window_size, radius) in (
-                    enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
-                crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
-                crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
-                                                        window_size[0] * window_size[1])
-                crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                all_crop_imgs[window_size[0]] = crop_imgs
-                bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
-                c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
-                h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
-            h_maps = np.array(h_maps)
+            for df_loop in range(deflation_loop_backward):
+                h_maps = []
+                for step, (g_grid, window_size, radius) in (
+                        enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
+                    crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
+                    crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                                                            window_size[0] * window_size[1])
+                    crop_imgs = np.moveaxis(crop_imgs, 0, 1)
+                    all_crop_imgs[window_size[0]] = crop_imgs
+                    bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
+                    c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
+                    h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+                h_maps = np.array(h_maps)
 
-            """
-            plt.figure()
-            plt.imshow(extended_imgs[0])
-            for hm in h_maps:
+                """
                 plt.figure()
-                plt.imshow(hm[0], vmin=0., vmax=1.)
-            plt.show()
-            """
+                plt.imshow(extended_imgs[0])
+                for hm in h_maps:
+                    plt.figure()
+                    plt.imshow(hm[0], vmin=0., vmax=1.)
+                plt.show()
+                """
 
-            back_indices = [[] for _ in range(multi_thresholds.shape[1])]
-            for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
-                back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
-                                                                  multi_thresholds[:, backward_index])
-            reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
-            for regress_comp_set in reregress_indice:
-                loss_vals = []
-                selected_dt = []
-                for win_s_set in regress_comp_set:
-                    regress_imgs = []
-                    bg_regress = []
-                    for regress_index in win_s_set:
-                        ws = regress_index[3]
-                        regress_imgs.append(extended_imgs[regress_index[0],
-                                            regress_index[1] - int((regress_index[3] - 1) / 2):regress_index[1] + int(
-                                                (regress_index[3] - 1) / 2) + 1,
-                                            regress_index[2] - int((regress_index[3] - 1) / 2):regress_index[2] + int(
-                                                (regress_index[3] - 1) / 2) + 1])
-                        bg_regress.append(bgs[ws][regress_index[0]])
-                    regress_imgs = np.array(regress_imgs)
+                back_indices = [[] for _ in range(multi_thresholds.shape[1])]
+                for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
+                    back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
+                                                                      multi_thresholds[:, backward_index])
+                reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
+                for regress_comp_set in reregress_indice:
+                    loss_vals = []
+                    selected_dt = []
+                    for win_s_set in regress_comp_set:
+                        regress_imgs = []
+                        bg_regress = []
+                        for regress_index in win_s_set:
+                            ws = regress_index[3]
+                            regress_imgs.append(extended_imgs[regress_index[0],
+                                                regress_index[1] - int((regress_index[3] - 1) / 2):regress_index[1] + int(
+                                                    (regress_index[3] - 1) / 2) + 1,
+                                                regress_index[2] - int((regress_index[3] - 1) / 2):regress_index[2] + int(
+                                                    (regress_index[3] - 1) / 2) + 1])
+                            bg_regress.append(bgs[ws][regress_index[0]])
+                        regress_imgs = np.array(regress_imgs)
 
-                    if len(regress_imgs) > 0:
-                        pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
-                                                                                    (ws, ws), p0=args[6], decomp_n=args[8])
-                        penalty = 0
-                        for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
-                            if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
-                                penalty += 1e6
-                        regressed_imgs = []
-                        for regress_index, dx, dy in zip(win_s_set, xs, ys):
-                            reged_img = extended_imgs[regress_index[0],
-                                        regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
-                                        regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
-                                        regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
-                                        regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
-                            if reged_img.shape == (ws, ws):
-                                regressed_imgs.append(reged_img)
-                        regressed_imgs = np.array(regressed_imgs)
-                        selected_dt.append([pdfs, xs, ys, x_vars, y_vars, rhos, amps])
-                        if regressed_imgs.shape != (pdfs.reshape(regress_imgs.shape)).shape:
-                            ## x_var or y_var is (-)
-                            loss_vals.append(penalty)
+                        if len(regress_imgs) > 0:
+                            pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
+                                                                                        (ws, ws), p0=args[6], decomp_n=args[8])
+                            penalty = 0
+                            for x_var, y_var, rho in zip(x_vars, y_vars, rhos):
+                                if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
+                                    penalty += 1e6
+                            regressed_imgs = []
+                            for regress_index, dx, dy in zip(win_s_set, xs, ys):
+                                reged_img = extended_imgs[regress_index[0],
+                                            regress_index[1] - int((ws - 1) / 2) + int(np.round(dy)):
+                                            regress_index[1] + int((ws - 1) / 2) + int(np.round(dy)) + 1,
+                                            regress_index[2] - int((ws - 1) / 2) + int(np.round(dx)):
+                                            regress_index[2] + int((ws - 1) / 2) + int(np.round(dx)) + 1]
+                                if reged_img.shape == (ws, ws):
+                                    regressed_imgs.append(reged_img)
+                            regressed_imgs = np.array(regressed_imgs)
+                            selected_dt.append([pdfs, xs, ys, x_vars, y_vars, rhos, amps])
+                            if regressed_imgs.shape != (pdfs.reshape(regress_imgs.shape)).shape:
+                                ## x_var or y_var is (-)
+                                loss_vals.append(penalty)
+                            else:
+                                loss = np.mean(np.sort(np.mean(np.log(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))), axis=0).
+                                                       flatten())[::-1][:multi_winsizes[0][0] * multi_winsizes[0][1]]) + penalty
+                                #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
+                                #loss = np.mean(abs(kl_divergence(pdfs, regressed_imgs.reshape(pdfs.shape)))) * penalty
+                                loss_vals.append(loss)
                         else:
-                            loss = np.mean(np.sort(np.mean(np.log(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))), axis=0).
-                                                   flatten())[::-1][:multi_winsizes[0][0] * multi_winsizes[0][1]]) + penalty
-                            #loss = np.mean(abs(regressed_imgs - pdfs.reshape(regress_imgs.shape))**2) * penalty
-                            #loss = np.mean(abs(kl_divergence(pdfs, regressed_imgs.reshape(pdfs.shape)))) * penalty
-                            loss_vals.append(loss)
-                    else:
-                        selected_dt.append([0, 0, 0, 0, 0, 0, 0])
-                        loss_vals.append(1e3)
+                            selected_dt.append([0, 0, 0, 0, 0, 0, 0])
+                            loss_vals.append(1e3)
 
-                #print('------------------')
-                #print(loss_vals)
-                #print(regress_comp_set)
+                    #print('------------------')
+                    #print(loss_vals)
+                    #print(regress_comp_set)
 
-                if np.sum(np.array(loss_vals) < 0.) >= 1:
-                    selec_arg = np.argmin(loss_vals)
-                    pdfs, xs, ys, x_vars, y_vars, rhos, amps = selected_dt[selec_arg]
-                    infos = regress_comp_set[selec_arg]
-                    for (n, r, c, ws), dx, dy, pdf, x_var, y_var, rho, amp in zip(infos, xs, ys, pdfs, x_vars, y_vars, rhos, amps):
-                        r -= int(extend/2)
-                        c -= int(extend/2)
-                        if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
-                            continue
-                        row_coord = max(0, min(r+dy, imgs.shape[1]-1))
-                        col_coord = max(0, min(c+dx, imgs.shape[2]-1))
-                        coords[n].append([row_coord, col_coord])
-                        reg_pdfs[n].append(pdf)
-                        reg_infos[n].append([x_var, y_var, rho, amp])
+                    if np.sum(np.array(loss_vals) < 0.) >= 1:
+                        selec_arg = np.argmin(loss_vals)
+                        pdfs, xs, ys, x_vars, y_vars, rhos, amps = selected_dt[selec_arg]
+                        infos = np.array(regress_comp_set[selec_arg])
+                        ns = infos[:, 0]
+                        rs = infos[:, 1]
+                        cs = infos[:, 2]
+                        ws = infos[:, 3][0]
+                        for n, r, c, dx, dy, pdf, x_var, y_var, rho, amp in zip(ns, rs, cs, xs, ys, pdfs, x_vars, y_vars, rhos, amps):
+                            r -= int(extend/2)
+                            c -= int(extend/2)
+                            if r+dy <= -1 or r+dy >= imgs.shape[1] or c+dx <= -1 or c+dx >= imgs.shape[2]:
+                                continue
+                            row_coord = max(0, min(r+dy, imgs.shape[1]-1))
+                            col_coord = max(0, min(c+dx, imgs.shape[2]-1))
+                            coords[n].append([row_coord, col_coord])
+                            reg_pdfs[n].append(pdf)
+                            reg_infos[n].append([x_var, y_var, rho, amp])
+                        if df_loop < deflation_loop_backward - 1:
+                            del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
+                            extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend=0)
             return coords, reg_pdfs, reg_infos
 
         else:
+            h_maps = []
             for step, (g_grid, window_size, radius) in (
                     enumerate(zip(g_grids, window_sizes, radiuss))):
                 print(f'{step} : {imgs.shape}')
@@ -566,8 +576,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             reg_pdfs[n].append(pdf)
                             reg_infos[n].append([x_var, y_var, rho, amp])
                         del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
-                        new_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
-                        extended_imgs = new_imgs
+                        extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
 
             if len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
                 index += 1
@@ -928,6 +937,10 @@ def intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=3.5):
 
 def params_gen(lowest, highest):
     assert type(lowest) is int and type(highest) is int
+    if lowest % 2 == 0:
+        lowest += 1
+    if highest % 2 == 0:
+        highest += 1
     mid = int((highest + lowest) / 2)
     if mid % 2 == 0: mid += 1
     if lowest == highest:

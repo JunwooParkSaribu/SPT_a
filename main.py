@@ -912,6 +912,7 @@ def low_priority_to_newborns(trajectories):
 
 
 if __name__ == '__main__':
+    final_trajectories = []
     blink_lag = 1
     cutoff = 2
     methods = [1, 3, 4]
@@ -993,10 +994,12 @@ if __name__ == '__main__':
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
 
-    print(f'Total number of trajectories: {len(trajectory_list)}')
-    write_xml(output_file=output_xml, trajectory_list=trajectory_list,
-              snr=snr, density=density, scenario=scenario, cutoff=cutoff)
-    trajectory_list = xml_to_object(output_xml)
+    for trajectory in trajectory_list:
+        if not trajectory.delete(cutoff=cutoff):
+            final_trajectories.append(trajectory)
+    print(f'Total number of trajectories: {len(final_trajectories)}')
 
-    make_image_seqs(trajectory_list, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
+    make_image_seqs(final_trajectories, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
                     add_index=False, local_img=True, gt_trajectory=None)
+    write_xml(output_file=output_xml, trajectory_list=final_trajectories,
+              snr=snr, density=density, scenario=scenario, cutoff=cutoff)

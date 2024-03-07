@@ -87,3 +87,9 @@ class TrajectoryObj:
         else:
             vector = (np.array(self.positions[-1]) - np.array(self.positions[-1 - t])) / t
             return np.array(self.positions[-1]) + (vector * (self.paused_time + 1)), np.sqrt(vector[0]**2 + vector[1]**2)
+
+    def delete(self, cutoff=2):
+        if len(self.positions) < cutoff:
+            return True
+        else:
+            return False

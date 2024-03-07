@@ -520,6 +520,7 @@ def simple_connect(localization: dict, localization_infos: dict,
             linkage_log_probas = linkage_log_probas + track_lengths * 1e-8  # higher priority to longer track
             linkage_positions = pair_positions[linkage_indices]
             linkage_infos = pair_infos[linkage_indices]
+            potential_trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
 
             if 2 in on:
                 before_time = timer()
@@ -533,10 +534,10 @@ def simple_connect(localization: dict, localization_infos: dict,
 
             if 4 in on:
                 before_time = timer()
-                trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
                 linkage_log_probas = (
-                    directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions))
+                    directed_motion_likelihood(potential_trajectories, linkage_log_probas, linkage_infos, linkage_positions))
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                linkage_log_probas += low_priority_to_newborns(potential_trajectories)
 
         before_time = timer()
         linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
@@ -897,6 +898,17 @@ def directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, 
 
     directed_log_likelihood = np.array(directed_log_likelihood)
     return linkage_log_probas + directed_log_likelihood
+
+
+def low_priority_to_newborns(trajectories):
+    myp = []
+    for traj in trajectories:
+        my_len = traj.get_trajectory_length()
+        if my_len <= 1:
+            myp.append(-3)
+        else:
+            myp.append(0)
+    return np.array(myp)
 
 
 if __name__ == '__main__':

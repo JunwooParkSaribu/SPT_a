@@ -4,7 +4,7 @@ from numba.typed import Dict
 from numba.core import types
 
 
-def read_trajectory(file: str) -> dict | list:
+def read_trajectory(file: str, andi_gt=False) -> dict | list:
     """
     @params : filename(String), cutoff value(Integer)
     @return : dictionary of H2B objects(Dict)
@@ -61,7 +61,14 @@ def read_trajectory(file: str) -> dict | list:
                 frame = int(float(temp[1].strip()))
                 x_pos = float(temp[2].strip())
                 y_pos = float(temp[3].strip())
-                z_pos = float(temp[4].strip())
+                if andi_gt:
+                    x_pos = float(temp[3].strip())
+                    y_pos = float(temp[2].strip())
+                if len(temp) > 4:
+                    z_pos = float(temp[4].strip())
+                else:
+                    z_pos = 0.0
+
                 if index != old_index:
                     nb_traj += 1
                     trajectory_list.append(TrajectoryObj(index=index, max_pause=5))

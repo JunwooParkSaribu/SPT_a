@@ -940,9 +940,7 @@ if __name__ == '__main__':
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
     loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.csv')
 
-    #andi_gt = f'{WINDOWS_PATH}/trajs_fov_0.csv'
-    #andi_gt_to_xml(andi_gt, '.'.join(andi_gt.split('.')[:-1])+'.xml')
-    #gt_list = xml_to_object('.'.join(andi_gt.split('.')[:-1])+'.xml')
+    #andi_gt_list = read_trajectory(f'{WINDOWS_PATH}/trajs_fov_0.csv', andi_gt=True)
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
     output_trj = f'{WINDOWS_PATH}/mymethod.csv'

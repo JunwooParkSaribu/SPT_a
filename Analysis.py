@@ -23,9 +23,11 @@ WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 def plot_diff_coefs(trajectory_list):
     for traj in trajectory_list:
         diff_coefs = np.array(traj.get_diffusion_coefs())
-        if len(diff_coefs) > 50:
+        if traj.get_index() == 38:
             print(traj.get_index())
+            print(traj.get_positions()[0], traj.get_times()[0])
             tv_denoised_1 = denoise_tv_chambolle(diff_coefs, weight=1)
+            tv_denoised_2 = denoise_tv_chambolle(diff_coefs, weight=2)
             tv_denoised_10 = denoise_tv_chambolle(diff_coefs, weight=10)
 
             plt.figure()
@@ -35,6 +37,11 @@ def plot_diff_coefs(trajectory_list):
 
             plt.figure()
             plt.plot(np.arange(len(diff_coefs)), tv_denoised_1)
+            plt.ylim([0, 10])
+            plt.xlim([0, 200])
+
+            plt.figure()
+            plt.plot(np.arange(len(diff_coefs)), tv_denoised_2)
             plt.ylim([0, 10])
             plt.xlim([0, 200])
 
@@ -57,7 +64,8 @@ if __name__ == '__main__':
     output_img_fname = f'{WINDOWS_PATH}/mymethod.tif'
     #input_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0_singlestate.csv'
     input_trj_fname = f'{WINDOWS_PATH}/multi3.csv'
-    gt_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0.csv'
+    #gt_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0.csv'
+    gt_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0_multi3.csv'
 
     images = read_tif(input_tif)[1:]
     trajectories = read_trajectory(input_trj_fname)
@@ -70,7 +78,7 @@ if __name__ == '__main__':
         time_step_max = max(traj.get_times()[-1], time_step_max)
     time_steps = np.arange(time_step_min, time_step_max+1, 1, dtype=np.uint32)
 
-    #make_image_seqs(trajectories, output_dir=output_img_fname, img_stacks=images, time_steps=time_steps, cutoff=2,
-    #                add_index=True, local_img=True, gt_trajectory=None)
+    make_image_seqs(trajectories, output_dir=output_img_fname, img_stacks=images, time_steps=time_steps, cutoff=2,
+                    add_index=True, local_img=True, gt_trajectory=andi_gt_list)
 
     plot_diff_coefs(trajectories)

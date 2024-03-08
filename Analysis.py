@@ -13,23 +13,50 @@ from TrajectoryObject import TrajectoryObj
 from XmlModule import xml_to_object, write_xml, read_xml, andi_gt_to_xml
 from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localization
 from timeit import default_timer as timer
+from skimage.restoration import denoise_tv_chambolle
 
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 
 
+def plot_diff_coefs(trajectory_list):
+    for traj in trajectory_list:
+        diff_coefs = np.array(traj.get_diffusion_coefs())
+        if len(diff_coefs) > 50:
+            print(traj.get_index())
+            tv_denoised_1 = denoise_tv_chambolle(diff_coefs, weight=1)
+            tv_denoised_10 = denoise_tv_chambolle(diff_coefs, weight=10)
+
+            plt.figure()
+            plt.plot(np.arange(len(diff_coefs)), diff_coefs)
+            plt.ylim([0, 10])
+            plt.xlim([0, 200])
+
+            plt.figure()
+            plt.plot(np.arange(len(diff_coefs)), tv_denoised_1)
+            plt.ylim([0, 10])
+            plt.xlim([0, 200])
+
+            plt.figure()
+            plt.plot(np.arange(len(diff_coefs)), tv_denoised_10)
+            plt.ylim([0, 10])
+            plt.xlim([0, 200])
+            plt.show()
+
+
 if __name__ == '__main__':
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
+    #input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
     #input_tif = f'{WINDOWS_PATH}/single1.tif'
-    #input_tif = f'{WINDOWS_PATH}/multi3.tif'
+    input_tif = f'{WINDOWS_PATH}/multi3.tif'
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
 
     output_img_fname = f'{WINDOWS_PATH}/mymethod.tif'
-    input_trj_fname = f'{WINDOWS_PATH}/mymethod.csv'
+    #input_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0_singlestate.csv'
+    input_trj_fname = f'{WINDOWS_PATH}/multi3.csv'
     gt_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0.csv'
 
     images = read_tif(input_tif)[1:]
@@ -43,5 +70,7 @@ if __name__ == '__main__':
         time_step_max = max(traj.get_times()[-1], time_step_max)
     time_steps = np.arange(time_step_min, time_step_max+1, 1, dtype=np.uint32)
 
-    make_image_seqs(trajectories, output_dir=output_img_fname, img_stacks=images, time_steps=time_steps, cutoff=2,
-                    add_index=False, local_img=True, gt_trajectory=andi_gt_list)
+    #make_image_seqs(trajectories, output_dir=output_img_fname, img_stacks=images, time_steps=time_steps, cutoff=2,
+    #                add_index=True, local_img=True, gt_trajectory=None)
+
+    plot_diff_coefs(trajectories)

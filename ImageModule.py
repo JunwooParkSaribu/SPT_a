@@ -158,7 +158,7 @@ def make_image_seqs2(*trajectory_lists, output_dir, time_steps, cutoff=0, origin
 
 def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=2,
                     add_index=True, local_img=None, gt_trajectory=None):
-    if np.mean(img_stacks) < 0.25:
+    if np.mean(img_stacks) < 0.35:
         bright_ = 1
     else:
         bright_ = 0

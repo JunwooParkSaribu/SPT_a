@@ -945,6 +945,7 @@ if __name__ == '__main__':
     #gt_list = xml_to_object('.'.join(andi_gt.split('.')[:-1])+'.xml')
 
     output_xml = f'{WINDOWS_PATH}/mymethod.xml'
+    output_trj = f'{WINDOWS_PATH}/mymethod.csv'
     output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
     images = read_tif(input_tif)[1:]
@@ -1003,3 +1004,4 @@ if __name__ == '__main__':
                     add_index=False, local_img=True, gt_trajectory=None)
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
+    write_trajectory(output_trj, final_trajectories)

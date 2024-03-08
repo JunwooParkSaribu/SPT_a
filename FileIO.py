@@ -1,9 +1,10 @@
 import numpy as np
+from TrajectoryObject import TrajectoryObj
 from numba.typed import Dict
 from numba.core import types
 
 
-def read_trajectory(file: str) -> dict:
+def read_trajectory(file: str) -> dict | list:
     """
     @params : filename(String), cutoff value(Integer)
     @return : dictionary of H2B objects(Dict)
@@ -11,49 +12,76 @@ def read_trajectory(file: str) -> dict:
     key is consist of filename@id and the value is H2B object.
     Dict only keeps the histones which have the trajectory length longer than cutoff value.
     """
-    filetypes = ['trxyt', 'trx']
-    localizations = {}
-    tmp = {}
+    filetypes = ['trxyt', 'trx', 'csv']
+
     # Check filetype.
     assert file.strip().split('.')[-1].lower() in filetypes
     # Read file and store the trajectory and time information in H2B object
-    try:
-        with open(file, 'r', encoding="utf-8") as f:
-            input = f.read()
-        lines = input.strip().split('\n')
-        for line in lines:
-            temp = line.split('\t')
-            x_pos = float(temp[1].strip())
-            y_pos = float(temp[2].strip())
-            z_pos = 0.
-            time_step = float(temp[3].strip())
-            if time_step in tmp:
-                tmp[time_step].append([x_pos, y_pos, z_pos])
-            else:
-                tmp[time_step] = [[x_pos, y_pos, z_pos]]
+    if file.strip().split('.')[-1].lower() in ['trxyt', 'trx']:
+        localizations = {}
+        tmp = {}
+        try:
+            with open(file, 'r', encoding="utf-8") as f:
+                input = f.read()
+            lines = input.strip().split('\n')
+            for line in lines:
+                temp = line.split('\t')
+                x_pos = float(temp[1].strip())
+                y_pos = float(temp[2].strip())
+                z_pos = 0.
+                time_step = float(temp[3].strip())
+                if time_step in tmp:
+                    tmp[time_step].append([x_pos, y_pos, z_pos])
+                else:
+                    tmp[time_step] = [[x_pos, y_pos, z_pos]]
 
-        time_steps = np.sort(np.array(list(tmp.keys())))
-        first_frame, last_frame = time_steps[0], time_steps[-1]
-        steps = np.arange(int(np.round(first_frame * 100)), int(np.round(last_frame * 100)) + 1)
-        for step in steps:
-            if step/100 in tmp:
-                localizations[step] = tmp[step/100]
-            else:
-                localizations[step] = []
-        return localizations
-    except Exception as e:
-        print(f"Unexpected error, check the file: {file}")
-        print(e)
+            time_steps = np.sort(np.array(list(tmp.keys())))
+            first_frame, last_frame = time_steps[0], time_steps[-1]
+            steps = np.arange(int(np.round(first_frame * 100)), int(np.round(last_frame * 100)) + 1)
+            for step in steps:
+                if step/100 in tmp:
+                    localizations[step] = tmp[step/100]
+                else:
+                    localizations[step] = []
+            return localizations
+        except Exception as e:
+            print(f"Unexpected error, check the file: {file}")
+            print(e)
+    else:
+        try:
+            trajectory_list = []
+            with open(file, 'r', encoding="utf-8") as f:
+                input = f.read()
+            lines = input.strip().split('\n')
+            nb_traj = 0
+            old_index = -999
+            for line in lines[1:]:
+                temp = line.split(',')
+                index = int(float(temp[0].strip()))
+                frame = int(float(temp[1].strip()))
+                x_pos = float(temp[2].strip())
+                y_pos = float(temp[3].strip())
+                z_pos = float(temp[4].strip())
+                if index != old_index:
+                    nb_traj += 1
+                    trajectory_list.append(TrajectoryObj(index=index, max_pause=5))
+                    trajectory_list[nb_traj - 1].add_trajectory_position(frame, x_pos, y_pos, z_pos)
+                else:
+                    trajectory_list[nb_traj - 1].add_trajectory_position(frame, x_pos, y_pos, z_pos)
+                old_index = index
+            return trajectory_list
+        except Exception as e:
+            print(f"Unexpected error, check the file: {file}")
+            print(e)
 
 
 def write_trajectory(file: str, trajectory_list: list):
     try:
         with open(file, 'w', encoding="utf-8") as f:
-            input = ''
-            for trajectory_obj in trajectory_list:
-                index = trajectory_obj.get_index()
+            input = 'traj_idx,frame,x,y,z\n'
+            for index, trajectory_obj in enumerate(trajectory_list):
                 for (xpos, ypos, zpos), time in zip(trajectory_obj.get_positions(), trajectory_obj.get_times()):
-                    input += f'{str(index)}\t{xpos}\t{ypos}\t{zpos}\t{time/100}\n'
+                    input += f'{index},{time},{xpos},{ypos},{zpos}\n'
             f.write(input)
     except Exception as e:
         print(f"Unexpected error, check the file: {file}")

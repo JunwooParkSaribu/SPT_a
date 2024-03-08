@@ -102,6 +102,6 @@ class TrajectoryObj:
             prev_t = self.get_times()[i]
             x,y,z = self.get_positions()[j]
             t = self.get_times()[j]
-            diff_coef = np.sqrt( (x - prev_x)** 2 + (y - prev_y)** 2 + (z - prev_z)** 2) / (t - prev_t)
+            diff_coef = np.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2 + (z - prev_z) ** 2) / (t - prev_t)
             diff_coefs.append(diff_coef)
         return diff_coefs

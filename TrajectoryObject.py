@@ -54,7 +54,7 @@ class TrajectoryObj:
         return self.index
 
     def get_times(self):
-        return self.times
+        return np.array(self.times)
 
     def set_color(self, color):
         self.color = color
@@ -94,14 +94,78 @@ class TrajectoryObj:
         else:
             return False
 
-    def get_diffusion_coefs(self):
+    def get_diffusion_coefs(self, time_interval, t_range=None):
+        if t_range is None:
+            t_range = [0, len(self.get_positions())]
+        considered_positions = self.get_positions()[t_range[0]: t_range[1]]
+        considered_times = self.get_times()[t_range[0]: t_range[1]]
+
         diff_coefs = []
-        for i in range(len(self.get_positions()) - 1):
+        for i in range(len(considered_positions) - 1):
             j = i + 1
-            prev_x, prev_y, prev_z = self.get_positions()[i]
-            prev_t = self.get_times()[i]
-            x,y,z = self.get_positions()[j]
-            t = self.get_times()[j]
+            prev_x, prev_y, prev_z = considered_positions[i]
+            prev_t = considered_times[i]
+            x, y, z = considered_positions[j]
+            t = considered_times[j]
             diff_coef = np.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2 + (z - prev_z) ** 2) / (t - prev_t)
             diff_coefs.append(diff_coef)
-        return diff_coefs
+        diff_coefs = np.array(diff_coefs)
+        diff_coefs_intervals = []
+        for i in range(len(diff_coefs)):
+            left_idx = i - time_interval//2
+            right_idx = i + time_interval//2
+            diff_coefs_intervals.append(np.mean(diff_coefs[max(0, left_idx):min(len(diff_coefs), right_idx+1)]))
+        return np.array(diff_coefs_intervals)
+
+    def get_trajectory_angles(self, time_interval, t_range=None):
+        """
+        available only for 2D data.
+        """
+        if t_range is None:
+            t_range = [0, len(self.get_positions())]
+        considered_positions = self.get_positions()[t_range[0]: t_range[1]]
+        considered_times = self.get_times()[t_range[0]: t_range[1]]
+
+        angles = []
+        for i in range(len(considered_positions) - 2):
+            prev_x, prev_y, prev_z = considered_positions[i]
+            prev_t = considered_times[i]
+            x, y, z = considered_positions[i+1]
+            t = considered_times[i+1]
+            next_x, next_y, next_z = considered_positions[i+2]
+            next_t = considered_times[i+2]
+            vec_prev_cur = np.array([x - prev_x, y - prev_y, z - prev_z]) / (t - prev_t)
+            vec_cur_next = np.array([next_x - x, next_y - y, next_z - z]) / (next_t - t)
+
+            ang = np.arccos((vec_prev_cur @ vec_cur_next) /
+                            (np.sqrt(vec_prev_cur[0] ** 2 + vec_prev_cur[1] ** 2 + vec_prev_cur[2] ** 2)
+                             * np.sqrt(vec_cur_next[0] ** 2 + vec_cur_next[1] ** 2 + vec_cur_next[2] ** 2)))
+            angles.append(ang)
+        angles = np.array(angles)
+
+        angles_intervals = []
+        for i in range(len(angles)):
+            left_idx = i - time_interval//2
+            right_idx = i + time_interval//2
+            angles_intervals.append(np.mean(angles[max(0, left_idx):min(len(angles), right_idx+1)]))
+        return np.array(angles_intervals)
+
+    def get_msd(self, time_interval, t_range=None):
+        if t_range is None:
+            t_range = [0, len(self.get_positions())]
+        considered_positions = self.get_positions()[t_range[0]: t_range[1]]
+        considered_times = self.get_times()[t_range[0]: t_range[1]]
+
+        MSD = []
+        for (x, y, z), t in zip(considered_positions, considered_times):
+            MSD.append(np.sqrt((x - considered_positions[0][0]) ** 2 +
+                               (y - considered_positions[0][1]) ** 2 +
+                               (z - considered_positions[0][2]) ** 2))
+        MSD = np.array(MSD)
+
+        MSD_intervals = []
+        for i in range(len(MSD)):
+            left_idx = i - time_interval//2
+            right_idx = i + time_interval//2
+            MSD_intervals.append(np.mean(MSD[max(0, left_idx):min(len(MSD), right_idx+1)]))
+        return np.array(MSD_intervals)

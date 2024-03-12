@@ -116,7 +116,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
     time_interval = T_INTERVAL
     weights = [1, 2, 10]
     nrow = len(weights) + 1
-    ncol = 4
+    ncol = 5
 
     for traj in trajectory_list:
         if traj.get_index() == 0:
@@ -124,6 +124,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             diff_coefs = traj.get_diffusion_coefs(time_interval=time_interval, t_range=t_range)
             angles = traj.get_trajectory_angles(time_interval=time_interval, t_range=t_range)
             MSD = traj.get_msd(time_interval=time_interval, t_range=t_range)
+            density = traj.get_density(radius=np.max(diff_coefs), t_range=t_range)
 
             std_angles = []
             for i in range(len(angles)):
@@ -141,12 +142,14 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             denoised[0][1] = angles
             denoised[0][2] = std_angles
             denoised[0][3] = MSD
+            denoised[0][4] = density
 
             for r, weight in enumerate(weights):
                 denoised[r+1][0] = denoise_tv_chambolle(diff_coefs, weight=weight)
                 denoised[r+1][1] = denoise_tv_chambolle(angles, weight=weight)
                 denoised[r+1][2] = denoise_tv_chambolle(std_angles, weight=weight)
                 denoised[r+1][3] = denoise_tv_chambolle(MSD, weight=weight)
+                denoised[r+1][4] = denoise_tv_chambolle(density, weight=weight)
 
             fig, axs = plt.subplots(nrow, ncol, figsize=FIGSIZE)
             fig.suptitle(f'alphas:   {np.round(alphas,2)}\n'
@@ -156,7 +159,8 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             axs[0, 1].title.set_text('Angles')
             axs[0, 2].title.set_text('Std angles')
             axs[0, 3].title.set_text('MSD')
-            print(len(diff_coefs), len(angles), len(std_angles), len(MSD))
+            axs[0, 4].title.set_text('Density')
+            print(len(diff_coefs), len(angles), len(std_angles), len(MSD), len(density))
 
             for row in range(nrow):
                 for col in range(ncol):
@@ -188,6 +192,13 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
                             axs[row, col].plot(np.arange(len(MSD)), power_fit(np.arange(len(MSD)), c, alpha))
                             if len(changepoints) > 0:
                                 axs[row, col].vlines(changepoints - (t_range[-1] - len(MSD)), ymin=0, ymax=np.max(MSD),
+                                                     colors='red',
+                                                     alpha=0.5)
+
+                        if col == 4:
+                            axs[row, col].set_ylim([0, np.max(density) + 2])
+                            if len(changepoints) > 0:
+                                axs[row, col].vlines(changepoints - (t_range[-1] - len(density)), ymin=0, ymax=np.max(density),
                                                      colors='red',
                                                      alpha=0.5)
 
@@ -247,6 +258,7 @@ if __name__ == '__main__':
     D = 0.1
     L = 1.5 * 128
     T_INTERVAL = 1
+    RADIUS = 1
     """
     trajs_model1, labels_model1 = models_phenom().single_state(N=N,
                                                               L=False,

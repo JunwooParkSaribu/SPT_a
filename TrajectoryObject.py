@@ -169,3 +169,21 @@ class TrajectoryObj:
             right_idx = i + time_interval//2
             MSD_intervals.append(np.mean(MSD[max(0, left_idx):min(len(MSD), right_idx+1)]))
         return np.array(MSD_intervals)
+
+    def get_density(self, radius, t_range=None):
+        if t_range is None:
+            t_range = [0, len(self.get_positions())]
+        considered_positions = self.get_positions()[t_range[0]: t_range[1]]
+        considered_times = self.get_times()[t_range[0]: t_range[1]]
+
+        density = []
+        for i in range(len(considered_positions)):
+            nb = 0
+            for (x, y, z), t in zip(considered_positions, considered_times):
+                disp = np.sqrt((x - considered_positions[i][0]) ** 2 +
+                               (y - considered_positions[i][1]) ** 2 +
+                               (z - considered_positions[i][2]) ** 2)
+                if disp < radius:
+                    nb += 1
+            density.append(nb)
+        return np.array(density).astype(np.float32)

@@ -124,7 +124,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             diff_coefs = traj.get_diffusion_coefs(time_interval=time_interval, t_range=t_range)
             angles = traj.get_trajectory_angles(time_interval=time_interval, t_range=t_range)
             MSD = traj.get_msd(time_interval=time_interval, t_range=t_range)
-            density = traj.get_density(radius=np.max(diff_coefs), t_range=t_range)
+            density = traj.get_density(radius=np.mean(np.sort(diff_coefs)[:25]), t_range=t_range)
 
             std_angles = []
             for i in range(len(angles)):

@@ -86,7 +86,11 @@ def KSGHE(serie, p0):
     return w[0]
 
 
-def plot_diff_coefs(trajectory_list, t_range=None, changepoints=None):
+def plot_diff_coefs(trajectory_list, *args, t_range=None):
+    changepoints = args[0]
+    alphas = args[1]
+    Ds = args[2]
+    state_num = args[3]
     if t_range is None:
         t_range = [0, 10000]
     FIGSIZE = (14, 9)
@@ -105,6 +109,10 @@ def plot_diff_coefs(trajectory_list, t_range=None, changepoints=None):
             c, alpha = optimize.curve_fit(power_fit, np.arange(len(MSD)), MSD)[0]
             print(f'C:{c}, alpha:{alpha}')
 
+            #diff_coefs = np.cumsum(diff_coefs)
+            #angles = np.cumsum(angles)
+            #MSD = np.cumsum(MSD)
+
             denoised[0][0] = diff_coefs
             denoised[0][1] = angles
             denoised[0][2] = MSD
@@ -116,6 +124,9 @@ def plot_diff_coefs(trajectory_list, t_range=None, changepoints=None):
                 denoised[r+1][2] = denoise_tv_chambolle(MSD, weight=weight)
 
             fig, axs = plt.subplots(nrow, ncol, figsize=FIGSIZE)
+            fig.suptitle(f'alphas:   {np.round(alphas,2)}\n'
+                         f'Ds:       {np.round(Ds, 2)}\n'
+                         f'State_num:{state_num}')
             axs[0, 0].title.set_text('Diff_coef')
             axs[0, 1].title.set_text('Angles')
             axs[0, 2].title.set_text('MSD')
@@ -128,15 +139,26 @@ def plot_diff_coefs(trajectory_list, t_range=None, changepoints=None):
                         axs[row, col].plot(np.arange(len(denoised[row][col])), denoised[row][col])
                         axs[row, col].set_xlim(t_range)
 
-                        if col == 0 or col == 1:
-                            axs[row, col].set_ylim([0, y_plot_max])
+                        if col == 0:
+                            axs[row, col].set_ylim([0, np.max(diff_coefs) + 5])
                             if changepoints is not None:
-                                axs[row, col].vlines(changepoints, ymin=0, ymax=y_plot_max, colors='red', alpha=0.5)
+                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(diff_coefs) + 5,
+                                                     colors='red',
+                                                     alpha=0.5)
+
+                        if col == 1:
+                            axs[row, col].set_ylim([0, np.max(angles) + 3])
+                            if changepoints is not None:
+                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(angles) + 3,
+                                                     colors='red',
+                                                     alpha=0.5)
 
                         if col == 2:
                             axs[row, col].plot(np.arange(len(MSD)), power_fit(np.arange(len(MSD)), c, alpha))
                             if changepoints is not None:
-                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(MSD), colors='red', alpha=0.5)
+                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(MSD),
+                                                     colors='red',
+                                                     alpha=0.5)
             plt.show()
 
 
@@ -206,7 +228,7 @@ if __name__ == '__main__':
                                                               L=L,
                                                               T=200,
                                                               alphas=[1.2, 0.7],  # Fixed alpha for each state
-                                                              Ds=[[10 * D, 0.1], [0.1 * D, 0.0]],
+                                                              Ds=[[0.1, 0.1], [0.1, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]
                                                               )
@@ -259,7 +281,9 @@ if __name__ == '__main__':
     print(f'MSD: {KSGHE(MSD, rescaled_range(MSD))}')
     print("-----------------------------")
 
-    plot_diff_coefs([traj1], t_range=t_range, changepoints=changepoints)
+    plot_diff_coefs([traj1],
+                    changepoints, alphas, Ds, state_num,
+                    t_range=t_range)
     exit(1)
 
 

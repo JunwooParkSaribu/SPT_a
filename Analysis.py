@@ -23,7 +23,6 @@ from andi_datasets.utils_challenge import label_continuous_to_list
 import stochastic
 
 
-
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 
@@ -70,7 +69,6 @@ def disp_fbm(alpha: float,
     disp *= np.sqrt(T) ** (alpha)
     # Add D
     disp *= np.sqrt(2 * D * deltaT)
-
     return disp
 
 
@@ -81,13 +79,13 @@ def samples_GHE(serie, tau):
 def KSGHE(serie, p0):
     scaling_range = [2**n for n in range(int(np.log2(len(serie)))-2)]
     sample_t0 = samples_GHE(serie, tau=scaling_range[0])
-    f=lambda h: np.sum([stats.ks_2samp(sample_t0, samples_GHE(serie, tau=tau) / (tau**h)).statistic for tau in scaling_range[1:]])
+    f = lambda h: np.sum([stats.ks_2samp(sample_t0, samples_GHE(serie, tau=tau) / (tau**h)).statistic for tau in scaling_range[1:]])
     w = optimize.fmin(f, x0=p0, disp=False)
     return w[0]
 
 
 def plot_diff_coefs(trajectory_list, *args, t_range=None):
-    changepoints = args[0]
+    changepoints = np.array(args[0])
     alphas = args[1]
     Ds = args[2]
     state_num = args[3]
@@ -106,6 +104,11 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             angles = traj.get_trajectory_angles(time_interval=time_interval, t_range=t_range)
             MSD = traj.get_msd(time_interval=time_interval, t_range=t_range)
 
+            std_angles = []
+            for i in range(len(angles)):
+                std_angles.append(np.std(angles[max(0, i-5):min(len(angles), i+6)]))
+            std_angles = np.array(std_angles)
+
             c, alpha = optimize.curve_fit(power_fit, np.arange(len(MSD)), MSD)[0]
             print(f'C:{c}, alpha:{alpha}')
 
@@ -115,13 +118,14 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
 
             denoised[0][0] = diff_coefs
             denoised[0][1] = angles
-            denoised[0][2] = MSD
-            denoised[0][3] = []
+            denoised[0][2] = std_angles
+            denoised[0][3] = MSD
 
             for r, weight in enumerate(weights):
                 denoised[r+1][0] = denoise_tv_chambolle(diff_coefs, weight=weight)
                 denoised[r+1][1] = denoise_tv_chambolle(angles, weight=weight)
-                denoised[r+1][2] = denoise_tv_chambolle(MSD, weight=weight)
+                denoised[r+1][2] = denoise_tv_chambolle(std_angles, weight=weight)
+                denoised[r+1][3] = denoise_tv_chambolle(MSD, weight=weight)
 
             fig, axs = plt.subplots(nrow, ncol, figsize=FIGSIZE)
             fig.suptitle(f'alphas:   {np.round(alphas,2)}\n'
@@ -129,34 +133,40 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
                          f'State_num:{state_num}')
             axs[0, 0].title.set_text('Diff_coef')
             axs[0, 1].title.set_text('Angles')
-            axs[0, 2].title.set_text('MSD')
-            axs[0, 3].title.set_text('empty')
+            axs[0, 2].title.set_text('Std angles')
+            axs[0, 3].title.set_text('MSD')
+            print(len(diff_coefs), len(angles), len(std_angles), len(MSD))
 
             for row in range(nrow):
                 for col in range(ncol):
                     if len(denoised[row][col]) > 0:
-                        y_plot_max = 8
                         axs[row, col].plot(np.arange(len(denoised[row][col])), denoised[row][col])
                         axs[row, col].set_xlim(t_range)
-
                         if col == 0:
-                            axs[row, col].set_ylim([0, np.max(diff_coefs) + 5])
-                            if changepoints is not None:
-                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(diff_coefs) + 5,
+                            axs[row, col].set_ylim([0, np.max(diff_coefs) + 2])
+                            if len(changepoints) > 0:
+                                axs[row, col].vlines(changepoints - (t_range[-1] - len(diff_coefs)), ymin=0, ymax=np.max(diff_coefs) + 2,
                                                      colors='red',
                                                      alpha=0.5)
 
                         if col == 1:
                             axs[row, col].set_ylim([0, np.max(angles) + 3])
-                            if changepoints is not None:
-                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(angles) + 3,
+                            if len(changepoints) > 0:
+                                axs[row, col].vlines(changepoints - (t_range[-1] - len(angles)), ymin=0, ymax=np.max(angles) + 3,
                                                      colors='red',
                                                      alpha=0.5)
 
                         if col == 2:
+                            axs[row, col].set_ylim([0, np.max(std_angles) + 2])
+                            if len(changepoints) > 0:
+                                axs[row, col].vlines(changepoints - (t_range[-1] - len(std_angles)), ymin=0, ymax=np.max(std_angles) + 2,
+                                                     colors='red',
+                                                     alpha=0.5)
+
+                        if col == 3:
                             axs[row, col].plot(np.arange(len(MSD)), power_fit(np.arange(len(MSD)), c, alpha))
-                            if changepoints is not None:
-                                axs[row, col].vlines(changepoints, ymin=0, ymax=np.max(MSD),
+                            if len(changepoints) > 0:
+                                axs[row, col].vlines(changepoints - (t_range[-1] - len(MSD)), ymin=0, ymax=np.max(MSD),
                                                      colors='red',
                                                      alpha=0.5)
             plt.show()
@@ -211,7 +221,7 @@ def rescaled_range(data):
 
 
 if __name__ == '__main__':
-    hurst_exp = 0.5
+    T = 200
     t_range = [0, 200]
     D = 0.1
     L = 1.5 * 128
@@ -226,8 +236,8 @@ if __name__ == '__main__':
     print('---------')
     trajs_model2, labels_model2 = models_phenom().multi_state(N=2,
                                                               L=L,
-                                                              T=200,
-                                                              alphas=[1.2, 0.7],  # Fixed alpha for each state
+                                                              T=T,
+                                                              alphas=[0.7, 0.7],  # Fixed alpha for each state
                                                               Ds=[[0.1, 0.0], [0.1, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]
@@ -237,6 +247,7 @@ if __name__ == '__main__':
     trajs_label = labels_model2
     print('Tajectory shapes, label shape: ', trajs_model.shape, trajs_label.shape)
     changepoints, alphas, Ds, state_num = label_continuous_to_list(trajs_label[:, 0, :])
+    changepoints = np.delete(changepoints, np.where(changepoints == T))
     print(f'change points: {changepoints}')
     print(f'alphas: {alphas}')
     print(f'Ds: {Ds}')
@@ -248,7 +259,7 @@ if __name__ == '__main__':
 
     xs = trajs_model[:, 0, 0]
     ys = trajs_model[:, 0, 1]
-    pos = np.array([trajs_model[:, 0, 0], trajs_model[:, 0, 1]]).T
+    pos = np.array([xs, ys]).T
     traj1 = TrajectoryObj(index=0)
     for t, (x, y) in enumerate(pos):
         traj1.add_trajectory_position(t, x, y, 0.0)
@@ -258,27 +269,27 @@ if __name__ == '__main__':
     print(f'DIFF_COEF_MEAN: {np.mean(diff_coefs)}')
 
     print('pip hurst compute_Hc')
-    print(compute_Hc(xs, kind='random_walk')[0])
-    print(compute_Hc(ys, kind='random_walk')[0])
-    print(compute_Hc(MSD, kind='random_walk')[0])
+    print(compute_Hc(xs, kind='random_walk')[0] * 2)
+    print(compute_Hc(ys, kind='random_walk')[0] * 2)
+    print(compute_Hc(MSD, kind='random_walk')[0] * 2)
     print("-----------------------------")
 
     print("\nKSGHD")
-    print(f'X: {KSGHE(xs, hurst_exp)}')
-    print(f'Y: {KSGHE(ys, hurst_exp)}')
-    print(f'MSD: {KSGHE(MSD, hurst_exp)}')
+    print(f'X: {KSGHE(xs, 0.5) * 2}')
+    print(f'Y: {KSGHE(ys, 0.5) * 2}')
+    print(f'MSD: {KSGHE(MSD, 0.5) * 2}')
     print("-----------------------------")
 
     print("\nMY RSRange")
-    print(f'X: {rescaled_range(xs)}')
-    print(f'Y: {rescaled_range(ys)}')
-    print(f'MSD: {rescaled_range(MSD)}')
+    print(f'X: {rescaled_range(xs) * 2}')
+    print(f'Y: {rescaled_range(ys) * 2}')
+    print(f'MSD: {rescaled_range(MSD) * 2}')
     print("-----------------------------")
 
     print("\nKSGHD with Mine")
-    print(f'X: {KSGHE(xs, rescaled_range(xs))}')
-    print(f'Y: {KSGHE(ys, rescaled_range(ys))}')
-    print(f'MSD: {KSGHE(MSD, rescaled_range(MSD))}')
+    print(f'X: {KSGHE(xs, rescaled_range(xs)) * 2}')
+    print(f'Y: {KSGHE(ys, rescaled_range(ys)) * 2}')
+    print(f'MSD: {KSGHE(MSD, rescaled_range(MSD)) * 2}')
     print("-----------------------------")
 
     plot_diff_coefs([traj1],

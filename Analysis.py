@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import concurrent.futures
 from scipy.stats import gmean
 from scipy.spatial import KDTree
@@ -20,6 +21,7 @@ from hurst import compute_Hc, random_walk
 from stochastic.processes.noise import FractionalGaussianNoise as FGN
 from andi_datasets.models_phenom import models_phenom
 from andi_datasets.utils_challenge import label_continuous_to_list
+from andi_datasets.utils_trajectories import plot_trajs
 import stochastic
 
 
@@ -82,6 +84,25 @@ def KSGHE(serie, p0):
     f = lambda h: np.sum([stats.ks_2samp(sample_t0, samples_GHE(serie, tau=tau) / (tau**h)).statistic for tau in scaling_range[1:]])
     w = optimize.fmin(f, x0=p0, disp=False)
     return w[0]
+
+
+def plot_trajectory(trajectory_list):
+    traj1 = trajectory_list[0]
+    pos = traj1.get_positions()
+    xs = pos[:, 0]
+    ys = pos[:, 1]
+    plt.figure()
+    plt.plot(xs, ys, linewidth=0.5)
+    plt.scatter(xs, ys, c=np.arange(T), cmap=plt.get_cmap("gist_rainbow"), alpha=0.7, s=9.0)
+    plt.scatter(xs[changepoints], ys[changepoints], c='black', marker='+', s=120.0)
+    plt_xlim = [np.min(xs) - 2, np.max(xs) + 2]
+    plt_ylim = [np.min(ys) - 2, np.max(ys) + 2]
+    if plt_xlim[-1] - plt_xlim[0] > plt_ylim[-1] - plt_ylim[0]:
+        plt_ylim[0] = plt_ylim[0] - ((plt_xlim[-1] - plt_xlim[0]) - (plt_ylim[-1] - plt_ylim[0]))
+    else:
+        plt_xlim[0] = plt_xlim[0] - ((plt_ylim[-1] - plt_ylim[0]) - (plt_xlim[-1] - plt_xlim[0]))
+    plt.xlim(plt_xlim)
+    plt.ylim(plt_ylim)
 
 
 def plot_diff_coefs(trajectory_list, *args, t_range=None):
@@ -169,7 +190,6 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
                                 axs[row, col].vlines(changepoints - (t_range[-1] - len(MSD)), ymin=0, ymax=np.max(MSD),
                                                      colors='red',
                                                      alpha=0.5)
-            plt.show()
 
 
 def rescaled_range(data):
@@ -221,12 +241,13 @@ def rescaled_range(data):
 
 
 if __name__ == '__main__':
+    N = 2
     T = 200
     t_range = [0, 200]
     D = 0.1
     L = 1.5 * 128
     """
-    trajs_model1, labels_model1 = models_phenom().single_state(N=2,
+    trajs_model1, labels_model1 = models_phenom().single_state(N=N,
                                                               L=False,
                                                               T=200,
                                                               Ds=[0.1, 0],  # Mean and variance
@@ -234,10 +255,10 @@ if __name__ == '__main__':
                                                               )
     """
     print('---------')
-    trajs_model2, labels_model2 = models_phenom().multi_state(N=2,
+    trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
                                                               L=L,
                                                               T=T,
-                                                              alphas=[0.7, 0.7],  # Fixed alpha for each state
+                                                              alphas=[0.5, 1.5],  # Fixed alpha for each state
                                                               Ds=[[0.1, 0.0], [0.1, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]
@@ -292,9 +313,12 @@ if __name__ == '__main__':
     print(f'MSD: {KSGHE(MSD, rescaled_range(MSD)) * 2}')
     print("-----------------------------")
 
+
+    plot_trajectory([traj1])
     plot_diff_coefs([traj1],
                     changepoints, alphas, Ds, state_num,
                     t_range=t_range)
+    plt.show()
     exit(1)
 
 

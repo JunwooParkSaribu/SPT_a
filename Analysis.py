@@ -228,7 +228,7 @@ if __name__ == '__main__':
                                                               L=L,
                                                               T=200,
                                                               alphas=[1.2, 0.7],  # Fixed alpha for each state
-                                                              Ds=[[0.1, 0.1], [0.1, 0.0]],
+                                                              Ds=[[0.1, 0.0], [0.1, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]
                                                               )

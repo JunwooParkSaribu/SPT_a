@@ -113,7 +113,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
     if t_range is None:
         t_range = [0, 10000]
     FIGSIZE = (14, 9)
-    time_interval = 1
+    time_interval = T_INTERVAL
     weights = [1, 2, 10]
     nrow = len(weights) + 1
     ncol = 4
@@ -127,7 +127,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
 
             std_angles = []
             for i in range(len(angles)):
-                std_angles.append(np.std(angles[max(0, i-5):min(len(angles), i+6)]))
+                std_angles.append(np.std(angles[max(0, i-2):min(len(angles), i+3)]))
             std_angles = np.array(std_angles)
 
             c, alpha = optimize.curve_fit(power_fit, np.arange(len(MSD)), MSD)[0]
@@ -246,6 +246,7 @@ if __name__ == '__main__':
     t_range = [0, 200]
     D = 0.1
     L = 1.5 * 128
+    T_INTERVAL = 1
     """
     trajs_model1, labels_model1 = models_phenom().single_state(N=N,
                                                               L=False,
@@ -258,7 +259,7 @@ if __name__ == '__main__':
     trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
                                                               L=L,
                                                               T=T,
-                                                              alphas=[0.5, 1.5],  # Fixed alpha for each state
+                                                              alphas=[0.8, 1.2],  # Fixed alpha for each state
                                                               Ds=[[0.1, 0.0], [0.1, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]

@@ -115,6 +115,9 @@ class TrajectoryObj:
             left_idx = i - time_interval//2
             right_idx = i + time_interval//2
             diff_coefs_intervals.append(np.mean(diff_coefs[max(0, left_idx):min(len(diff_coefs), right_idx+1)]))
+
+        # make length equal to length of xy pos
+        diff_coefs_intervals.append(0.0)
         return np.array(diff_coefs_intervals)
 
     def get_trajectory_angles(self, time_interval, t_range=None):
@@ -148,6 +151,10 @@ class TrajectoryObj:
             left_idx = i - time_interval//2
             right_idx = i + time_interval//2
             angles_intervals.append(np.mean(angles[max(0, left_idx):min(len(angles), right_idx+1)]))
+
+        # make length equal to length of xy pos
+        angles_intervals.append(0.0)
+        angles_intervals.append(0.0)
         return np.array(angles_intervals)
 
     def get_msd(self, time_interval, t_range=None):

@@ -221,9 +221,9 @@ def read_andi2_trajectory_label(input_file, index=None):
                         alphas.extend([alpha] * cp_range)
                         state_nums.extend([state_num] * cp_range)
                         cps.extend([cp] * cp_range)
-                        cp_state.extend([False] * (cp_range-1))
+                        cp_state.extend([0] * (cp_range-1))
                         if i != len(line) - 1:
-                            cp_state.append(True)
+                            cp_state.append(1)
                         trajectory[index] = [np.array(diff_coefs), np.array(alphas), np.array(state_nums), np.array(cp_state)]
     else:
         trajectory = {}
@@ -255,8 +255,8 @@ def read_andi2_trajectory_label(input_file, index=None):
                     alphas.extend([alpha] * cp_range)
                     state_nums.extend([state_num] * cp_range)
                     cps.extend([cp] * cp_range)
-                    cp_state.extend([False] * (cp_range-1))
+                    cp_state.extend([0] * (cp_range-1))
                     if traj_length != len(input_file[0]) - 1:
-                        cp_state.append(True)
+                        cp_state.append(1)
                     trajectory[index] = [np.array(diff_coefs), np.array(alphas), np.array(state_nums), np.array(cp_state)]
     return trajectory

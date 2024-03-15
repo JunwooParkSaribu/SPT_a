@@ -187,31 +187,66 @@ def read_localization(input_file):
     return numba_locals, numba_locals_info
 
 
-def read_andi2_trajectory_label(input_file):
+def read_andi2_trajectory_label(input_file, index=None):
     trajectory = {}
-    with open(input_file, 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.strip().split('\n')[0].split(',')
-            index = int(float(line[0]))
-            line = line[1:]
+    if type(input_file) is str:
+        with open(input_file, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.strip().split('\n')[0].split(',')
+                index = int(float(line[0]))
+                line = line[1:]
 
-            diff_coefs = []
-            alphas = []
-            state_nums = []
-            cps = [0]
-            cp_state = [False]
-            turn_on = False
-            for i, item in enumerate(line):
+                diff_coefs = []
+                alphas = []
+                state_nums = []
+                cps = [0]
+                cp_state = [False]
+                turn_on = False
+                for i, item in enumerate(line):
+                    if i % 4 == 0:
+                        turn_on = False
+                        diff_coef = float(item)
+                    elif i % 4 == 1:
+                        alpha = float(item)
+                    elif i % 4 == 2:
+                        state_num = int(float(item))
+                    elif i % 4 == 3:
+                        cp = int(float(item))
+                        turn_on = True
+                    if turn_on:
+                        cp_range = cp - cps[-1]
+
+                        diff_coefs.extend([diff_coef] * cp_range)
+                        alphas.extend([alpha] * cp_range)
+                        state_nums.extend([state_num] * cp_range)
+                        cps.extend([cp] * cp_range)
+                        cp_state.extend([False] * (cp_range-1))
+                        if i != len(line) - 1:
+                            cp_state.append(True)
+                        trajectory[index] = [np.array(diff_coefs), np.array(alphas), np.array(state_nums), np.array(cp_state)]
+    else:
+        trajectory = {}
+        diff_coefs = []
+        alphas = []
+        state_nums = []
+        cps = [0]
+        cp_state = [False]
+        turn_on = False
+        if index is None:
+            index = 0
+
+        for traj_length, label_list in enumerate(np.array(input_file).T):
+            for i, label in enumerate(label_list):
                 if i % 4 == 0:
                     turn_on = False
-                    diff_coef = float(item)
+                    diff_coef = float(label)
                 elif i % 4 == 1:
-                    alpha = float(item)
+                    alpha = float(label)
                 elif i % 4 == 2:
-                    state_num = int(float(item))
+                    state_num = int(float(label))
                 elif i % 4 == 3:
-                    cp = int(float(item))
+                    cp = int(float(label))
                     turn_on = True
                 if turn_on:
                     cp_range = cp - cps[-1]
@@ -221,7 +256,7 @@ def read_andi2_trajectory_label(input_file):
                     state_nums.extend([state_num] * cp_range)
                     cps.extend([cp] * cp_range)
                     cp_state.extend([False] * (cp_range-1))
-                    if i != len(line) - 1:
+                    if traj_length != len(input_file[0]) - 1:
                         cp_state.append(True)
                     trajectory[index] = [np.array(diff_coefs), np.array(alphas), np.array(state_nums), np.array(cp_state)]
     return trajectory

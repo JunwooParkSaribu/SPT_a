@@ -262,14 +262,14 @@ def uncumulate(xs:np.ndarray):
 if __name__ == '__main__':
     N = 1
     T = 200
-    t_range = [0, 1000]
+    t_range = [0, 200]
     D = 0.1
     L = 1.5 * 128
     T_INTERVAL = 1
     RADIUS = 1
 
-    stochastic.random.seed(3)
-    np.random.seed(7)
+    #stochastic.random.seed(3)
+    #np.random.seed(7)
     """
     trajs_model1, labels_model1 = models_phenom().single_state(N=N,
                                                               L=False,
@@ -282,31 +282,12 @@ if __name__ == '__main__':
     trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
                                                               L=L,
                                                               T=T,
-                                                              alphas=[0.6, 1.2],  # Fixed alpha for each state
-                                                              Ds=[[0.1, 0.0], [0.1, 0.0]],
+                                                              alphas=[1.1, 0.9],  # Fixed alpha for each state
+                                                              Ds=[[0.5, 0.0], [0.5, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]
                                                               )
-    print(uncumulate(trajs_model2[:, 0, 0])[-5:])
-    uncum_x = uncumulate(trajs_model2[:, 0, 0])[1:]
-    print(f'KSGHE: {KSGHE(trajs_model2[:, 0, 0], 0.5) * 2}')
-    print(uncum_x[-5:])
-    print(rescaled_range(uncum_x) * 2)
 
-    alpha_change = []
-    for i in range(len(trajs_model2[:, 0, 0]) - 100):
-        test = []
-        div = list(trajs_model2[:, 0, 0][i:i+100])
-        for _ in range(25):
-            test.extend(div)
-        alpha_change.append((KSGHE(np.array(test), 0.5) * 2))
-        #print(f'KSGHE: {KSGHE(np.array(test), 0.5) * 2}')
-        #print(rescaled_range(test) * 2)
-        #print(compute_Hc(test, kind='change')[0] * 2)
-    plt.figure()
-    plt.plot(np.arange(len(alpha_change)), alpha_change)
-    plt.show()
-    exit(1)
     trajs_model = trajs_model2
     trajs_label = labels_model2
     print('Tajectory shapes, label shape: ', trajs_model.shape, trajs_label.shape)

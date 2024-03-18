@@ -125,10 +125,11 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
             angles = traj.get_trajectory_angles(time_interval=time_interval, t_range=t_range)
             MSD = traj.get_msd(time_interval=time_interval, t_range=t_range)
             density = traj.get_density(radius=np.mean(np.sort(diff_coefs)), t_range=t_range)
+            x_pos = traj.get_positions()[:,0]
 
             std_angles = []
             for i in range(len(angles)):
-                std_angles.append(np.std(angles[max(0, i-2):min(len(angles), i+3)]))
+                std_angles.append(np.mean(x_pos[max(0, i-5):min(len(angles), i+6)] - float(x_pos[max(0, i-5)])))
             std_angles = np.array(std_angles)
 
             c, alpha = optimize.curve_fit(power_fit, np.arange(len(MSD)), MSD)[0]
@@ -182,7 +183,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
                                                      alpha=0.5)
 
                         if col == 2:
-                            axs[row, col].set_ylim([0, np.max(std_angles) + 2])
+                            axs[row, col].set_ylim([-(np.max(std_angles) + 2), np.max(std_angles) + 2])
                             if len(changepoints) > 0:
                                 axs[row, col].vlines(changepoints - (t_range[-1] - len(std_angles)), ymin=0, ymax=np.max(std_angles) + 2,
                                                      colors='red',
@@ -282,7 +283,7 @@ if __name__ == '__main__':
     trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
                                                               L=L,
                                                               T=T,
-                                                              alphas=[1.1, 0.9],  # Fixed alpha for each state
+                                                              alphas=[1.2, 0.8],  # Fixed alpha for each state
                                                               Ds=[[0.5, 0.0], [0.5, 0.0]],
                                                               # Mean and variance of each state
                                                               M=[[0.98, 0.02], [0.02, 0.98]]

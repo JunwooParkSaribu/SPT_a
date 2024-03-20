@@ -1,20 +1,15 @@
-import itertools
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import concurrent.futures
 from scipy.stats import gmean
-from scipy.spatial import KDTree
-from numba import jit, njit, cuda, vectorize, int32, int64, float32, float64
-from numba.typed import Dict, List
-from numba.core import types
-from ImageModule import read_tif, read_single_tif, make_image, make_image_seqs, stack_tif, compare_two_localization_visual
+from numba import njit
+from numba.typed import List
+from ImageModule import read_tif, make_image_seqs
 from TrajectoryObject import TrajectoryObj
-from XmlModule import xml_to_object, write_xml, read_xml, andi_gt_to_xml
-from FileIO import write_trajectory, read_trajectory, read_mosaic, read_localization
+from XmlModule import write_xml
+from FileIO import write_trajectory, read_localization, read_parameters
 from timeit import default_timer as timer
-from ElipseFit import cart_to_pol, fit_ellipse, get_ellipse_pts
-from skimage import measure
 from Bipartite_searching import hungarian_algo_max
 
 
@@ -912,11 +907,20 @@ def low_priority_to_newborns(trajectories):
 
 
 if __name__ == '__main__':
+    params = read_parameters('./config.txt')
+    loc, loc_infos = read_localization(f'./localization.csv')
+    input_tif = params['tracking']['VIDEO']
+    OUTPUT_DIR = params['tracking']['OUTPUT_DIR']
+    blink_lag = params['tracking']['BLINK_LAG']
+    cutoff = params['tracking']['CUTOFF']
+    var_parallel = params['tracking']['VAR_PARALLEL']
+
+    output_xml = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.xml'
+    output_trj = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.csv'
+    output_img = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.tif'
+
     final_trajectories = []
-    blink_lag = 1
-    cutoff = 2
     methods = [1, 3, 4]
-    var_parallel = True
     confidence = 0.995
     amp = 1.5  #1.3
     THRESHOLDS = None  #[8, 14.5]
@@ -932,21 +936,19 @@ if __name__ == '__main__':
     #gt_xml = f'./simulated_data/ground_truth/{scenario.upper()} snr {snr} density {density}.xml'
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
-    input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
+    #input_tif = f'{WINDOWS_PATH}/videos_fov_0.tif'
     #input_tif = f'{WINDOWS_PATH}/single1.tif'
     #input_tif = f'{WINDOWS_PATH}/multi3.tif'
     #input_tif = f'{WINDOWS_PATH}/immobile_traps1.tif'
     #input_tif = f'{WINDOWS_PATH}/dimer1.tif'
     #input_tif = f'{WINDOWS_PATH}/confinement1.tif'
-    loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.csv')
+    #loc, loc_infos = read_localization(f'{WINDOWS_PATH}/localization.csv')
 
     #andi_gt_list = read_trajectory(f'{WINDOWS_PATH}/trajs_fov_0.csv', andi_gt=True)
 
-    output_xml = f'{WINDOWS_PATH}/mymethod.xml'
-    output_trj = f'{WINDOWS_PATH}/mymethod.csv'
-    output_img = f'{WINDOWS_PATH}/mymethod.tif'
 
-    images = read_tif(input_tif)[1:]
+
+    images = read_tif(input_tif)
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 

@@ -5,14 +5,11 @@ import numpy as np
 import tifffile
 import concurrent.futures
 from numba import njit
-from FileIO import write_localization, read_localization
+from FileIO import write_localization, read_parameters, check_video_ext
 from numba.typed import List as nbList
-from ImageModule import read_tif, draw_cross
+from ImageModule import draw_cross
 from timeit import default_timer as timer
 
-WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
-WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
-OUTPUT_DIR = f'{WINDOWS_PATH}'
 
 #images = read_tif('RealData/20220217_aa4_cel8_no_ir.tif')
 #images = read_tif('RealData/20220217_aa4_cel9_no_ir.tif')
@@ -41,13 +38,13 @@ OUTPUT_DIR = f'{WINDOWS_PATH}'
 #images = read_tif(f'{WINDOWS_PATH}/immobile_traps1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/dimer1.tif')
 #images = read_tif(f'{WINDOWS_PATH}/confinement1.tif')
-images = read_tif(f'{WINDOWS_PATH}/videos_fov_0.tif')
+#images = read_tif(f'{WINDOWS_PATH}/videos_fov_0.tif')
 
 ## background low, std high -> high threshold
 ## background high, std low -> low threshold
 
 
-images = images[1:]
+#images = images[1:]
 
 
 @njit
@@ -164,10 +161,10 @@ def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
 
     before_time = timer()
     i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1))
-    print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
+    #print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
     before_time = timer()
     i_hat = i_hat @ g_bar / g_squared_sum
-    print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+    #print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
@@ -387,7 +384,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = add_block_noise(extended_imgs, extend)
 
     while 1:
-        print(f'INDEX: {index}')
+        #print(f'INDEX: {index}')
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[:, index:]
         radiuss = bin_radius[index:]
@@ -398,7 +395,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             win_s_dict[ws[0]] = []
 
         if index == bin_thresholds.shape[1] - 1:
-            print(f'BACKWARD PROCESS')
+            #print(f'BACKWARD PROCESS')
             for df_loop in range(deflation_loop_backward):
                 h_maps = []
                 for step, (g_grid, window_size, radius) in (
@@ -506,13 +503,13 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             h_maps = []
             for step, (g_grid, window_size, radius) in (
                     enumerate(zip(g_grids, window_sizes, radiuss))):
-                print(f'{step} : {imgs.shape}')
+                #print(f'{step} : {imgs.shape}')
                 before_time = timer()
                 h_map = np.zeros_like(imgs)
                 crop_imgs = np.array(image_cropping(extended_imgs, extend, window_size, shift=args[7]))
                 crop_imgs = crop_imgs.reshape(crop_imgs.shape[0], crop_imgs.shape[1],
                                                         window_size[0] * window_size[1])
-                print(f'{step}{": 1 calcul":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{step}{": 1 calcul":<35}:{(timer() - before_time):.2f}s')
 
                 crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
@@ -520,11 +517,11 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                 before_time = timer()
                 c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
-                print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
                 before_time = timer()
                 h_map = mapping(h_map, c, args[7])
                 h_maps.append(h_map)
-                print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')
             h_maps = np.array(h_maps)
             """
             plt.figure()
@@ -561,7 +558,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
                     if len(err_indice) == len(pdfs):
-                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
+                        #print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
                         index += 1
                     else:
                         pdfs = np.delete(pdfs, err_indice, 0)
@@ -978,42 +975,35 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
         args[5] = np.array([thresholds for _ in range(len(args[3]))]).T
     else:
         args[5] = np.ones((len(imgs), len(args[3]))) * args[5]
-    print(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
-    print(f'Thresholds: {args[5]}')
+    #(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
+    #print(f'Thresholds: {args[5]}')
     before_time = timer()
     xy_coord, pdf, info = localization(imgs, bgs, forward_gauss_grids, backward_gauss_grids, *args)
-    print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
+    #print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
     return xy_coord, pdf, info
 
 
-def check_filename(args):
-    if len(args) == 0:
-        print(f'no input file')
-        exit(1)
-    if '.tif' not in args[0] and '.tiff' not in args[0]:
-        print(f'video format err, only .tif or .tiff are acceptable')
-        exit(1)
-    else:
-        video = read_tif(args[0])
-        return video
-
-
 if __name__ == '__main__':
-    images = check_filename(sys.argv[1:])
+    #WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
+    #WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
+    params = read_parameters('./config.txt')
+    images = check_video_ext(params['localization']['VIDEO'])
+    OUTPUT_DIR = params['localization']['OUTPUT_DIR']
 
-    SIGMA = 4.  # 3.5
-    MIN_WIN = 3
-    MAX_WIN = 5
+    SIGMA = params['localization']['SIGMA']
+    MIN_WIN = params['localization']['MIN_WIN']
+    MAX_WIN = params['localization']['MAX_WIN']
+    THRES_ALPHA = params['localization']['THRES_ALPHA']
+    print(params)
+    DEFLATION_LOOP_IN_BACKWARD = params['localization']['DEFLATION_LOOP_IN_BACKWARD']
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
-    THRES_ALPHA = 1.0 #1.25
-    DEFLATION_LOOP_IN_BACKWARD = 2
 
-    PARALLEL = True
-    CORE = 4
-    DIV_Q = 50
-    SHIFT = 2
-    GAUSS_SEIDEL_DECOMP = 2
+    PARALLEL = params['localization']['PARALLEL']
+    CORE = params['localization']['CORE']
+    DIV_Q = params['localization']['DIV_Q']
+    SHIFT = params['localization']['SHIFT']
+    GAUSS_SEIDEL_DECOMP = params['localization']['GAUSS_SEIDEL_DECOMP']
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 
     xy_coords = []
@@ -1026,7 +1016,7 @@ if __name__ == '__main__':
     start_time = timer()
     if PARALLEL:
         for div_q in range(0, len(images), CORE * DIV_Q):
-            print(f'{div_q} epoch')
+            print(f'{div_q}/{len(images)} frame (parallelized)')
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 executors = {i: None for i in range(CORE)}
                 for cc in range(CORE):
@@ -1045,7 +1035,7 @@ if __name__ == '__main__':
                         reg_infos.extend(info)
     else:
         for div_q in range(0, len(images), DIV_Q):
-            print(f'{div_q} epoch')
+            print(f'{div_q}/{len(images)} frame (non parallelized)')
             xy_coord, pdf, info = main_process(images[div_q:div_q+DIV_Q], forward_gauss_grids, backward_gauss_grids,
                                                BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
                                                MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,

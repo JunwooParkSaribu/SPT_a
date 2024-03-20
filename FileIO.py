@@ -3,6 +3,7 @@ from TrajectoryObject import TrajectoryObj
 from numba.typed import Dict
 from numba.core import types
 from andi_datasets.utils_challenge import label_continuous_to_list
+from ImageModule import read_tif
 
 
 def read_trajectory(file: str, andi_gt=False) -> dict | list:
@@ -172,34 +173,38 @@ def write_localization(output_dir, coords, all_pdfs, infos):
 def read_localization(input_file):
     locals = {}
     locals_info = {}
-    with open(input_file, 'r') as f:
-        lines = f.readlines()
-        for line in lines[1:]:
-            line = line.strip().split('\n')[0].split(',')
-            if int(line[0]) not in locals:
-                locals[int(line[0])] = []
-                locals_info[int(line[0])] = []
-            pos_line = []
-            info_line = []
-            for dt in line[1:4]:
-                pos_line.append(np.round(float(dt), 7))
-            for dt in line[4:]:
-                info_line.append(np.round(float(dt), 7))
-            locals[int(line[0])].append(pos_line)
-            locals_info[int(line[0])].append(info_line)
+    try:
+        with open(input_file, 'r') as f:
+            lines = f.readlines()
+            for line in lines[1:]:
+                line = line.strip().split('\n')[0].split(',')
+                if int(line[0]) not in locals:
+                    locals[int(line[0])] = []
+                    locals_info[int(line[0])] = []
+                pos_line = []
+                info_line = []
+                for dt in line[1:4]:
+                    pos_line.append(np.round(float(dt), 7))
+                for dt in line[4:]:
+                    info_line.append(np.round(float(dt), 7))
+                locals[int(line[0])].append(pos_line)
+                locals_info[int(line[0])].append(info_line)
 
-    numba_locals = Dict.empty(
-        key_type=types.int64,
-        value_type=types.float64[:, :],
-    )
-    numba_locals_info = Dict.empty(
-        key_type=types.int64,
-        value_type=types.float64[:, :],
-    )
+        numba_locals = Dict.empty(
+            key_type=types.int64,
+            value_type=types.float64[:, :],
+        )
+        numba_locals_info = Dict.empty(
+            key_type=types.int64,
+            value_type=types.float64[:, :],
+        )
 
-    for t in locals.keys():
-        numba_locals[t] = np.array(locals[t])
-        numba_locals_info[t] = np.array(locals_info[t])
+        for t in locals.keys():
+            numba_locals[t] = np.array(locals[t])
+            numba_locals_info[t] = np.array(locals_info[t])
+    except Exception as e:
+        print(f'Err msg: {e}')
+        exit(1)
     return numba_locals, numba_locals_info
 
 
@@ -276,3 +281,72 @@ def read_andi2_trajectory_label(input_file, index=None):
                         cp_state.append(1)
                     trajectory[index] = [np.array(diff_coefs), np.array(alphas), np.array(state_nums), np.array(cp_state)]
     return trajectory
+
+
+def read_parameters(param_file):
+    params = {'localization': {}, 'tracking': {}}
+    try:
+        with open(param_file, 'r', encoding="utf-8") as f:
+            input = f.read()
+        lines = input.strip().split('\n')
+
+        for line in lines:
+            if 'video' in line.lower():
+                params['localization']['VIDEO'] = line.strip().split('=')[1]
+            if 'output_dir' in line.lower():
+                params['localization']['OUTPUT_DIR'] = line.strip().split('=')[1]
+            if 'sigma' in line.lower():
+                params['localization']['SIGMA'] = float(eval(line.strip().split('=')[1]))
+            if 'min_win' in line.lower():
+                params['localization']['MIN_WIN'] = int(eval(line.strip().split('=')[1]))
+            if 'max_win' in line.lower():
+                params['localization']['MAX_WIN'] = int(eval(line.strip().split('=')[1]))
+            if 'threshold_alpha' in line.lower():
+                params['localization']['THRES_ALPHA'] = float(eval(line.strip().split('=')[1]))
+            if 'deflation_loop_in_backward' in line.lower():
+                params['localization']['DEFLATION_LOOP_IN_BACKWARD'] = int(eval(line.strip().split('=')[1]))
+            if 'parallel' in line.lower():
+                if 'true' in line.lower().strip().split('=')[1]:
+                    params['localization']['PARALLEL'] = True
+                else:
+                    params['localization']['PARALLEL'] = False
+            if 'core' in line.lower():
+                params['localization']['CORE'] = int(eval(line.strip().split('=')[1]))
+            if 'div_q' in line.lower():
+                params['localization']['DIV_Q'] = int(eval(line.strip().split('=')[1]))
+            if 'shift' in line.lower():
+                params['localization']['SHIFT'] = int(eval(line.strip().split('=')[1]))
+            if 'gauss_seidel_decomp' in line.lower():
+                params['localization']['GAUSS_SEIDEL_DECOMP'] = int(eval(line.strip().split('=')[1]))
+
+            if 'video' in line.lower():
+                params['tracking']['VIDEO'] = line.strip().split('=')[1]
+            if 'output_dir' in line.lower():
+                params['tracking']['OUTPUT_DIR'] = line.strip().split('=')[1]
+            if 'blink_lag' in line.lower():
+                params['tracking']['BLINK_LAG'] = int(eval(line.strip().split('=')[1]))
+            if 'cutoff' in line.lower():
+                params['tracking']['CUTOFF'] = int(eval(line.strip().split('=')[1]))
+            if 'var_parallel' in line.lower():
+                if 'true' in line.lower().strip().split('=')[1]:
+                    params['tracking']['VAR_PARALLEL'] = True
+                else:
+                    params['tracking']['VAR_PARALLEL'] = False
+
+        return params
+    except Exception as e:
+        print(f"Unexpected error, check the config file")
+        print(f'ERR msg: {e}')
+        exit(1)
+
+
+def check_video_ext(args):
+    if len(args) == 0:
+        print(f'no input file')
+        exit(1)
+    if '.tif' not in args and '.tiff' not in args:
+        print(f'video format err, only .tif or .tiff are acceptable')
+        exit(1)
+    else:
+        video = read_tif(args)
+        return video

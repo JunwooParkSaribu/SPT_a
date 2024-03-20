@@ -1046,6 +1046,7 @@ if __name__ == '__main__':
             xy_coords.extend(xy_coord)
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)
+
     reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
     write_localization(OUTPUT_DIR, xy_coords, reg_pdfs, reg_infos)
     visualilzation(OUTPUT_DIR, images, xy_coords)

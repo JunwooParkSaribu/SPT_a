@@ -190,6 +190,11 @@ def read_localization(input_file):
                 locals[int(line[0])].append(pos_line)
                 locals_info[int(line[0])].append(info_line)
 
+        for t in np.arange(1, np.max(list(locals.keys()))+1):
+            if t not in locals:
+                locals[t] = [[]]
+                locals_info[t] = [[]]
+
         numba_locals = Dict.empty(
             key_type=types.int64,
             value_type=types.float64[:, :],
@@ -204,6 +209,7 @@ def read_localization(input_file):
             numba_locals_info[t] = np.array(locals_info[t])
     except Exception as e:
         print(f'Err msg: {e}')
+        print('here')
         exit(1)
     return numba_locals, numba_locals_info
 

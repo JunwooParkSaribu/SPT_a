@@ -164,12 +164,12 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         bright_ = 0
 
     if img_stacks.shape[1] * img_stacks.shape[2] < 512 * 512:
-        upscailing_factor = 2  # int(512 / img_stacks.shape[1])
+        upscailing_factor = 1  # int(512 / img_stacks.shape[1])
     else:
         upscailing_factor = 1
     result_stack = []
     for img, frame in zip(img_stacks, time_steps):
-        img = cv2.resize(img, (img.shape[0]*upscailing_factor, img.shape[1]*upscailing_factor),
+        img = cv2.resize(img, (img.shape[1]*upscailing_factor, img.shape[0]*upscailing_factor),
                          interpolation=cv2.INTER_AREA)
         if img.ndim == 2:
             img = np.array([img, img, img])
@@ -184,10 +184,10 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                     indices = [i for i, time in enumerate(times) if time == frame]
                     xy = np.array([[int(np.around(x * upscailing_factor)), int(np.around(y * upscailing_factor))]
                                    for x, y, _ in traj.get_positions()[indices]], np.int32)
-                    if local_img[xy[0][0], xy[0][1], 0] == 1 and local_img[xy[0][0], xy[0][1], 1] == 0 and local_img[xy[0][0], xy[0][1], 2] == 0:
-                        local_img = draw_cross(local_img, xy[0][0], xy[0][1], (0, 0, 1))
+                    if local_img[xy[0][1], xy[0][0], 0] == 1 and local_img[xy[0][1], xy[0][0], 1] == 0 and local_img[xy[0][1], xy[0][0], 2] == 0:
+                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (0, 0, 1))
                     else:
-                        local_img = draw_cross(local_img, xy[0][0], xy[0][1], (1, 0, 0))
+                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (1, 0, 0))
             local_img[:, -1, :] = 1
 
         if bright_:

@@ -99,14 +99,14 @@ def count_localizations(localization):
     xyz_min = np.array([1e5, 1e5, 1e5])
     xyz_max = np.array([-1e5, -1e5, -1e5])
     time_steps = np.sort(list(localization.keys()))
-
-    for t in localization:
-        x_ = np.array(localization[t])[:, 0]
-        y_ = np.array(localization[t])[:, 1]
-        z_ = np.array(localization[t])[:, 2]
-        xyz_min = [min(xyz_min[0], np.min(x_)), min(xyz_min[1], np.min(y_)), min(xyz_min[2], np.min(z_))]
-        xyz_max = [max(xyz_max[0], np.max(x_)), max(xyz_max[1], np.max(y_)), max(xyz_max[2], np.max(z_))]
-        nb += len(localization[t])
+    for t in time_steps:
+        if localization[t].shape[1] > 0:
+            x_ = np.array(localization[t])[:, 0]
+            y_ = np.array(localization[t])[:, 1]
+            z_ = np.array(localization[t])[:, 2]
+            xyz_min = [min(xyz_min[0], np.min(x_)), min(xyz_min[1], np.min(y_)), min(xyz_min[2], np.min(z_))]
+            xyz_max = [max(xyz_max[0], np.max(x_)), max(xyz_max[1], np.max(y_)), max(xyz_max[2], np.max(z_))]
+            nb += len(localization[t])
     nb_per_time = nb / len(time_steps)
     return np.array(time_steps), nb_per_time, np.array(xyz_min), np.array(xyz_max)
 
@@ -153,7 +153,8 @@ def euclidian_displacement(pos1, pos2):
 
 
 def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
-    length_max_val = np.max(distribution)
+    length_max_val = np.sort(distribution.flatten())[-10]
+    print(length_max_val, bin_size)
     bins = np.arange(0, length_max_val + bin_size, bin_size)
     hist = np.histogram(distribution, bins=bins)
     hist_dist = scipy.stats.rv_histogram(hist)
@@ -289,7 +290,7 @@ def unpack_distribution(distrib, paused_times):
     return thresholds, pdfs, bins
 
 
-@njit
+#@njit
 def pair_permutation(pair1, pair2, localization, local_info):
     permutated_pair = []
     pos1s = []
@@ -486,28 +487,31 @@ def simple_connect(localization: dict, localization_infos: dict,
         dests_linked = []
         dests_pairs = []
         linkage_pairs = []
-        for dest_i in range(len(localization[next_time])):
-            dests_pairs.append([next_time, dest_i])
+        linkage_indices = None
 
-        # Combination with permutation
-        before_time = timer()
-        pairs, seg_lengths, pair_positions, pair_infos = (
-            pair_permutation(np.array(srcs_pairs), np.array(dests_pairs), localization, localization_infos))
-        pairs = np.array(pairs)
-        pair_positions = np.stack(pair_positions, axis=1)
-        pair_infos = np.stack(pair_infos, axis=1)
-        paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
-        track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
-        thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
-        print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
+        if len(localization[next_time][0]) != 0 and len(localization[time_steps[i]][0]) != 0:
+            for dest_i in range(localization[next_time].shape[0]):
+                dests_pairs.append([next_time, dest_i])
+            # Combination with permutation
+            before_time = timer()
+            pairs, seg_lengths, pair_positions, pair_infos = (
+                pair_permutation(np.array(srcs_pairs), np.array(dests_pairs), localization, localization_infos))
+            pairs = np.array(pairs)
+            pair_positions = np.stack(pair_positions, axis=1)
+            pair_infos = np.stack(pair_infos, axis=1)
+            if len(pairs) > 0:
+                paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
+                track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
+                thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
+                print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
 
-        before_time = timer()
-        seg_lengths = np.array(seg_lengths)
-        thresholds = np.array(thresholds)
-        linkage_indices, linkage_log_probas = (
-            displacement_probability(seg_lengths, thresholds,
-                                     List(pdfs), List(bins), sorted=False))
-        print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+                before_time = timer()
+                seg_lengths = np.array(seg_lengths)
+                thresholds = np.array(thresholds)
+                linkage_indices, linkage_log_probas = (
+                    displacement_probability(seg_lengths, thresholds,
+                                             List(pdfs), List(bins), sorted=False))
+                print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
 
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
@@ -915,9 +919,9 @@ if __name__ == '__main__':
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
 
-    output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}.xml'
-    output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}.csv'
-    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}.tif'
+    output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
+    output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
+    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tif'
 
     final_trajectories = []
     methods = [1, 3, 4]

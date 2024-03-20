@@ -1,5 +1,6 @@
 import cv2
 import matplotlib.pyplot as plt
+import sys
 import numpy as np
 import tifffile
 import concurrent.futures
@@ -985,7 +986,21 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
     return xy_coord, pdf, info
 
 
+def check_filename(args):
+    if len(args) == 0:
+        print(f'no input file')
+        exit(1)
+    if '.tif' not in args[0] and '.tiff' not in args[0]:
+        print(f'video format err, only .tif or .tiff are acceptable')
+        exit(1)
+    else:
+        video = read_tif(args[0])
+        return video
+
+
 if __name__ == '__main__':
+    images = check_filename(sys.argv[1:])
+
     SIGMA = 4.  # 3.5
     MIN_WIN = 3
     MAX_WIN = 5

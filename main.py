@@ -1001,6 +1001,7 @@ if __name__ == '__main__':
             final_trajectories.append(trajectory)
     print(f'Total number of trajectories: {len(final_trajectories)}')
 
+    print(f'Visualizing trajectories...')
     make_image_seqs(final_trajectories, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
                     add_index=False, local_img=True, gt_trajectory=None)
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,

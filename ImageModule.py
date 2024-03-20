@@ -176,7 +176,6 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
             img = np.moveaxis(img, 0, 2)
         img = np.ascontiguousarray(img)
         img_org = img.copy()
-
         if local_img is not None:
             local_img = img_org.copy()
             for traj in trajectory_list:
@@ -185,10 +184,10 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                     indices = [i for i, time in enumerate(times) if time == frame]
                     xy = np.array([[int(np.around(x * upscailing_factor)), int(np.around(y * upscailing_factor))]
                                    for x, y, _ in traj.get_positions()[indices]], np.int32)
-                    if local_img[xy[0][1], xy[0][0], 0] == 1 and local_img[xy[0][1], xy[0][0], 1] == 0 and local_img[xy[0][1], xy[0][0], 2] == 0:
-                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (0, 0, 1))
+                    if local_img[xy[0][0], xy[0][1], 0] == 1 and local_img[xy[0][0], xy[0][1], 1] == 0 and local_img[xy[0][0], xy[0][1], 2] == 0:
+                        local_img = draw_cross(local_img, xy[0][0], xy[0][1], (0, 0, 1))
                     else:
-                        local_img = draw_cross(local_img, xy[0][1], xy[0][0], (1, 0, 0))
+                        local_img = draw_cross(local_img, xy[0][0], xy[0][1], (1, 0, 0))
             local_img[:, -1, :] = 1
 
         if bright_:

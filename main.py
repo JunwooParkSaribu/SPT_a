@@ -269,6 +269,7 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
             else:
                 pdf_indices.append([n, np.min(pdfs[n])])
     if len(pdf_indices) == 0:
+        print("WHY")
         return None, None
     pdf_indices = np.array(pdf_indices)
     if sorted:
@@ -534,8 +535,8 @@ def simple_connect(localization: dict, localization_infos: dict,
                 print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 linkage_log_probas += low_priority_to_newborns(potential_trajectories)
 
-        before_time = timer()
-        linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
+            before_time = timer()
+            linkage_pairs = make_graph(linkage_pairs, linkage_log_probas)
         link_pairs = []
         for pair in linkage_pairs:
             t, src_i = pair[0]

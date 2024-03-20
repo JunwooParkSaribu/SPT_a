@@ -269,7 +269,6 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
             else:
                 pdf_indices.append([n, np.min(pdfs[n])])
     if len(pdf_indices) == 0:
-        print("WHY")
         return None, None
     pdf_indices = np.array(pdf_indices)
     if sorted:

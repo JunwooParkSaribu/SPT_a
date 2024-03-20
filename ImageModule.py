@@ -164,7 +164,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
         bright_ = 0
 
     if img_stacks.shape[1] * img_stacks.shape[2] < 512 * 512:
-        upscailing_factor = int(512 / img_stacks.shape[1])
+        upscailing_factor = 2  # int(512 / img_stacks.shape[1])
     else:
         upscailing_factor = 1
     result_stack = []

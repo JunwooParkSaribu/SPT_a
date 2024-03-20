@@ -161,10 +161,10 @@ def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
 
     before_time = timer()
     i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1))
-    #print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
+    print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
     before_time = timer()
     i_hat = i_hat @ g_bar / g_squared_sum
-    #print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+    print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
@@ -384,7 +384,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = add_block_noise(extended_imgs, extend)
 
     while 1:
-        #print(f'INDEX: {index}')
+        print(f'INDEX: {index}')
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[:, index:]
         radiuss = bin_radius[index:]
@@ -395,7 +395,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             win_s_dict[ws[0]] = []
 
         if index == bin_thresholds.shape[1] - 1:
-            #print(f'BACKWARD PROCESS')
+            print(f'BACKWARD PROCESS')
             for df_loop in range(deflation_loop_backward):
                 h_maps = []
                 for step, (g_grid, window_size, radius) in (
@@ -558,7 +558,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
                     if len(err_indice) == len(pdfs):
-                        #print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
+                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
                         index += 1
                     else:
                         pdfs = np.delete(pdfs, err_indice, 0)
@@ -578,8 +578,11 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             reg_pdfs[n].append(pdf)
                             reg_infos[n].append([x_var, y_var, rho, amp])
                         del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
-                        extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
 
+                        extended_imgs_copy = extended_imgs.copy()
+                        extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
+                        if np.sum(extended_imgs_copy) == np.sum(extended_imgs):
+                            index += 1
             if len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
                 index += 1
 
@@ -975,11 +978,11 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
         args[5] = np.array([thresholds for _ in range(len(args[3]))]).T
     else:
         args[5] = np.ones((len(imgs), len(args[3]))) * args[5]
-    #(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
-    #print(f'Thresholds: {args[5]}')
+    print(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
+    print(f'Thresholds: {args[5]}')
     before_time = timer()
     xy_coord, pdf, info = localization(imgs, bgs, forward_gauss_grids, backward_gauss_grids, *args)
-    #print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
+    print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
     return xy_coord, pdf, info
 
 

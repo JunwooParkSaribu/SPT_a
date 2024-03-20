@@ -305,11 +305,12 @@ def read_parameters(param_file):
                 params['localization']['THRES_ALPHA'] = float(eval(line.strip().split('=')[1]))
             if 'deflation_loop_in_backward' in line.lower():
                 params['localization']['DEFLATION_LOOP_IN_BACKWARD'] = int(eval(line.strip().split('=')[1]))
-            if 'parallel' in line.lower():
+            if 'loc_parallel' in line.lower():
                 if 'true' in line.lower().strip().split('=')[1]:
                     params['localization']['PARALLEL'] = True
                 else:
                     params['localization']['PARALLEL'] = False
+
             if 'core' in line.lower():
                 params['localization']['CORE'] = int(eval(line.strip().split('=')[1]))
             if 'div_q' in line.lower():
@@ -327,7 +328,7 @@ def read_parameters(param_file):
                 params['tracking']['BLINK_LAG'] = int(eval(line.strip().split('=')[1]))
             if 'cutoff' in line.lower():
                 params['tracking']['CUTOFF'] = int(eval(line.strip().split('=')[1]))
-            if 'var_parallel' in line.lower():
+            if 'tracking_parallel' in line.lower():
                 if 'true' in line.lower().strip().split('=')[1]:
                     params['tracking']['VAR_PARALLEL'] = True
                 else:

@@ -258,7 +258,7 @@ def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=Tr
                     if pdfs[n][index] > 0.:
                         pdf_indices.append([n, pdfs[n][index]])
                     else:
-                        print('there is a proba 0 even lower than thresholds')
+                        #print('there is a proba 0 even lower than thresholds')
                         pdf_indices.append([n, 1e-8])
                 else:
                     pdf_indices.append([n, np.min(pdfs[n])])
@@ -915,9 +915,9 @@ if __name__ == '__main__':
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
 
-    output_xml = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.xml'
-    output_trj = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.csv'
-    output_img = f'{OUTPUT_DIR}/{input_tif.split(".tif")[0]}.tif'
+    output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[1].split(".tif")[0]}.xml'
+    output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[1].split(".tif")[0]}.csv'
+    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[1].split(".tif")[0]}.tif'
 
     final_trajectories = []
     methods = [1, 3, 4]

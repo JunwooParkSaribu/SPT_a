@@ -228,7 +228,7 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
     samples = []
     acceptance_ratio = np.array([0, 0])
     while True:
-        next_x = int(np.round(np.random.normal(current_x, 3)))
+        next_x = int(np.round(np.random.normal(current_x, 1)))
         next_x = max(0, min(next_x, len(pdf) - 1))
         proposal1 = 1  # g(current|next)
         proposal2 = 1  # g(next|current)

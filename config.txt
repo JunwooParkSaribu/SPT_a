@@ -1,4 +1,4 @@
-VIDEO=SimulData/receptor_7_low.tif
+VIDEO=20231129-cell2_ir_1min_whole.tif
 OUTPUT_DIR=.
 
 # LOCALIZATION

@@ -170,7 +170,7 @@ def write_localization(output_dir, coords, all_pdfs, infos):
         f.write(lines)
 
 
-def read_localization(input_file):
+def read_localization(input_file, video=None):
     locals = {}
     locals_info = {}
     try:
@@ -189,8 +189,11 @@ def read_localization(input_file):
                     info_line.append(np.round(float(dt), 7))
                 locals[int(line[0])].append(pos_line)
                 locals_info[int(line[0])].append(info_line)
-
-        for t in np.arange(1, np.max(list(locals.keys()))+1):
+        if video is None:
+            max_t = np.max(list(locals.keys()))
+        else:
+            max_t = len(video)
+        for t in np.arange(1, max_t+1):
             if t not in locals:
                 locals[t] = [[]]
                 locals_info[t] = [[]]

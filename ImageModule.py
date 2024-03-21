@@ -270,6 +270,24 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
     tifffile.imwrite(output_dir, data=result_stack, imagej=True)
 
 
+def make_whole_img(trajectory_list, output_dir, img_stacks):
+    if img_stacks.shape[1] * img_stacks.shape[2] < 1024 * 1024:
+        upscailing_factor = int(1024 / img_stacks.shape[1])
+    else:
+        upscailing_factor = 1
+    imgs = np.zeros((img_stacks.shape[1] * upscailing_factor, img_stacks.shape[2] * upscailing_factor, 3))
+    for traj in trajectory_list:
+        xy = np.array([[int(np.around(x * upscailing_factor)), int(np.around(y * upscailing_factor))]
+                       for x, y, _ in traj.get_positions()], np.int32)
+        img_poly = cv2.polylines(imgs, [xy],
+                                 isClosed=False,
+                                 color=(traj.get_color()[2],
+                                        traj.get_color()[1],
+                                        traj.get_color()[0]),
+                                 thickness=1)
+    cv2.imwrite(output_dir, (imgs * 255).astype(np.uint8))
+
+
 def draw_cross(img, row, col, color):
     comb = [[row-2, col], [row-1, col], [row, col], [row+1, col], [row+2, col], [row, col-2], [row, col-1], [row, col+1], [row, col+2]]
     for r, c in comb:

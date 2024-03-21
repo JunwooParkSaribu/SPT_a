@@ -5,7 +5,7 @@ import concurrent.futures
 from scipy.stats import gmean
 from numba import njit
 from numba.typed import List
-from ImageModule import read_tif, make_image_seqs
+from ImageModule import read_tif, make_image_seqs, make_whole_img
 from TrajectoryObject import TrajectoryObj
 from XmlModule import write_xml
 from FileIO import write_trajectory, read_localization, read_parameters
@@ -921,11 +921,11 @@ if __name__ == '__main__':
     blink_lag = params['tracking']['BLINK_LAG']
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
-    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv')
 
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
-    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tif'
+    output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tif'
+    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.png'
 
     final_trajectories = []
     methods = [1, 3, 4]
@@ -955,8 +955,8 @@ if __name__ == '__main__':
     #andi_gt_list = read_trajectory(f'{WINDOWS_PATH}/trajs_fov_0.csv', andi_gt=True)
 
 
-
     images = read_tif(input_tif)
+    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
@@ -966,15 +966,6 @@ if __name__ == '__main__':
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 5000.
 
-    print(bin_size)
-    #xx = []
-    #for kk in range(1, 4000):
-    #    xx.append(kk * bin_size/2)
-    #print(xx)
-    #raw_segment_distribution[0].extend(xx)
-    #raw_segment_distribution[0] = np.array(raw_segment_distribution[0])
-
-
     for repeat in range(1):
         start_time = timer()
         segment_distribution = mcmc_parallel(raw_segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
@@ -983,7 +974,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-
+        """
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 20
         show_y_max = 0.15
@@ -1003,7 +994,7 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-
+        """
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
@@ -1018,8 +1009,9 @@ if __name__ == '__main__':
     print(f'Total number of trajectories: {len(final_trajectories)}')
 
     print(f'Visualizing trajectories...')
-    make_image_seqs(final_trajectories, output_dir=output_img, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
-                    add_index=False, local_img=True, gt_trajectory=None)
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     write_trajectory(output_trj, final_trajectories)
+    make_image_seqs(final_trajectories, output_dir=output_imgstack, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
+                    add_index=False, local_img=None, gt_trajectory=None)
+    make_whole_img(final_trajectories, output_dir=output_img, img_stacks=images)

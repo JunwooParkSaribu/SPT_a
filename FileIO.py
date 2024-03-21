@@ -337,6 +337,8 @@ def read_parameters(param_file):
                 params['tracking']['BLINK_LAG'] = int(eval(line.strip().split('=')[1]))
             if 'cutoff' in line.lower():
                 params['tracking']['CUTOFF'] = int(eval(line.strip().split('=')[1]))
+            if 'amp_max_len' in line.lower():
+                params['tracking']['AMP_MAX_LEN'] = float(eval(line.strip().split('=')[1]))
             if 'tracking_parallel' in line.lower():
                 if 'true' in line.lower().strip().split('=')[1]:
                     params['tracking']['VAR_PARALLEL'] = True

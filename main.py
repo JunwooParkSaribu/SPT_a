@@ -921,6 +921,7 @@ if __name__ == '__main__':
     blink_lag = params['tracking']['BLINK_LAG']
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
+    amp = params['tracking']['AMP_MAX_LEN']
 
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
@@ -930,7 +931,7 @@ if __name__ == '__main__':
     final_trajectories = []
     methods = [1, 3, 4]
     confidence = 0.995
-    amp = 1.2  #1.5
+
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'

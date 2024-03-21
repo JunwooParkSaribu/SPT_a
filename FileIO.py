@@ -166,7 +166,7 @@ def write_localization(output_dir, coords, all_pdfs, infos):
             lines += f',{x_var},{y_var},{rho},{amp},{peak_val},{window_size}'
             lines += f'\n'
 
-    with open(f'{output_dir}/localization.csv', 'w') as f:
+    with open(f'{output_dir}_loc.csv', 'w') as f:
         f.write(lines)
 
 

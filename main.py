@@ -30,7 +30,8 @@ def greedy_shortest(srcs, dests):
     for i, src in enumerate(srcs):
         for dest, sup_local in enumerate(superposed_locals):
             segment_length = euclidian_displacement(np.array([src]), np.array([sup_local]))
-            linkage[i][dest] = segment_length
+            if segment_length is not None:
+                linkage[i][dest] = segment_length[0]
 
     minargs = np.argsort(np.array(linkage).flatten())
     for minarg in minargs:
@@ -135,13 +136,13 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
             for l, dest in enumerate(dests):
                 dist = greedy_shortest(srcs=srcs, dests=dest)
                 seg_distribution[l].extend(dist)
-        for i in list(seg_distribution.keys()):
-            seg_distribution[i] = np.array(seg_distribution[i])
     return seg_distribution
 
 
 @njit
 def euclidian_displacement(pos1, pos2):
+    if pos1.ndim == 2 and pos1.shape[1] == 0 or pos2.ndim == 2 and pos2.shape[1] == 0:
+        return None
     if pos1.ndim == 1 and len(pos1) < 3:
         return np.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
     elif pos1.ndim == 1 and len(pos1) == 3:
@@ -153,8 +154,7 @@ def euclidian_displacement(pos1, pos2):
 
 
 def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
-    length_max_val = np.sort(distribution.flatten())[-10]
-    print(length_max_val, bin_size)
+    length_max_val = np.max(distribution)
     bins = np.arange(0, length_max_val + bin_size, bin_size)
     hist = np.histogram(distribution, bins=bins)
     hist_dist = scipy.stats.rv_histogram(hist)
@@ -173,11 +173,15 @@ def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
     X = np.linspace(0, length_max_val + reduced_bin_size, 1000)
     for threshold, ax_val in zip(X, hist_dist.cdf(X)):
         if ax_val > conf:
-            return threshold, pdf, bin_edges, hist_dist.cdf, distribution
+            #return threshold, pdf, bin_edges, hist_dist.cdf, distribution
+            #return np.mean(distribution) + 4.5 * np.std(distribution), pdf, bin_edges, hist_dist.cdf, distribution
+            return np.quantile(distribution, 0.990), pdf, bin_edges, hist_dist.cdf, distribution
 
 
 def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropolis_hastings',
                   n_iter=1e6, burn=0, parallel=True, thresholds=None):
+    for lag_key in real_distribution:
+        real_distribution[lag_key] = np.array(real_distribution[lag_key])
     approx_distribution = {}
     n_iter = int(n_iter)
     if parallel:
@@ -224,7 +228,7 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
     samples = []
     acceptance_ratio = np.array([0, 0])
     while True:
-        next_x = int(np.round(np.random.normal(current_x, 1)))
+        next_x = int(np.round(np.random.normal(current_x, 3)))
         next_x = max(0, min(next_x, len(pdf) - 1))
         proposal1 = 1  # g(current|next)
         proposal2 = 1  # g(next|current)
@@ -912,12 +916,12 @@ def low_priority_to_newborns(trajectories):
 
 if __name__ == '__main__':
     params = read_parameters('./config.txt')
-    loc, loc_infos = read_localization(f'./localization.csv')
     input_tif = params['tracking']['VIDEO']
     OUTPUT_DIR = params['tracking']['OUTPUT_DIR']
     blink_lag = params['tracking']['BLINK_LAG']
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
+    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv')
 
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
@@ -926,7 +930,7 @@ if __name__ == '__main__':
     final_trajectories = []
     methods = [1, 3, 4]
     confidence = 0.995
-    amp = 1.5  #1.3
+    amp = 1.2  #1.5
     THRESHOLDS = None  #[8, 14.5]
 
     snr = '7'
@@ -962,6 +966,15 @@ if __name__ == '__main__':
     print(f'Segmentation duration: {timer() - start_time:.2f}s')
     bin_size = np.mean(xyz_max - xyz_min) / 5000.
 
+    print(bin_size)
+    #xx = []
+    #for kk in range(1, 4000):
+    #    xx.append(kk * bin_size/2)
+    #print(xx)
+    #raw_segment_distribution[0].extend(xx)
+    #raw_segment_distribution[0] = np.array(raw_segment_distribution[0])
+
+
     for repeat in range(1):
         start_time = timer()
         segment_distribution = mcmc_parallel(raw_segment_distribution, confidence, bin_size, amp, n_iter=1e7, burn=0,
@@ -970,7 +983,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-        """
+
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 20
         show_y_max = 0.15
@@ -990,7 +1003,7 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-        """
+
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)

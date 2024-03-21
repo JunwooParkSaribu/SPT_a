@@ -861,7 +861,7 @@ def visualilzation(output_dir, images, localized_xys):
     orignal_imgs_3ch = np.ascontiguousarray(np.moveaxis(orignal_imgs_3ch, 0, 3))
     circle_imgs = orignal_imgs_3ch.copy()
     stacked_img = np.array(make_red_circles(orignal_imgs_3ch, circle_imgs, localized_xys))
-    tifffile.imwrite(f'{output_dir}/localization.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
+    tifffile.imwrite(f'{output_dir}_locvideo.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
 def background(imgs, window_sizes, alpha):
@@ -992,12 +992,12 @@ if __name__ == '__main__':
     params = read_parameters('./config.txt')
     images = check_video_ext(params['localization']['VIDEO'])
     OUTPUT_DIR = params['localization']['OUTPUT_DIR']
+    OUTPUT_LOC = f'{OUTPUT_DIR}/{params["localization"]["VIDEO"].split("/")[-1].split(".tif")[0]}'
 
     SIGMA = params['localization']['SIGMA']
     MIN_WIN = params['localization']['MIN_WIN']
     MAX_WIN = params['localization']['MAX_WIN']
     THRES_ALPHA = params['localization']['THRES_ALPHA']
-    print(params)
     DEFLATION_LOOP_IN_BACKWARD = params['localization']['DEFLATION_LOOP_IN_BACKWARD']
     BINARY_THRESHOLDS = None
     MULTI_THRESHOLDS = None
@@ -1048,6 +1048,8 @@ if __name__ == '__main__':
             reg_infos.extend(info)
 
     reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
-    write_localization(OUTPUT_DIR, xy_coords, reg_pdfs, reg_infos)
-    visualilzation(OUTPUT_DIR, images, xy_coords)
+    write_localization(OUTPUT_LOC, xy_coords, reg_pdfs, reg_infos)
+
+    print(f'Visualizing localizations...')
+    visualilzation(OUTPUT_LOC, images, xy_coords)
     print(f'{"Total time":<35}:{(timer() - start_time):.2f}s')

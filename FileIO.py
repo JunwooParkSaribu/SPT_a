@@ -87,11 +87,24 @@ def read_trajectory(file: str, andi_gt=False) -> dict | list:
 def write_trajectory(file: str, trajectory_list: list):
     try:
         with open(file, 'w', encoding="utf-8") as f:
-            input = 'traj_idx,frame,x,y,z\n'
+            input_str = 'traj_idx,frame,x,y,z\n'
             for index, trajectory_obj in enumerate(trajectory_list):
                 for (xpos, ypos, zpos), time in zip(trajectory_obj.get_positions(), trajectory_obj.get_times()):
-                    input += f'{index},{time},{xpos},{ypos},{zpos}\n'
-            f.write(input)
+                    input_str += f'{index},{time},{xpos},{ypos},{zpos}\n'
+            f.write(input_str)
+    except Exception as e:
+        print(f"Unexpected error, check the file: {file}")
+        print(e)
+
+
+def write_trxyt(file: str, trajectory_list: list):
+    try:
+        with open(file, 'w', encoding="utf-8") as f:
+            input_str = ''
+            for index, trajectory_obj in enumerate(trajectory_list):
+                for (xpos, ypos, zpos), time in zip(trajectory_obj.get_positions(), trajectory_obj.get_times()):
+                    input_str += f'{index}\t{xpos}\t{ypos}\t{time}\n'
+            f.write(input_str)
     except Exception as e:
         print(f"Unexpected error, check the file: {file}")
         print(e)
@@ -328,6 +341,11 @@ def read_parameters(param_file):
                 params['localization']['SHIFT'] = int(eval(line.strip().split('=')[1]))
             if 'gauss_seidel_decomp' in line.lower():
                 params['localization']['GAUSS_SEIDEL_DECOMP'] = int(eval(line.strip().split('=')[1]))
+            if 'loc_visualization' in line.lower():
+                if 'true' in line.lower().strip().split('=')[1]:
+                    params['localization']['LOC_VISUALIZATION'] = True
+                else:
+                    params['localization']['LOC_VISUALIZATION'] = False
 
             if 'video' in line.lower():
                 params['tracking']['VIDEO'] = line.strip().split('=')[1]
@@ -344,6 +362,11 @@ def read_parameters(param_file):
                     params['tracking']['VAR_PARALLEL'] = True
                 else:
                     params['tracking']['VAR_PARALLEL'] = False
+            if 'track_visualization' in line.lower():
+                if 'true' in line.lower().strip().split('=')[1]:
+                    params['tracking']['TRACK_VISUALIZATION'] = True
+                else:
+                    params['tracking']['TRACK_VISUALIZATION'] = False
 
         return params
     except Exception as e:

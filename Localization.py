@@ -1007,6 +1007,7 @@ if __name__ == '__main__':
     DIV_Q = params['localization']['DIV_Q']
     SHIFT = params['localization']['SHIFT']
     GAUSS_SEIDEL_DECOMP = params['localization']['GAUSS_SEIDEL_DECOMP']
+    visualization = params['localization']['LOC_VISUALIZATION']
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 
     xy_coords = []
@@ -1047,9 +1048,10 @@ if __name__ == '__main__':
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)
 
-    reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
+    #reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
     write_localization(OUTPUT_LOC, xy_coords, reg_pdfs, reg_infos)
 
-    print(f'Visualizing localizations...')
-    visualilzation(OUTPUT_LOC, images, xy_coords)
+    if visualization:
+        print(f'Visualizing localizations...')
+        visualilzation(OUTPUT_LOC, images, xy_coords)
     print(f'{"Total time":<35}:{(timer() - start_time):.2f}s')

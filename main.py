@@ -8,9 +8,10 @@ from numba.typed import List
 from ImageModule import read_tif, make_image_seqs, make_whole_img
 from TrajectoryObject import TrajectoryObj
 from XmlModule import write_xml
-from FileIO import write_trajectory, read_localization, read_parameters
+from FileIO import write_trajectory, read_localization, read_parameters, write_trxyt
 from timeit import default_timer as timer
 from Bipartite_searching import hungarian_algo_max
+from scipy.stats import beta
 
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
@@ -154,28 +155,36 @@ def euclidian_displacement(pos1, pos2):
 
 
 def approx_cdf(distribution, conf, bin_size, approx, n_iter, burn):
+    bin_size *= 2  ## added
+
     length_max_val = np.max(distribution)
     bins = np.arange(0, length_max_val + bin_size, bin_size)
     hist = np.histogram(distribution, bins=bins)
     hist_dist = scipy.stats.rv_histogram(hist)
     pdf = hist[0] / np.sum(hist[0])
     bin_edges = hist[1]
-    reduced_bin_size = bin_size * 2
 
+    pdf = np.where(pdf > 0.0005, pdf, 0)
+    pdf = pdf / np.sum(pdf)
+
+
+    #reduced_bin_size = bin_size * 2
     if approx == 'metropolis_hastings':
         distribution = metropolis_hastings(pdf, n_iter=n_iter, burn=burn) * bin_size
-        reduced_bins = np.arange(0, length_max_val + reduced_bin_size, reduced_bin_size)
+        reduced_bins = np.arange(0, length_max_val + bin_size, bin_size)
         hist = np.histogram(distribution, bins=reduced_bins)
         hist_dist = scipy.stats.rv_histogram(hist)
         pdf = hist[0] / np.sum(hist[0])
         bin_edges = hist[1]
+    #X = np.linspace(0, length_max_val + reduced_bin_size, 1000)
 
-    X = np.linspace(0, length_max_val + reduced_bin_size, 1000)
+
+    X = np.linspace(0, length_max_val + bin_size, 1000)
     for threshold, ax_val in zip(X, hist_dist.cdf(X)):
         if ax_val > conf:
             #return threshold, pdf, bin_edges, hist_dist.cdf, distribution
-            #return np.mean(distribution) + 4.5 * np.std(distribution), pdf, bin_edges, hist_dist.cdf, distribution
-            return np.quantile(distribution, 0.990), pdf, bin_edges, hist_dist.cdf, distribution
+            #return np.mean(distribution), pdf, bin_edges, hist_dist.cdf, distribution
+            return np.quantile(distribution, 0.995), pdf, bin_edges, hist_dist.cdf, distribution
 
 
 def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropolis_hastings',
@@ -294,7 +303,7 @@ def unpack_distribution(distrib, paused_times):
     return thresholds, pdfs, bins
 
 
-#@njit
+@njit
 def pair_permutation(pair1, pair2, localization, local_info):
     permutated_pair = []
     pos1s = []
@@ -922,9 +931,11 @@ if __name__ == '__main__':
     cutoff = params['tracking']['CUTOFF']
     var_parallel = params['tracking']['VAR_PARALLEL']
     amp = params['tracking']['AMP_MAX_LEN']
+    visualization = params['tracking']['TRACK_VISUALIZATION']
 
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
+    output_trxyt = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.trxyt'
     output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tif'
     output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.png'
 
@@ -975,7 +986,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-        """
+
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 20
         show_y_max = 0.15
@@ -995,7 +1006,7 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-        """
+
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
@@ -1007,12 +1018,14 @@ if __name__ == '__main__':
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
             final_trajectories.append(trajectory)
-    print(f'Total number of trajectories: {len(final_trajectories)}')
 
-    print(f'Visualizing trajectories...')
+    print(f'Total number of trajectories: {len(final_trajectories)}')
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     write_trajectory(output_trj, final_trajectories)
-    make_image_seqs(final_trajectories, output_dir=output_imgstack, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
-                    add_index=False, local_img=None, gt_trajectory=None)
+    write_trxyt(output_trxyt, final_trajectories)
     make_whole_img(final_trajectories, output_dir=output_img, img_stacks=images)
+    if visualization:
+        print(f'Visualizing trajectories...')
+        make_image_seqs(final_trajectories, output_dir=output_imgstack, img_stacks=images, time_steps=time_steps, cutoff=cutoff,
+                        add_index=False, local_img=None, gt_trajectory=None)

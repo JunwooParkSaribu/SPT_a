@@ -161,13 +161,13 @@ class TrajectoryObj:
         if t_range is None:
             t_range = [0, len(self.get_positions())]
         considered_positions = self.get_positions()[t_range[0]: t_range[1]]
-        considered_times = self.get_times()[t_range[0]: t_range[1]]
 
         MSD = []
-        for (x, y, z), t in zip(considered_positions, considered_times):
-            MSD.append(np.sqrt((x - considered_positions[0][0]) ** 2 +
-                               (y - considered_positions[0][1]) ** 2 +
-                               (z - considered_positions[0][2]) ** 2))
+        for x, y, z in considered_positions:
+            MSD.append((x - considered_positions[0][0]) ** 2 +
+                       (y - considered_positions[0][1]) ** 2 +
+                       (z - considered_positions[0][2]) ** 2
+                       )
         MSD = np.array(MSD)
 
         MSD_intervals = []

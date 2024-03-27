@@ -28,6 +28,13 @@ import stochastic
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
 
+def uncumulate(xs:np.ndarray):
+    assert xs.ndim == 1
+    uncum_list = [0.]
+    for i in range(1, len(xs)):
+        uncum_list.append(xs[i] - xs[i-1])
+    return np.array(uncum_list)
+
 
 def power_fit(x, c, alpha):
     return c * (x ** alpha)
@@ -67,11 +74,170 @@ def disp_fbm(alpha: float,
 
     # Generate displacements
     disp = FGN(hurst=alpha / 2).sample(n=T)
+
     # Normalization factor
     disp *= np.sqrt(T) ** (alpha)
     # Add D
     disp *= np.sqrt(2 * D * deltaT)
     return disp
+
+"""
+xs = disp_fbm(alpha=0.001, D=0.1, T=100)
+xs1 = disp_fbm(alpha=0.5, D=0.1, T=100)
+xs2 = disp_fbm(alpha=1.0, D=0.1, T=100)
+xs3 = disp_fbm(alpha=1.5, D=0.1, T=100)
+xs4 = disp_fbm(alpha=1.999, D=0.1, T=100)
+print(xs[:20])
+print(np.mean(xs), np.mean(xs1), np.mean(xs2), np.mean(xs3), np.mean(xs4))
+print(np.var(xs), np.var(xs1), np.var(xs2), np.var(xs3), np.var(xs4))
+print(np.std(xs), np.std(xs1), np.std(xs2), np.std(xs3), np.std(xs4))
+"""
+
+L = 1.5*128  # boundary box size
+N = 2  # number of trajectory
+T = 32  # length of trajectory
+
+trajs_model1, labels_model1 = models_phenom().multi_state(N=N,
+                                                        L=L,
+                                                        T=T,
+                                                        alphas=[0.2, 0.2],  # Fixed alpha for each state
+                                                        Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
+                                                        M=[[1.0, 0.0], [0.0, 1.0]]  # Transition matrix
+                                                       )
+
+trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
+                                                        L=L,
+                                                        T=T,
+                                                        alphas=[0.5, 0.5],  # Fixed alpha for each state
+                                                        Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
+                                                        M=[[1.0, 0.0], [0.0, 1.0]]  # Transition matrix
+                                                       )
+
+trajs_model3, labels_model3 = models_phenom().multi_state(N=N,
+                                                        L=L,
+                                                        T=T,
+                                                        alphas=[1.0, 1.0],  # Fixed alpha for each state
+                                                        Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
+                                                        M=[[1.0, 0.0], [0.0, 1.0]]  # Transition matrix
+                                                       )
+
+trajs_model4, labels_model4 = models_phenom().multi_state(N=N,
+                                                        L=L,
+                                                        T=T,
+                                                        alphas=[1.5, 1.5],  # Fixed alpha for each state
+                                                        Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
+                                                        M=[[1.0, 0.0], [0.0, 1.0]]  # Transition matrix
+                                                       )
+
+trajs_model5, labels_model5 = models_phenom().multi_state(N=N,
+                                                        L=L,
+                                                        T=T,
+                                                        alphas=[1.9, 1.9],  # Fixed alpha for each state
+                                                        Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
+                                                        M=[[1.0, 0.0], [0.0, 1.0]]  # Transition matrix
+                                                       )
+
+
+def count_positive_negative(x):
+    count = 0
+
+    sign = 1
+    for i in range(len(x) - 1):
+        if x[i + 1] - x[i] > 0:
+            new_sign = 1
+        else:
+            new_sign = -1
+
+        if sign != new_sign:
+            count += 1
+
+        sign = new_sign
+    return count
+
+xs1 = trajs_model1[:, 0, 0]
+ys1 = trajs_model1[:, 0, 1]
+xs2 = trajs_model2[:, 0, 0]
+ys2 = trajs_model2[:, 0, 1]
+xs3 = trajs_model3[:, 0, 0]
+ys3 = trajs_model3[:, 0, 1]
+xs4 = trajs_model4[:, 0, 0]
+ys4 = trajs_model4[:, 0, 1]
+xs5 = trajs_model5[:, 0, 0]
+ys5 = trajs_model5[:, 0, 1]
+
+xs1 = xs1 - float(xs1[0])
+xs2 = xs2 - float(xs2[0])
+xs3 = xs3 - float(xs3[0])
+xs4 = xs4 - float(xs4[0])
+xs5 = xs5 - float(xs5[0])
+
+"""
+xs1 = uncumulate(xs1) / T**0.2
+xs2 = uncumulate(xs2) / T**0.5
+xs3 = uncumulate(xs3)/ T**1
+xs4 = uncumulate(xs4)/ T**1.5
+xs5 = uncumulate(xs5)/ T**1.9
+"""
+
+#xs1 = np.cumsum(xs1)
+#xs2 = np.cumsum(xs2)
+
+print(np.mean(xs1), np.std(xs1), np.var(xs1), count_positive_negative(xs1) / len(xs1))
+print(np.mean(xs2), np.std(xs2), np.var(xs2), count_positive_negative(xs2) / len(xs2))
+print(np.mean(xs3), np.std(xs3), np.var(xs3), count_positive_negative(xs3) / len(xs3))
+print(np.mean(xs4), np.std(xs4), np.var(xs4), count_positive_negative(xs4) / len(xs4))
+print(np.mean(xs5), np.std(xs5), np.var(xs5), count_positive_negative(xs5) / len(xs5))
+
+
+plt.figure()
+plt.plot(np.arange(len(xs1)), xs1, label='1')
+plt.plot(np.arange(len(xs2)), xs2, label='2')
+plt.plot(np.arange(len(xs3)), xs3, label='3')
+plt.plot(np.arange(len(xs4)), xs4, label='4')
+plt.plot(np.arange(len(xs5)), xs5, label='5')
+plt.legend()
+
+xs1 = denoise_tv_chambolle(xs1, weight=0.1)
+xs2 = denoise_tv_chambolle(xs2, weight=0.1)
+xs3 = denoise_tv_chambolle(xs3, weight=0.1)
+xs4 = denoise_tv_chambolle(xs4, weight=0.1)
+xs5 = denoise_tv_chambolle(xs5, weight=0.1)
+
+print("---------------------------------------------------------------------------------")
+print(np.mean(xs1), np.std(xs1), np.var(xs1), count_positive_negative(xs1) / len(xs1))
+print(np.mean(xs2), np.std(xs2), np.var(xs2), count_positive_negative(xs2) / len(xs2))
+print(np.mean(xs3), np.std(xs3), np.var(xs3), count_positive_negative(xs3) / len(xs3))
+print(np.mean(xs4), np.std(xs4), np.var(xs4), count_positive_negative(xs4) / len(xs4))
+print(np.mean(xs5), np.std(xs5), np.var(xs5), count_positive_negative(xs5) / len(xs5))
+
+plt.figure()
+plt.plot(np.arange(len(xs1)), xs1, label='1')
+plt.plot(np.arange(len(xs2)), xs2, label='2')
+plt.plot(np.arange(len(xs3)), xs3, label='3')
+plt.plot(np.arange(len(xs4)), xs4, label='4')
+plt.plot(np.arange(len(xs5)), xs5, label='5')
+plt.legend()
+plt.show()
+
+plt.show()
+
+exit(1)
+
+disp_ = []
+
+for i in range(len(xs) - 1):
+    disp_.append(abs(xs[i+1] - xs[i]))
+print(disp_)
+print(2 * np.log(disp_)/ np.log(100))
+plt.figure()
+plt.plot(np.arange(len(disp_)), disp_, label='0')
+plt.plot(np.arange(len(xs1)), xs1, label='1')
+plt.plot(np.arange(len(xs2)), xs2, label='2')
+plt.plot(np.arange(len(xs3)), xs3, label='3')
+plt.plot(np.arange(len(xs4)), xs4, label='4')
+plt.legend()
+plt.show()
+exit(1)
 
 
 def samples_GHE(serie, tau):
@@ -254,7 +420,7 @@ def rescaled_range(data):
 
 def uncumulate(xs:np.ndarray):
     assert xs.ndim == 1
-    uncum_list = [xs[0]]
+    uncum_list = [0.]
     for i in range(1, len(xs)):
         uncum_list.append(xs[i] - xs[i-1])
     return np.array(uncum_list)

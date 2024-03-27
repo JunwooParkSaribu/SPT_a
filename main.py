@@ -303,7 +303,7 @@ def unpack_distribution(distrib, paused_times):
     return thresholds, pdfs, bins
 
 
-@njit
+#@njit
 def pair_permutation(pair1, pair2, localization, local_info):
     permutated_pair = []
     pos1s = []

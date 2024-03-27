@@ -94,7 +94,7 @@ class TrajectoryObj:
         else:
             return False
 
-    def get_diffusion_coefs(self, time_interval, t_range=None):
+    def get_inst_diffusion_coefs(self, time_interval, t_range=None, ndim=2):
         if t_range is None:
             t_range = [0, len(self.get_positions())]
         considered_positions = self.get_positions()[t_range[0]: t_range[1]]
@@ -107,7 +107,7 @@ class TrajectoryObj:
             prev_t = considered_times[i]
             x, y, z = considered_positions[j]
             t = considered_times[j]
-            diff_coef = np.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2 + (z - prev_z) ** 2) / (t - prev_t)
+            diff_coef = ((x - prev_x) ** 2 + (y - prev_y) ** 2 + (z - prev_z) ** 2) / (2 * ndim * (t - prev_t))
             diff_coefs.append(diff_coef)
         diff_coefs = np.array(diff_coefs)
         diff_coefs_intervals = []
@@ -117,7 +117,7 @@ class TrajectoryObj:
             diff_coefs_intervals.append(np.mean(diff_coefs[max(0, left_idx):min(len(diff_coefs), right_idx+1)]))
 
         # make length equal to length of xy pos
-        diff_coefs_intervals.append(0.0)
+        #diff_coefs_intervals.append(0.0)
         return np.array(diff_coefs_intervals)
 
     def get_trajectory_angles(self, time_interval, t_range=None):

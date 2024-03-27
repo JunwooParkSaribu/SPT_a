@@ -121,7 +121,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
     for traj in trajectory_list:
         if traj.get_index() == 0:
             denoised = [[[] for _ in range(ncol)] for _ in range(nrow)]
-            diff_coefs = traj.get_diffusion_coefs(time_interval=time_interval, t_range=t_range)
+            diff_coefs = traj.get_inst_diffusion_coefs(time_interval=time_interval, t_range=t_range)
             angles = traj.get_trajectory_angles(time_interval=time_interval, t_range=t_range)
             MSD = traj.get_msd(time_interval=time_interval, t_range=t_range)
             density = traj.get_density(radius=np.mean(np.sort(diff_coefs)), t_range=t_range)
@@ -310,7 +310,7 @@ if __name__ == '__main__':
     for t, (x, y) in enumerate(pos):
         traj1.add_trajectory_position(t, x, y, 0.0)
     MSD = traj1.get_msd(time_interval=1, t_range=t_range)
-    diff_coefs = traj1.get_diffusion_coefs(time_interval=1, t_range=t_range)
+    diff_coefs = traj1.get_inst_diffusion_coefs(time_interval=1, t_range=t_range)
 
     print(f'DIFF_COEF_MEAN: {np.mean(diff_coefs)}')
 

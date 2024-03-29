@@ -1,4 +1,6 @@
 import itertools
+import random
+
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
@@ -19,6 +21,7 @@ from skimage.restoration import denoise_tv_chambolle
 from scipy import stats, optimize
 from hurst import compute_Hc, random_walk
 from stochastic.processes.noise import FractionalGaussianNoise as FGN
+from stochastic import random as strandom
 from andi_datasets.models_phenom import models_phenom
 from andi_datasets.utils_challenge import label_continuous_to_list
 from andi_datasets.utils_trajectories import plot_trajs
@@ -27,6 +30,10 @@ import stochastic
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
+random.seed(42)
+strandom.seed(42)
+N = 2  # number of trajectory
+T = 32   # length of trajectory
 
 def uncumulate(xs:np.ndarray):
     assert xs.ndim == 1
@@ -74,31 +81,42 @@ def disp_fbm(alpha: float,
 
     # Generate displacements
     disp = FGN(hurst=alpha / 2).sample(n=T)
-
+    #return disp
     # Normalization factor
     disp *= np.sqrt(T) ** (alpha)
+    return disp
     # Add D
     disp *= np.sqrt(2 * D * deltaT)
     return disp
 
-"""
-xs = disp_fbm(alpha=0.001, D=0.1, T=100)
-xs1 = disp_fbm(alpha=0.5, D=0.1, T=100)
-xs2 = disp_fbm(alpha=1.0, D=0.1, T=100)
-xs3 = disp_fbm(alpha=1.5, D=0.1, T=100)
-xs4 = disp_fbm(alpha=1.999, D=0.1, T=100)
+
+
+
+xs = disp_fbm(alpha=0.001, D=0.1, T=T) + 100
+xs1 = disp_fbm(alpha=0.5, D=0.1, T=T) + 100
+xs2 = disp_fbm(alpha=1.0, D=0.1, T=T) + 100
+xs3 = disp_fbm(alpha=1.5, D=0.1, T=T) + 100
+xs4 = disp_fbm(alpha=1.999, D=0.1, T=T) + 100
 print(xs[:20])
 print(np.mean(xs), np.mean(xs1), np.mean(xs2), np.mean(xs3), np.mean(xs4))
 print(np.var(xs), np.var(xs1), np.var(xs2), np.var(xs3), np.var(xs4))
 print(np.std(xs), np.std(xs1), np.std(xs2), np.std(xs3), np.std(xs4))
-"""
+plt.figure()
+#plt.plot(np.arange(len(xs)), np.log(xs))
+plt.plot(np.arange(len(xs1)), np.log(xs) - np.log(xs1), label=f'0.001 - 0.5')
+plt.plot(np.arange(len(xs2)), np.log(xs) - np.log(xs2), label=f'0.001 - 1.0')
+plt.plot(np.arange(len(xs3)), np.log(xs) - np.log(xs3), label=f'0.001 - 1.5')
+plt.plot(np.arange(len(xs4)), np.log(xs) - np.log(xs4), label=f'0.001 - 1.999')
+plt.legend()
+plt.show()
 
-L = 1.5*128  # boundary box size
+
+L = None  # boundary box size
 N = 2  # number of trajectory
-T = 32  # length of trajectory
+T = 32   # length of trajectory
 
 trajs_model1, labels_model1 = models_phenom().multi_state(N=N,
-                                                        L=L,
+                                                          L=L,
                                                         T=T,
                                                         alphas=[0.2, 0.2],  # Fixed alpha for each state
                                                         Ds=[[0.1, 0.0], [0.1, 0.0]],# Mean and variance of each state
@@ -165,11 +183,28 @@ ys4 = trajs_model4[:, 0, 1]
 xs5 = trajs_model5[:, 0, 0]
 ys5 = trajs_model5[:, 0, 1]
 
+xss = [xs1, xs2, xs3, xs4, xs5]
+
+for i in range(len(xss)):
+    xss[i] = (xss[i] - np.mean(xss[i])) / np.std(xss[i])
+    #xss[i] = (xss[i] - np.mean(xss[i])) / np.max(abs(xss[i] - np.mean(xss[i])))
+    if xss[i][0] < 0:
+        xss[i] = -xss[i]
+    #xss[i] = xss[i] - np.min(xss[i])
+
+
+"""
+for i in range(len(xss)):
+    xss[i] = xss[i] - float(xss[i][0])
+"""
+
+"""
 xs1 = xs1 - float(xs1[0])
 xs2 = xs2 - float(xs2[0])
 xs3 = xs3 - float(xs3[0])
 xs4 = xs4 - float(xs4[0])
 xs5 = xs5 - float(xs5[0])
+"""
 
 """
 xs1 = uncumulate(xs1) / T**0.2
@@ -179,8 +214,14 @@ xs4 = uncumulate(xs4)/ T**1.5
 xs5 = uncumulate(xs5)/ T**1.9
 """
 
-#xs1 = np.cumsum(xs1)
-#xs2 = np.cumsum(xs2)
+"""
+xs1 = np.cumsum(abs(xs1))
+xs2 = np.cumsum(abs(xs2))
+xs3 = np.cumsum(abs(xs3))
+xs4 = np.cumsum(abs(xs4))
+xs5 = np.cumsum(abs(xs5))
+"""
+
 
 print(np.mean(xs1), np.std(xs1), np.var(xs1), count_positive_negative(xs1) / len(xs1))
 print(np.mean(xs2), np.std(xs2), np.var(xs2), count_positive_negative(xs2) / len(xs2))
@@ -190,18 +231,37 @@ print(np.mean(xs5), np.std(xs5), np.var(xs5), count_positive_negative(xs5) / len
 
 
 plt.figure()
-plt.plot(np.arange(len(xs1)), xs1, label='1')
-plt.plot(np.arange(len(xs2)), xs2, label='2')
-plt.plot(np.arange(len(xs3)), xs3, label='3')
-plt.plot(np.arange(len(xs4)), xs4, label='4')
-plt.plot(np.arange(len(xs5)), xs5, label='5')
+for i in range(len(xss)):
+    plt.plot(np.arange(len(xss[i])), xss[i], label=f'{i+1}')
 plt.legend()
 
-xs1 = denoise_tv_chambolle(xs1, weight=0.1)
-xs2 = denoise_tv_chambolle(xs2, weight=0.1)
-xs3 = denoise_tv_chambolle(xs3, weight=0.1)
-xs4 = denoise_tv_chambolle(xs4, weight=0.1)
-xs5 = denoise_tv_chambolle(xs5, weight=0.1)
+plt.figure()
+
+for i in range(5):
+    sp = np.fft.fft(xss[i]).real
+    sp = abs(sp) / np.max(abs(sp))
+    freq = np.fft.fftfreq(xss[i].shape[-1])
+    plt.scatter(freq, sp, label=f'{i+1}_real', s=21.5, alpha=0.45)
+    #plt.scatter(freq, sp.imag, label=f'{i+1}_imag')
+plt.legend()
+
+plt.figure()
+xss = [xs1, xs2, xs3, xs4, xs5]
+for i in range(5):
+    sp = np.fft.fft(xss[i]).imag
+    freq = np.fft.fftfreq(xss[i].shape[-1])
+    sp = abs(sp) / np.max(abs(sp))
+    #plt.scatter(freq, sp.real, label=f'{i+1}_real')
+    plt.scatter(freq, sp, label=f'{i+1}_imag', s=21.5, alpha=0.45)
+plt.legend()
+plt.show()
+
+
+xs1 = denoise_tv_chambolle(xs1, weight=1)
+xs2 = denoise_tv_chambolle(xs2, weight=1)
+xs3 = denoise_tv_chambolle(xs3, weight=1)
+xs4 = denoise_tv_chambolle(xs4, weight=1)
+xs5 = denoise_tv_chambolle(xs5, weight=1)
 
 print("---------------------------------------------------------------------------------")
 print(np.mean(xs1), np.std(xs1), np.var(xs1), count_positive_negative(xs1) / len(xs1))
@@ -219,7 +279,6 @@ plt.plot(np.arange(len(xs5)), xs5, label='5')
 plt.legend()
 plt.show()
 
-plt.show()
 
 exit(1)
 

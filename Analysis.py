@@ -21,19 +21,40 @@ from skimage.restoration import denoise_tv_chambolle
 from scipy import stats, optimize
 from hurst import compute_Hc, random_walk
 from stochastic.processes.noise import FractionalGaussianNoise as FGN
-from stochastic import random as strandom
+from stochastic import random
 from andi_datasets.models_phenom import models_phenom
 from andi_datasets.utils_challenge import label_continuous_to_list
 from andi_datasets.utils_trajectories import plot_trajs
 import stochastic
+from stochastic.processes import GaussianNoise
+from numpy.random import Generator
+from numpy.random import PCG64
+from stochastic.processes import GaussianNoise
+from stochastic import random
 
+generator = Generator(PCG64(seed=42))
 
 WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
 WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
-random.seed(42)
-strandom.seed(42)
+
 N = 2  # number of trajectory
 T = 32   # length of trajectory
+
+gn = GaussianNoise()
+print(gn.rng)
+# Generator(PCG64)
+
+random.seed(42)
+print(gn.rng.bit_generator.state)
+# {'bit_generator': 'PCG64', 'state': {'state': 274674114334540486603088602300644985544, 'inc': 332724090758049132448979897138935081983}, 'has_uint32': 0, 'uinteger': 0}
+print(gn.sample(4))
+# [ 0.15235854 -0.51999205  0.3752256   0.47028236]
+
+random.seed(42)
+print(gn.rng.bit_generator.state)
+# {'bit_generator': 'PCG64', 'state': {'state': 274674114334540486603088602300644985544, 'inc': 332724090758049132448979897138935081983}, 'has_uint32': 0, 'uinteger': 0}
+print(gn.sample(4))
+# [ 0.15235854 -0.51999205  0.3752256   0.47028236]
 
 def uncumulate(xs:np.ndarray):
     assert xs.ndim == 1
@@ -80,33 +101,73 @@ def disp_fbm(alpha: float,
     '''
 
     # Generate displacements
+    random.seed(990)
     disp = FGN(hurst=alpha / 2).sample(n=T)
+    print('x', disp[:10])
     #return disp
     # Normalization factor
     disp *= np.sqrt(T) ** (alpha)
-    return disp
+    #return disp
     # Add D
     disp *= np.sqrt(2 * D * deltaT)
     return disp
 
 
+def get_increments(process):
+    positive_inc = 0
+    negative_inc = 0
 
+    for t in range(len(process) - 1):
+        if process[t] < process[t+1]:
+            positive_inc += 1
+        else:
+            negative_inc += 1
+    return np.array([positive_inc, negative_inc]) / (len(process) - 1)
 
-xs = disp_fbm(alpha=0.001, D=0.1, T=T) + 100
-xs1 = disp_fbm(alpha=0.5, D=0.1, T=T) + 100
-xs2 = disp_fbm(alpha=1.0, D=0.1, T=T) + 100
-xs3 = disp_fbm(alpha=1.5, D=0.1, T=T) + 100
-xs4 = disp_fbm(alpha=1.999, D=0.1, T=T) + 100
-print(xs[:20])
-print(np.mean(xs), np.mean(xs1), np.mean(xs2), np.mean(xs3), np.mean(xs4))
-print(np.var(xs), np.var(xs1), np.var(xs2), np.var(xs3), np.var(xs4))
-print(np.std(xs), np.std(xs1), np.std(xs2), np.std(xs3), np.std(xs4))
+alpha = 1.5
+T = 32
+
+xs = disp_fbm(alpha=0.01, D=0.1, T=T)
+xs1 = disp_fbm(alpha=0.4, D=0.1, T=T)
+xs2 = disp_fbm(alpha=0.8, D=0.1, T=T)
+xs3 = disp_fbm(alpha=1.2, D=0.1, T=T)
+xs4 = disp_fbm(alpha=1.6, D=0.1, T=T)
+xs5 = disp_fbm(alpha=1.999, D=0.1, T=T)
+
+print(np.cumsum(xs5)[-1])
+print('--------')
+print(get_increments(xs))
+print(get_increments(xs1))
+print(get_increments(xs2))
+print(get_increments(xs3))
+print(get_increments(xs4))
+print(get_increments(xs5))
+print('--------')
+print(np.mean(xs), np.mean(xs1), np.mean(xs2), np.mean(xs3), np.mean(xs4), np.mean(xs5))
+print(np.var(xs), np.var(xs1), np.var(xs2), np.var(xs3), np.var(xs4), np.var(xs5))
+print(np.std(xs), np.std(xs1), np.std(xs2), np.std(xs3), np.std(xs4), np.std(xs5))
 plt.figure()
-#plt.plot(np.arange(len(xs)), np.log(xs))
-plt.plot(np.arange(len(xs1)), np.log(xs) - np.log(xs1), label=f'0.001 - 0.5')
-plt.plot(np.arange(len(xs2)), np.log(xs) - np.log(xs2), label=f'0.001 - 1.0')
-plt.plot(np.arange(len(xs3)), np.log(xs) - np.log(xs3), label=f'0.001 - 1.5')
-plt.plot(np.arange(len(xs4)), np.log(xs) - np.log(xs4), label=f'0.001 - 1.999')
+plt.plot(np.arange(len(xs)), xs, label=f'xs', alpha=0.7)
+plt.plot(np.arange(len(xs1)), xs1, label=f'xs1', alpha=0.7)
+plt.plot(np.arange(len(xs2)), xs2, label=f'xs2', alpha=0.7)
+plt.plot(np.arange(len(xs3)), xs3, label=f'xs3', alpha=0.7)
+plt.plot(np.arange(len(xs4)), xs4, label=f'xs4', alpha=0.7)
+plt.plot(np.arange(len(xs5)), xs5, label=f'xs5', alpha=0.7)
+plt.xlim([0, 1024])
+plt.legend()
+plt.figure()
+xs = np.cumsum(xs)
+xs1 = np.cumsum(xs1)
+xs2 = np.cumsum(xs2)
+xs3 = np.cumsum(xs3)
+xs4 = np.cumsum(xs4)
+xs5 = np.cumsum(xs5)
+plt.plot(np.arange(len(xs)), xs, label=f'xs', alpha=0.7)
+plt.plot(np.arange(len(xs1)), xs1, label=f'xs1', alpha=0.7)
+plt.plot(np.arange(len(xs2)), xs2, label=f'xs2', alpha=0.7)
+plt.plot(np.arange(len(xs3)), xs3, label=f'xs3', alpha=0.7)
+plt.plot(np.arange(len(xs4)), xs4, label=f'xs4', alpha=0.7)
+plt.plot(np.arange(len(xs5)), xs5, label=f'xs5', alpha=0.7)
 plt.legend()
 plt.show()
 

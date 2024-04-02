@@ -186,17 +186,17 @@ class FractionalGaussianNoise(BaseTimeProcess):
 
 
 
-n = 64
+n = 32
 hurst = 0.001
 
 plt.figure()
 for hurst in [0.0001, 0.1, 0.2, 0.3, 0.4, 0.500001, 0.6, 0.7, 0.8, 0.9]:
-    random.seed(99)
+    random.seed(101)
     davies_process, autocov_davies = FractionalGaussianNoise(hurst).sample(n, algorithm='daviesharte')
     davies_process *= n ** hurst
     davies_process = np.cumsum(davies_process)
     davies_process = (davies_process - np.mean(davies_process)) / np.std(davies_process)
-    plt.plot(np.cumsum(abs(uncumulate(davies_process))), alpha=0.6, label=f'{hurst}')
+    plt.plot(np.cumsum(abs(uncumulate(davies_process)))/n, alpha=0.6, label=f'{hurst}')
 plt.legend()
 
 

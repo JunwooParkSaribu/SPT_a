@@ -932,6 +932,8 @@ if __name__ == '__main__':
     var_parallel = params['tracking']['VAR_PARALLEL']
     amp = params['tracking']['AMP_MAX_LEN']
     visualization = params['tracking']['TRACK_VISUALIZATION']
+    pixel_microns = params['tracking']['PIXEL_MICRONS']
+    frame_rate = params['tracking']['FRAME_RATE']
 
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
@@ -1023,7 +1025,7 @@ if __name__ == '__main__':
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     write_trajectory(output_trj, final_trajectories)
-    write_trxyt(output_trxyt, final_trajectories)
+    write_trxyt(output_trxyt, final_trajectories, pixel_microns, frame_rate)
     make_whole_img(final_trajectories, output_dir=output_img, img_stacks=images)
     if visualization:
         print(f'Visualizing trajectories...')

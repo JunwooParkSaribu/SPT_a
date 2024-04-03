@@ -97,13 +97,13 @@ def write_trajectory(file: str, trajectory_list: list):
         print(e)
 
 
-def write_trxyt(file: str, trajectory_list: list):
+def write_trxyt(file: str, trajectory_list: list, pixel_microns=1.0, frame_rate=1.0):
     try:
         with open(file, 'w', encoding="utf-8") as f:
             input_str = ''
             for index, trajectory_obj in enumerate(trajectory_list):
                 for (xpos, ypos, zpos), time in zip(trajectory_obj.get_positions(), trajectory_obj.get_times()):
-                    input_str += f'{index}\t{xpos}\t{ypos}\t{time}\n'
+                    input_str += f'{index}\t{xpos * pixel_microns:.5f}\t{ypos * pixel_microns:.5f}\t{time * frame_rate:.3f}\n'
             f.write(input_str)
     except Exception as e:
         print(f"Unexpected error, check the file: {file}")
@@ -351,6 +351,10 @@ def read_parameters(param_file):
                 params['tracking']['VIDEO'] = line.strip().split('=')[1]
             if 'output_dir' in line.lower():
                 params['tracking']['OUTPUT_DIR'] = line.strip().split('=')[1]
+            if 'pixel_microns' in line.lower():
+                params['tracking']['PIXEL_MICRONS'] = float(eval(line.strip().split('=')[1]))
+            if 'frame_rate' in line.lower():
+                params['tracking']['FRAME_RATE'] = float(eval(line.strip().split('=')[1]))
             if 'blink_lag' in line.lower():
                 params['tracking']['BLINK_LAG'] = int(eval(line.strip().split('=')[1]))
             if 'cutoff' in line.lower():

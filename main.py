@@ -142,6 +142,8 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
 
 @njit
 def euclidian_displacement(pos1, pos2):
+    if len(pos1) == 0 or len(pos2) == 0:
+        return None
     if pos1.ndim == 2 and pos1.shape[1] == 0 or pos2.ndim == 2 and pos2.shape[1] == 0:
         return None
     if pos1.ndim == 1 and len(pos1) < 3:

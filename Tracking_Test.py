@@ -140,6 +140,8 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
 
 
 def euclidian_displacement(pos1, pos2):
+    if len(pos1) == 0 or len(pos2) == 0:
+        return None
     if pos1.ndim == 2 and pos1.shape[1] == 0 or pos2.ndim == 2 and pos2.shape[1] == 0:
         return None
     if pos1.ndim == 1 and len(pos1) < 3:
@@ -487,7 +489,7 @@ def simple_connect(localization: dict, localization_infos: dict,
         srcs_pairs.append([time_steps[0], src_i])
 
     for i in range(len(time_steps) - 1):
-        print(f'Time step: {i}')
+        if i % 100 == 0: print(f'Time step: {i}/{len(time_steps)}')
         next_time = time_steps[i+1]
         srcs_linked = []
         dests_linked = []
@@ -509,7 +511,7 @@ def simple_connect(localization: dict, localization_infos: dict,
                 paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
                 track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
                 thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
-                print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
 
                 before_time = timer()
                 seg_lengths = np.array(seg_lengths)
@@ -517,7 +519,7 @@ def simple_connect(localization: dict, localization_infos: dict,
                 linkage_indices, linkage_log_probas = (
                     displacement_probability(seg_lengths, thresholds,
                                              List(pdfs), List(bins), sorted=False))
-                print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
 
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
@@ -530,18 +532,18 @@ def simple_connect(localization: dict, localization_infos: dict,
             if 2 in on:
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
-                print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
                 linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions)
-                print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
             if 4 in on:
                 before_time = timer()
                 linkage_log_probas = (
                     directed_motion_likelihood(potential_trajectories, linkage_log_probas, linkage_infos, linkage_positions))
-                print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 linkage_log_probas += low_priority_to_newborns(potential_trajectories)
 
             before_time = timer()
@@ -598,7 +600,7 @@ def simple_connect(localization: dict, localization_infos: dict,
             traj = trajectory_dict[src_key]
             cur_t, cur_i = traj.get_trajectory_tuples()[-1]
             srcs_pairs.append([cur_t, cur_i])
-        print(f'linkage duration: {(timer() - before_time):.2f}s')
+        #print(f'linkage duration: {(timer() - before_time):.2f}s')
 
     for src_key in trajectory_dict:
         trajectory_dict[src_key].close()
@@ -815,7 +817,7 @@ def make_graph(pairs, probas):
         if flag == 0:
             sub_graphs.append([prev_pair_tuple, next_pair_tuple])
 
-    print('Nb of sub_graphs before: ', len(sub_graphs))
+    #print('Nb of sub_graphs before: ', len(sub_graphs))
     while True:
         original_sub_graphs = sub_graphs.copy()
         for i in range(len(sub_graphs)):
@@ -824,7 +826,7 @@ def make_graph(pairs, probas):
                 break
         if sub_graphs == original_sub_graphs:
             break
-    print('Nb of sub_graphs  after: ', len(sub_graphs))
+    #print('Nb of sub_graphs  after: ', len(sub_graphs))
 
     for sub_graph in sub_graphs:
         linkages, val = graph_matrix(sub_graph, pair_probas)

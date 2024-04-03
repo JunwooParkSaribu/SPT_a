@@ -3,7 +3,6 @@ import scipy
 import matplotlib.pyplot as plt
 import concurrent.futures
 from scipy.stats import gmean
-from numba import njit
 from numba.typed import List
 from ImageModule import read_tif, make_image_seqs, make_whole_img
 from TrajectoryObject import TrajectoryObj
@@ -140,7 +139,6 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
     return seg_distribution
 
 
-@njit
 def euclidian_displacement(pos1, pos2):
     if pos1.ndim == 2 and pos1.shape[1] == 0 or pos2.ndim == 2 and pos2.shape[1] == 0:
         return None
@@ -229,7 +227,6 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
     return approx_distribution
 
 
-@njit
 def metropolis_hastings(pdf, n_iter, burn=0.25):
     i = 0
     u = np.random.uniform(0, 1, size=n_iter)
@@ -256,7 +253,6 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
     return np.array(samples)[int(len(samples)*burn):]
 
 
-@njit
 def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=True):
     pdf_indices = []
     bin_size = bins[0][1] - bins[0][0]
@@ -410,7 +406,6 @@ def kl_divergence(proba, ref_proba):
     return np.sum(proba * np.log(proba/ref_proba))
 
 
-@njit
 def calcul_entropy(bases, compares):
     entropies = []
     for base, compare in zip(bases, compares):
@@ -423,7 +418,6 @@ def calcul_entropy(bases, compares):
     return entropies
 
 
-@njit
 def proba_from_angle(p, radian):
     if radian > np.pi/2:
         radian = np.pi - radian

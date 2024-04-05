@@ -488,11 +488,13 @@ def simple_connect(localization: dict, localization_infos: dict,
     trajectory_index = 0
 
     for i, pos in enumerate(localization[time_steps[0]]):
-        trajectory_dict[(1, i)] = TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag)
-        trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
-        trajectory_index += 1
+        if len(localization[time_steps[0]][0]) != 0:
+            trajectory_dict[(1, i)] = TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag)
+            trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
+            trajectory_index += 1
     for src_i in range(len(localization[time_steps[0]])):
-        srcs_pairs.append([time_steps[0], src_i])
+        if len(localization[time_steps[0]][0]) != 0:
+            srcs_pairs.append([time_steps[0], src_i])
 
     for i in range(len(time_steps) - 1):
         print(f'Time step: {i}')

@@ -451,7 +451,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             reg_pdfs[n].append(pdf)
                             reg_infos[n].append([x_var, y_var, rho, amp])
                         if df_loop < deflation_loop_backward - 1:
-                            del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
+                            del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(int).T
                             extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend=0)
             return coords, reg_pdfs, reg_infos
 
@@ -532,8 +532,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                             coords[n].append([row_coord, col_coord])
                             reg_pdfs[n].append(pdf)
                             reg_infos[n].append([x_var, y_var, rho, amp])
-                        del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(np.uint32).T
-
+                        del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(int).T
                         extended_imgs_copy = extended_imgs.copy()
                         extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
                         if np.sum(extended_imgs_copy) == np.sum(extended_imgs):

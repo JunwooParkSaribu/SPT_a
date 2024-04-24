@@ -7,13 +7,17 @@ print("TensorFlow version:", tf.__version__)
 class SPT(tf.keras.Model):
     def __init__(self):
         super().__init__()
-        self.layer1 = tf.keras.layers.LSTM(512)
+        self.layer1 = tf.keras.layers.Conv2D(512, kernel_size=(2, 2), padding='same')
+        self.dense1 = Dense(10)
         self.drop = Dropout(0.1)
-        self.last_layer = Dense(1, 'sigmoid')
+        self.flatten = Flatten()
+        self.last_layer = Dense(units=1, activation='sigmoid')
 
 
     def call(self, x, training=None):
         x = self.layer1(x, training=training)
+        x = self.flatten(x)
+        x = self.dense1(x)
         x = self.drop(x)
         x = self.last_layer(x)
         return x

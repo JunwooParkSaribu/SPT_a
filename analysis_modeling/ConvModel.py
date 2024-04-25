@@ -1,24 +1,28 @@
 import tensorflow as tf
-from keras.layers import Dense, Flatten, BatchNormalization, \
-    Activation, Conv2D, AveragePooling2D, Dropout, ReLU, MaxPool2D
 print("TensorFlow version:", tf.__version__)
 
 
 class SPT(tf.keras.Model):
-    def __init__(self):
-        super().__init__()
-        self.layer1 = tf.keras.layers.Conv2D(512, kernel_size=(2, 2), padding='same')
-        self.dense1 = Dense(10)
-        self.drop = Dropout(0.1)
-        self.flatten = Flatten()
-        self.last_layer = Dense(units=1, activation='sigmoid')
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.layer0 = tf.keras.layers.Conv2D(512, kernel_size=(5, 3), padding='same', strides=(5, 1))
+        self.layer1 = tf.keras.layers.Conv2D(512, kernel_size=(5, 2), padding='same', strides=(5, 1))
+        self.relu0 = tf.keras.layers.ReLU()
+        self.dense0 = tf.keras.layers.Dense(256)
+        self.dense1 = tf.keras.layers.Dense(128)
+        self.drop = tf.keras.layers.Dropout(0.1)
+        self.flatten = tf.keras.layers.Flatten()
+        self.last_layer = tf.keras.layers.Dense(units=1, activation='sigmoid')
 
 
     def call(self, x, training=None):
-        x = self.layer1(x, training=training)
-        x = self.flatten(x)
+        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.relu0(x)
+        x = self.dense0(x)
         x = self.dense1(x)
-        x = self.drop(x)
+        x = self.drop(x, training=training)
+        x = self.flatten(x)
         x = self.last_layer(x)
         return x
 

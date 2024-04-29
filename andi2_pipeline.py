@@ -19,10 +19,10 @@ def write_config(exp_n, fov_n):
                      f'# LOCALIZATION\n'
                      f'SIGMA = 4.0\n'
                      f'MIN_WIN = 5\n'
-                     f'MAX_WIN = 9\n'
+                     f'MAX_WIN = 5\n'
                      f'THRESHOLD_ALPHA = 1.0\n'
                      f'DEFLATION_LOOP_IN_BACKWARD = 1\n'
-                     f'LOC_PARALLEL = False\n'
+                     f'LOC_PARALLEL = True\n'
                      f'CORE = 4\n'
                      f'DIV_Q = 25\n'
                      f'SHIFT = 2\n'
@@ -33,8 +33,8 @@ def write_config(exp_n, fov_n):
                      f'FRAME_RATE = 1.0\n'
                      f'BLINK_LAG = 1\n'
                      f'CUTOFF = 2\n'
-                     f'TRACKING_PARALLEL = False\n'
-                     f'AMP_MAX_LEN = 1.5\n'
+                     f'TRACKING_PARALLEL = True\n'
+                     f'AMP_MAX_LEN = 2.0\n'
                      f'TRACK_VISUALIZATION = False\n')
         f.write(input_str)
 
@@ -72,7 +72,7 @@ N_FOVS = 30
 
 path_results = 'res/'
 
-for exp in range(N_EXP):
+for exp in range(4, N_EXP):
     for fov in range(N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

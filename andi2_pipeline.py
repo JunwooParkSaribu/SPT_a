@@ -1,9 +1,6 @@
 import os
 import numpy as np
-from andi_datasets.models_phenom import models_phenom
 from andi_datasets.datasets_phenom import datasets_phenom
-import main
-import Localization
 
 
 public_data_path = 'public_data/' # make sure the folder has this name or change it
@@ -19,12 +16,12 @@ def write_config(exp_n, fov_n):
                      f'# LOCALIZATION\n'
                      f'SIGMA = 4.0\n'
                      f'MIN_WIN = 5\n'
-                     f'MAX_WIN = 5\n'
+                     f'MAX_WIN = 7\n'
                      f'THRESHOLD_ALPHA = 1.0\n'
-                     f'DEFLATION_LOOP_IN_BACKWARD = 1\n'
+                     f'DEFLATION_LOOP_IN_BACKWARD = 2\n'
                      f'LOC_PARALLEL = True\n'
                      f'CORE = 4\n'
-                     f'DIV_Q = 25\n'
+                     f'DIV_Q = 50\n'
                      f'SHIFT = 2\n'
                      f'GAUSS_SEIDEL_DECOMP = 2\n'
                      f'LOC_VISUALIZATION = False\n'
@@ -34,7 +31,7 @@ def write_config(exp_n, fov_n):
                      f'BLINK_LAG = 1\n'
                      f'CUTOFF = 2\n'
                      f'TRACKING_PARALLEL = True\n'
-                     f'AMP_MAX_LEN = 2.0\n'
+                     f'AMP_MAX_LEN = 1.7\n'
                      f'TRACK_VISUALIZATION = False\n')
         f.write(input_str)
 
@@ -72,7 +69,7 @@ N_FOVS = 30
 
 path_results = 'res/'
 
-for exp in range(4, N_EXP):
+for exp in range(0, N_EXP):
     for fov in range(N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

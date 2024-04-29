@@ -990,7 +990,7 @@ if __name__ == '__main__':
     #WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
     #WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
     params = read_parameters('./config.txt')
-    images = check_video_ext(params['localization']['VIDEO'])
+    images = check_video_ext(params['localization']['VIDEO'], andi2=True)[1:] / 255.
     OUTPUT_DIR = params['localization']['OUTPUT_DIR']
     OUTPUT_LOC = f'{OUTPUT_DIR}/{params["localization"]["VIDEO"].split("/")[-1].split(".tif")[0]}'
 

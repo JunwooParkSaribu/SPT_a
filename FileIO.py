@@ -4,6 +4,7 @@ from numba.typed import Dict
 from numba.core import types
 from andi_datasets.utils_challenge import label_continuous_to_list
 from ImageModule import read_tif
+from andi_datasets.utils_videos import import_tiff_video
 
 
 def read_trajectory(file: str, andi_gt=False) -> dict | list:
@@ -88,9 +89,9 @@ def write_trajectory(file: str, trajectory_list: list):
     try:
         with open(file, 'w', encoding="utf-8") as f:
             input_str = 'traj_idx,frame,x,y,z\n'
-            for index, trajectory_obj in enumerate(trajectory_list):
+            for trajectory_obj in trajectory_list:
                 for (xpos, ypos, zpos), time in zip(trajectory_obj.get_positions(), trajectory_obj.get_times()):
-                    input_str += f'{index},{time},{xpos},{ypos},{zpos}\n'
+                    input_str += f'{trajectory_obj.get_index()},{time-1},{xpos},{ypos},{zpos}\n'
             f.write(input_str)
     except Exception as e:
         print(f"Unexpected error, check the file: {file}")
@@ -379,7 +380,7 @@ def read_parameters(param_file):
         exit(1)
 
 
-def check_video_ext(args):
+def check_video_ext(args, andi2=False):
     if len(args) == 0:
         print(f'no input file')
         exit(1)
@@ -387,5 +388,8 @@ def check_video_ext(args):
         print(f'video format err, only .tif or .tiff are acceptable')
         exit(1)
     else:
-        video = read_tif(args)
+        if andi2:
+            video = import_tiff_video(args)
+        else:
+            video = read_tif(args)
         return video

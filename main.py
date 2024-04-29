@@ -8,7 +8,7 @@ from numba.typed import List
 from ImageModule import read_tif, make_image_seqs, make_whole_img
 from TrajectoryObject import TrajectoryObj
 from XmlModule import write_xml
-from FileIO import write_trajectory, read_localization, read_parameters, write_trxyt
+from FileIO import write_trajectory, read_localization, read_parameters, write_trxyt, check_video_ext
 from timeit import default_timer as timer
 from Bipartite_searching import hungarian_algo_max
 from scipy.stats import beta
@@ -479,7 +479,7 @@ def proba_direction(paired_probas, paired_infos, paired_positions):
 
 
 def simple_connect(localization: dict, localization_infos: dict,
-                   time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None):
+                   time_steps: np.ndarray, distrib: dict, blink_lag=1, on=None, andi2_indices=None):
     if on is None:
         on = [1, 2, 3, 4]
     trajectory_dict = {}
@@ -487,11 +487,25 @@ def simple_connect(localization: dict, localization_infos: dict,
     srcs_pairs = []
     trajectory_index = 0
 
-    for i, pos in enumerate(localization[time_steps[0]]):
-        if len(localization[time_steps[0]][0]) != 0:
-            trajectory_dict[(1, i)] = TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag)
-            trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
-            trajectory_index += 1
+    if andi2_indices is None:
+        for i, pos in enumerate(localization[time_steps[0]]):
+            if len(localization[time_steps[0]][0]) != 0:
+                trajectory_dict[(1, i)] = TrajectoryObj(index=trajectory_index, localizations=localization, max_pause=blink_lag)
+                trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
+                trajectory_index += 1
+    else:
+        random_indices = set(np.arange(0, 300))
+        random_indices = random_indices.difference(andi2_indices)
+        for i, (pos, andi_index) in enumerate(zip(localization[time_steps[0]], andi2_indices)):
+            if len(localization[time_steps[0]][0]) != 0:
+                if andi_index != -1:
+                    trajectory_dict[(1, i)] = TrajectoryObj(index=andi_index, localizations=localization, max_pause=blink_lag)
+                    trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
+                else:
+                    trajectory_dict[(1, i)] = TrajectoryObj(index=random_indices.pop(), localizations=localization, max_pause=blink_lag)
+                    trajectory_dict[(1, i)].add_trajectory_tuple(time_steps[0], i)
+        trajectory_index = 300
+
     for src_i in range(len(localization[time_steps[0]])):
         if len(localization[time_steps[0]][0]) != 0:
             srcs_pairs.append([time_steps[0], src_i])
@@ -926,6 +940,20 @@ def low_priority_to_newborns(trajectories):
     return np.array(myp)
 
 
+def get_and2_indice(images, loc):
+    andi2_indices = []
+    for x, y, z in loc[1].astype(int):
+        andi_index = -1
+        for mx in range(x-1, x+2):
+            for my in range(y-1, y+2):
+                possible_ = np.array([my, mx]).astype(int)
+                for i, andi2_args in enumerate(np.argwhere(images[0] < 255)):
+                    if possible_[0] == andi2_args[0] and possible_[1] == andi2_args[1]:
+                        andi_index = images[0][andi2_args[0]][andi2_args[1]]
+        andi2_indices.append(andi_index)
+    return np.array(andi2_indices)
+
+
 if __name__ == '__main__':
     params = read_parameters('./config.txt')
     input_tif = params['tracking']['VIDEO']
@@ -972,8 +1000,12 @@ if __name__ == '__main__':
     #andi_gt_list = read_trajectory(f'{WINDOWS_PATH}/trajs_fov_0.csv', andi_gt=True)
 
 
-    images = read_tif(input_tif)
-    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
+    #images = read_tif(input_tif)
+    images = check_video_ext(params['localization']['VIDEO'], andi2=True)
+    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])
+    andi2_indices = get_and2_indice(images, loc)
+    images = images[1:] / 255.
+
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
 
@@ -991,7 +1023,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-
+        """
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 20
         show_y_max = 0.15
@@ -1011,18 +1043,19 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-
+        """
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)
         trajectory_list = simple_connect(localization=loc, localization_infos=loc_infos, time_steps=time_steps,
-                                         distrib=segment_distribution, blink_lag=blink_lag, on=methods)
+                                         distrib=segment_distribution, blink_lag=blink_lag, on=methods, andi2_indices=andi2_indices)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
 
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
-            final_trajectories.append(trajectory)
+            if trajectory.get_index() in andi2_indices:
+                final_trajectories.append(trajectory)
 
     print(f'Total number of trajectories: {len(final_trajectories)}')
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,

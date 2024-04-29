@@ -943,11 +943,15 @@ def low_priority_to_newborns(trajectories):
 def get_and2_indice(images, loc):
     andi2_indices = [-1] * loc[1].shape[0]
     ind_ = np.argwhere(images[0] < 255)
+    registered_indice = []
     for andi_args in ind_:
         possible_lengths = []
         for x, y, z in loc[1].astype(int):
             possible_lengths.append(np.sqrt((y - andi_args[0]) ** 2 + (x - andi_args[1]) ** 2))
-        andi2_indices[np.argmin(possible_lengths)] = images[0][andi_args[0]][andi_args[1]]
+
+        if images[0][andi_args[0]][andi_args[1]] not in registered_indice:
+            andi2_indices[np.argmin(possible_lengths)] = images[0][andi_args[0]][andi_args[1]]
+        registered_indice.append(images[0][andi_args[0]][andi_args[1]])
     return np.array(andi2_indices)
 
 

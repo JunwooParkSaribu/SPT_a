@@ -511,7 +511,7 @@ def simple_connect(localization: dict, localization_infos: dict,
             srcs_pairs.append([time_steps[0], src_i])
 
     for i in range(len(time_steps) - 1):
-        print(f'Time step: {i}')
+        #print(f'Time step: {i}')
         next_time = time_steps[i+1]
         srcs_linked = []
         dests_linked = []
@@ -533,7 +533,7 @@ def simple_connect(localization: dict, localization_infos: dict,
                 paused_times = np.array([trajectory_dict[tuple(src_key)].get_paused_time() for src_key in pairs[:, :2]])
                 track_lengths = np.array([len(trajectory_dict[tuple(src_key)].get_times()) for src_key in pairs[:, :2]])
                 thresholds, pdfs, bins = unpack_distribution(distrib, paused_times)
-                print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"combination duration":<35}:{(timer() - before_time):.2f}s')
 
                 before_time = timer()
                 seg_lengths = np.array(seg_lengths)
@@ -541,7 +541,7 @@ def simple_connect(localization: dict, localization_infos: dict,
                 linkage_indices, linkage_log_probas = (
                     displacement_probability(seg_lengths, thresholds,
                                              List(pdfs), List(bins), sorted=False))
-                print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
 
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
@@ -554,18 +554,18 @@ def simple_connect(localization: dict, localization_infos: dict,
             if 2 in on:
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
-                print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
                 linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions)
-                print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
             if 4 in on:
                 before_time = timer()
                 linkage_log_probas = (
                     directed_motion_likelihood(potential_trajectories, linkage_log_probas, linkage_infos, linkage_positions))
-                print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 linkage_log_probas += low_priority_to_newborns(potential_trajectories)
 
             before_time = timer()
@@ -622,7 +622,7 @@ def simple_connect(localization: dict, localization_infos: dict,
             traj = trajectory_dict[src_key]
             cur_t, cur_i = traj.get_trajectory_tuples()[-1]
             srcs_pairs.append([cur_t, cur_i])
-        print(f'linkage duration: {(timer() - before_time):.2f}s')
+        #print(f'linkage duration: {(timer() - before_time):.2f}s')
 
     for src_key in trajectory_dict:
         trajectory_dict[src_key].close()
@@ -668,7 +668,7 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
         trajectory_dict[(1, i)].add_trajectory_tuple(graphic_t_steps[0], i)
         trajectory_index += 1
     for i in range(len(graphic_t_steps)):
-        print(f'Time step: {i}')
+        #print(f'Time step: {i}')
         tmp = graphic_loc.copy()
         tmp_info = graphic_loc_info.copy()
         next_time = time_steps[i+1]
@@ -686,7 +686,7 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
         before_time = timer()
         linkage_indices, linkage_log_probas = displacement_probability(seg_lengths, thresholds, pdfs, bins, cut=False, sorted=False)
 
-        print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
+        #print(f'{"1: displacement probability duration":<35}:{(timer() - before_time):.2f}s')
         if linkage_indices is not None:
             linkage_pairs = pairs[linkage_indices]
             track_lengths = track_lengths[linkage_indices]
@@ -699,19 +699,19 @@ def likelihood_graphics(time_steps: np.ndarray, distrib: dict, blink_lag=1, on=N
                 # proba entropies
                 before_time = timer()
                 linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas)
-                print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:
                 before_time = timer()
                 # from here, add other proba terms(linkage_pairs, linkage_log_probas are sorted with only possible lengths)
                 linkage_log_probas = proba_direction(linkage_log_probas, linkage_infos, linkage_positions)
-                print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"3: directional probability duration":<35}:{(timer() - before_time):.2f}s')
 
             if 4 in on:
                 before_time = timer()
                 trajectories = [trajectory_dict[tuple(src_key)] for src_key in linkage_pairs[:, :2]]
                 linkage_log_probas = directed_motion_likelihood(trajectories, linkage_log_probas, linkage_infos, linkage_positions)
-                print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
+                #print(f'{"4: directed probability duration":<35}:{(timer() - before_time):.2f}s')
                 #print(f'TIMESTEP{i}_(4): {linkage_log_probas}')
 
             plt.figure()
@@ -839,7 +839,7 @@ def make_graph(pairs, probas):
         if flag == 0:
             sub_graphs.append([prev_pair_tuple, next_pair_tuple])
 
-    print('Nb of sub_graphs before: ', len(sub_graphs))
+    #print('Nb of sub_graphs before: ', len(sub_graphs))
     while True:
         original_sub_graphs = sub_graphs.copy()
         for i in range(len(sub_graphs)):
@@ -848,7 +848,7 @@ def make_graph(pairs, probas):
                 break
         if sub_graphs == original_sub_graphs:
             break
-    print('Nb of sub_graphs  after: ', len(sub_graphs))
+    #print('Nb of sub_graphs  after: ', len(sub_graphs))
 
     for sub_graph in sub_graphs:
         linkages, val = graph_matrix(sub_graph, pair_probas)
@@ -941,16 +941,13 @@ def low_priority_to_newborns(trajectories):
 
 
 def get_and2_indice(images, loc):
-    andi2_indices = []
-    for x, y, z in loc[1].astype(int):
-        andi_index = -1
-        for mx in range(x-1, x+2):
-            for my in range(y-1, y+2):
-                possible_ = np.array([my, mx]).astype(int)
-                for i, andi2_args in enumerate(np.argwhere(images[0] < 255)):
-                    if possible_[0] == andi2_args[0] and possible_[1] == andi2_args[1]:
-                        andi_index = images[0][andi2_args[0]][andi2_args[1]]
-        andi2_indices.append(andi_index)
+    andi2_indices = [-1] * loc[1].shape[0]
+    ind_ = np.argwhere(images[0] < 255)
+    for andi_args in ind_:
+        possible_lengths = []
+        for x, y, z in loc[1].astype(int):
+            possible_lengths.append(np.sqrt((y - andi_args[0]) ** 2 + (x - andi_args[1]) ** 2))
+        andi2_indices[np.argmin(possible_lengths)] = images[0][andi_args[0]][andi_args[1]]
     return np.array(andi2_indices)
 
 

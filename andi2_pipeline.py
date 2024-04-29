@@ -30,7 +30,7 @@ def write_config(exp_n, fov_n):
                      f'FRAME_RATE = 1.0\n'
                      f'BLINK_LAG = 1\n'
                      f'CUTOFF = 2\n'
-                     f'TRACKING_PARALLEL = True\n'
+                     f'TRACKING_PARALLEL = False\n'
                      f'AMP_MAX_LEN = 1.7\n'
                      f'TRACK_VISUALIZATION = False\n')
         f.write(input_str)
@@ -70,7 +70,7 @@ N_FOVS = 30
 path_results = 'res/'
 
 for exp in range(0, N_EXP):
-    for fov in range(N_FOVS):
+    for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:
             exec(file.read())

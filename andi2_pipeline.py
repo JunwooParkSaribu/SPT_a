@@ -19,7 +19,7 @@ def write_config(exp_n, fov_n):
                      f'MAX_WIN = 7\n'
                      f'THRESHOLD_ALPHA = 1.0\n'
                      f'DEFLATION_LOOP_IN_BACKWARD = 2\n'
-                     f'LOC_PARALLEL = False\n'
+                     f'LOC_PARALLEL = True\n'
                      f'CORE = 4\n'
                      f'DIV_Q = 50\n'
                      f'SHIFT = 2\n'
@@ -69,7 +69,7 @@ N_FOVS = 30
 
 path_results = 'res/'
 
-for exp in range(0, N_EXP):
+for exp in range(4, N_EXP):
     for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

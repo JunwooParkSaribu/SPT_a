@@ -47,7 +47,7 @@ from timeit import default_timer as timer
 #images = images[1:]
 
 
-@njit
+#@njit
 def region_max_filter2(maps, window_size, thresholds):
     indices = []
     r_start_index = int(window_size[1] // 2)
@@ -98,7 +98,7 @@ def region_max_filter(maps, window_sizes, thresholds):
     return np.array(indices)
 
 
-@njit
+#@njit
 def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
     for pdf, (n, r, c) in zip(pdfs, indices):
         bg = (np.ones(pdf.shape) * bg_means[n]).reshape(window_size)
@@ -112,7 +112,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
     return ext_imgs
 
 
-@njit
+#@njit
 def boundary_smoothing(img, row_indice, col_indice):
     center_xy = []
     repeat_n = 2
@@ -587,7 +587,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 index += 1
 
 
-@njit
+#@njit
 def image_cropping(extended_imgs: np.ndarray, extend, window_size, shift):
     cropped_imgs = []
     start_row = int(extend/2 - (window_size[1]-1)/2)
@@ -600,7 +600,7 @@ def image_cropping(extended_imgs: np.ndarray, extend, window_size, shift):
     return cropped_imgs
 
 
-@njit
+#@njit
 def mapping(img1, img2, shift):
     if shift == 1:
         return img2.reshape(img1.shape[0], img1.shape[1], img1.shape[2])
@@ -704,7 +704,7 @@ def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0, repeat=5):
     return pdfs, variables[:, 1], variables[:, 3], variables[:, 0], variables[:, 2], variables[:, 5], variables[:, 4]
 
 
-@njit
+#@njit
 def matrix_decomp(matrix, q):
     ret_mat = []
     for x in range(0, len(matrix), q):
@@ -741,7 +741,7 @@ def unpack_coefs(coefs, window_size):
     return [x_var, x_mu, y_var, y_mu, rho, amp], err_indices
 
 
-@njit
+#@njit
 def pack_vars(vars, len_img):
     a = -1./(2 * vars[0] * (1 - vars[4]**2))
     b = vars[1] / ((1 - vars[4]**2) * vars[0]) - (vars[4] * vars[3]) / ((1 - vars[4]**2) * np.sqrt(vars[0]) * np.sqrt(vars[2]))
@@ -826,7 +826,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
     return coef_vals
 
 
-@njit
+#@njit
 def gauss_seidel(a, b, p0, iter=200, tol=1e-8):
     x = p0
     for it_count in range(1, iter):

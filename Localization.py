@@ -721,7 +721,8 @@ def unpack_coefs(coefs, window_size):
     x_var = abs(1/(-2 * coefs[:, 0] * k))
     y_var = abs(1/(-2 * coefs[:, 2] * k))
     for err_indice, (xvar_check, yvar_check, r) in enumerate(zip(x_var, y_var, rho)):
-        if xvar_check < 0 or yvar_check < 0 or xvar_check > 3 * window_size[0] or yvar_check > 3 * window_size[1] or r < -1 or r > 1 or r is np.nan:
+        if xvar_check < 0 or yvar_check < 0 or xvar_check > 3 * window_size[0] or yvar_check > 3 * window_size[1] or r < -1 or r > 1 or np.isnan(r):
+            print(r, np.isnan(r))
             err_indices.append(err_indice)
 
     for i, (b, d) in enumerate(zip(coefs[:, 1], coefs[:, 3])):

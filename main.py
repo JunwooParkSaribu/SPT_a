@@ -140,7 +140,7 @@ def distribution_segments(localization: dict, time_steps: np.ndarray, lag=2,
     return seg_distribution
 
 
-@njit
+#@njit
 def euclidian_displacement(pos1, pos2):
     if len(pos1) == 0 or len(pos2) == 0:
         return None
@@ -231,7 +231,7 @@ def mcmc_parallel(real_distribution, conf, bin_size, amp_factor, approx='metropo
     return approx_distribution
 
 
-@njit
+#@njit
 def metropolis_hastings(pdf, n_iter, burn=0.25):
     i = 0
     u = np.random.uniform(0, 1, size=n_iter)
@@ -258,7 +258,7 @@ def metropolis_hastings(pdf, n_iter, burn=0.25):
     return np.array(samples)[int(len(samples)*burn):]
 
 
-@njit
+#@njit
 def displacement_probability(limits, thresholds, pdfs, bins, cut=True, sorted=True):
     pdf_indices = []
     bin_size = bins[0][1] - bins[0][0]
@@ -412,7 +412,7 @@ def kl_divergence(proba, ref_proba):
     return np.sum(proba * np.log(proba/ref_proba))
 
 
-@njit
+#@njit
 def calcul_entropy(bases, compares):
     entropies = []
     for base, compare in zip(bases, compares):
@@ -425,7 +425,7 @@ def calcul_entropy(bases, compares):
     return entropies
 
 
-@njit
+#@njit
 def proba_from_angle(p, radian):
     if radian > np.pi/2:
         radian = np.pi - radian
@@ -941,16 +941,18 @@ def low_priority_to_newborns(trajectories):
 
 
 def get_and2_indice(images, loc):
-    andi2_indices = [-1] * loc[1].shape[0]
+    first_loc_copy = loc[1].copy()
+    andi2_indices = [-1] * first_loc_copy.shape[0]
     ind_ = np.argwhere(images[0] < 255)
     registered_indice = []
     for andi_args in ind_:
         possible_lengths = []
-        for x, y, z in loc[1].astype(int):
+        for x, y, z in first_loc_copy.astype(int):
             possible_lengths.append(np.sqrt((y - andi_args[0]) ** 2 + (x - andi_args[1]) ** 2))
 
         if images[0][andi_args[0]][andi_args[1]] not in registered_indice:
             andi2_indices[np.argmin(possible_lengths)] = images[0][andi_args[0]][andi_args[1]]
+            first_loc_copy[np.argmin(possible_lengths)] = [9999999., 999999., 0.]
         registered_indice.append(images[0][andi_args[0]][andi_args[1]])
     return np.array(andi2_indices)
 
@@ -1052,13 +1054,17 @@ if __name__ == '__main__':
                                          distrib=segment_distribution, blink_lag=blink_lag, on=methods, andi2_indices=andi2_indices)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
-
+    print(andi2_indices, andi2_indices.shape)
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
             if trajectory.get_index() in andi2_indices:
                 final_trajectories.append(trajectory)
 
     print(f'Total number of trajectories: {len(final_trajectories)}')
+    if andi2_indices is not None and len(final_trajectories) != 10:
+        print(f'indexing err on {input_tif}')
+        exit(1)
+
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)
     write_trajectory(output_trj, final_trajectories)

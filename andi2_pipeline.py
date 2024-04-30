@@ -19,7 +19,7 @@ def write_config(exp_n, fov_n):
                      f'MAX_WIN = 7\n'
                      f'THRESHOLD_ALPHA = 1.0\n'
                      f'DEFLATION_LOOP_IN_BACKWARD = 2\n'
-                     f'LOC_PARALLEL = True\n'
+                     f'LOC_PARALLEL = False\n'
                      f'CORE = 4\n'
                      f'DIV_Q = 50\n'
                      f'SHIFT = 2\n'
@@ -29,7 +29,7 @@ def write_config(exp_n, fov_n):
                      f'PIXEL_MICRONS = 1.0\n'
                      f'FRAME_RATE = 1.0\n'
                      f'BLINK_LAG = 1\n'
-                     f'CUTOFF = 2\n'
+                     f'CUTOFF = 0\n'
                      f'TRACKING_PARALLEL = False\n'
                      f'AMP_MAX_LEN = 1.7\n'
                      f'TRACK_VISUALIZATION = False\n')

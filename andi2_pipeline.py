@@ -3,8 +3,8 @@ import numpy as np
 from andi_datasets.datasets_phenom import datasets_phenom
 
 
-public_data_path = 'public_data/' # make sure the folder has this name or change it
-path_results = 'res/'
+public_data_path = 'public_data_validation/'
+path_results = 'res_validation/'
 if not os.path.exists(path_results):
     os.makedirs(path_results)
 
@@ -64,12 +64,12 @@ for track in [1, 2]:
             np.savetxt(f, data, delimiter=';')
 
 # Define the number of experiments and number of FOVS
-N_EXP = 10
+N_EXP = 12
 N_FOVS = 30
 
 path_results = 'res/'
 
-for exp in range(4, N_EXP):
+for exp in range(0, N_EXP):
     for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

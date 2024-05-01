@@ -991,7 +991,11 @@ if __name__ == '__main__':
     #WSL_PATH = '/mnt/c/Users/jwoo/Desktop'
     #WINDOWS_PATH = 'C:/Users/jwoo/Desktop'
     params = read_parameters('./config.txt')
+
+    andi=True
     images = check_video_ext(params['localization']['VIDEO'], andi2=True)[1:] / 255.
+    #images = check_video_ext(params['localization']['VIDEO'], andi2=False)
+    
     OUTPUT_DIR = params['localization']['OUTPUT_DIR']
     OUTPUT_LOC = f'{OUTPUT_DIR}/{params["localization"]["VIDEO"].split("/")[-1].split(".tif")[0]}'
 
@@ -1049,7 +1053,8 @@ if __name__ == '__main__':
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)
 
-    #reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
+    if andi:
+        reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
     write_localization(OUTPUT_LOC, xy_coords, reg_pdfs, reg_infos)
 
     if visualization:

@@ -1004,6 +1004,9 @@ if __name__ == '__main__':
 
 
     #images = read_tif(input_tif)
+    #loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
+    #andi2_indices = None
+
     images = check_video_ext(params['localization']['VIDEO'], andi2=True)
     loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])
     andi2_indices = get_and2_indice(images, loc)
@@ -1054,10 +1057,13 @@ if __name__ == '__main__':
                                          distrib=segment_distribution, blink_lag=blink_lag, on=methods, andi2_indices=andi2_indices)
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
-    print(andi2_indices, andi2_indices.shape)
+
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
-            if trajectory.get_index() in andi2_indices:
+            if andi2_indices is not None:
+                if trajectory.get_index() in andi2_indices:
+                    final_trajectories.append(trajectory)
+            else:
                 final_trajectories.append(trajectory)
 
     print(f'Total number of trajectories: {len(final_trajectories)}')

@@ -3,16 +3,16 @@ import numpy as np
 from andi_datasets.datasets_phenom import datasets_phenom
 
 
-public_data_path = 'public_data_validation/'
-path_results = 'res_validation/'
+public_data_path = 'public_data_validation'
+path_results = 'res_validation'
 if not os.path.exists(path_results):
     os.makedirs(path_results)
 
 
 def write_config(exp_n, fov_n):
     with open('config.txt', 'w') as f:
-        input_str = (f'VIDEO=./analysis_modeling/public_data/track_1/exp_{exp_n}/videos_fov_{fov_n}.tiff\n'
-                     f'OUTPUT_DIR=./analysis_modeling/public_data/track_1/exp_{exp_n}\n'
+        input_str = (f'VIDEO=./analysis_modeling/{public_data_path}/track_1/exp_{exp_n}/videos_fov_{fov_n}.tiff\n'
+                     f'OUTPUT_DIR=./analysis_modeling/{public_data_path}/track_1/exp_{exp_n}\n'
                      f'# LOCALIZATION\n'
                      f'SIGMA = 4.0\n'
                      f'MIN_WIN = 5\n'
@@ -35,6 +35,19 @@ def write_config(exp_n, fov_n):
                      f'TRACK_VISUALIZATION = False\n')
         f.write(input_str)
 
+# Define the number of experiments and number of FOVS
+N_EXP = 12
+N_FOVS = 30
+
+for exp in range(0, N_EXP):
+    for fov in range(0, N_FOVS):
+        write_config(exp, fov)
+        with open("Localization.py") as file:
+            exec(file.read())
+        with open("main.py") as file:
+            exec(file.read())
+
+exit(1)
 
 for track in [1, 2]:
     # Create the folder of the track if it does not exists
@@ -62,20 +75,6 @@ for track in [1, 2]:
 
             # Save the data in the corresponding ensemble file
             np.savetxt(f, data, delimiter=';')
-
-# Define the number of experiments and number of FOVS
-N_EXP = 12
-N_FOVS = 30
-
-path_results = 'res/'
-
-for exp in range(0, N_EXP):
-    for fov in range(0, N_FOVS):
-        write_config(exp, fov)
-        with open("Localization.py") as file:
-            exec(file.read())
-        with open("main.py") as file:
-            exec(file.read())
 
 
 

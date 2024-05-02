@@ -3,7 +3,7 @@ import numpy as np
 from andi_datasets.datasets_phenom import datasets_phenom
 
 
-public_data_path = 'public_data_validation'
+public_data_path = 'public_data_validation_v1'
 path_results = 'res_validation'
 if not os.path.exists(path_results):
     os.makedirs(path_results)
@@ -21,7 +21,7 @@ def write_config(exp_n, fov_n):
                      f'DEFLATION_LOOP_IN_BACKWARD = 2\n'
                      f'LOC_PARALLEL = False\n'
                      f'CORE = 4\n'
-                     f'DIV_Q = 50\n'
+                     f'DIV_Q = 100\n'
                      f'SHIFT = 2\n'
                      f'GAUSS_SEIDEL_DECOMP = 2\n'
                      f'LOC_VISUALIZATION = False\n'

@@ -39,7 +39,7 @@ def write_config(exp_n, fov_n):
 N_EXP = 12
 N_FOVS = 30
 
-for exp in range(0, N_EXP):
+for exp in range(4, N_EXP):
     for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

@@ -944,6 +944,7 @@ def get_and2_indice(images, loc):
     first_loc_copy = loc[1].copy()
     andi2_indices = [-1] * first_loc_copy.shape[0]
     ind_ = np.argwhere(images[0] < 255)
+
     registered_indice = []
     for andi_args in ind_:
         possible_lengths = []
@@ -954,6 +955,11 @@ def get_and2_indice(images, loc):
             andi2_indices[np.argmin(possible_lengths)] = images[0][andi_args[0]][andi_args[1]]
             first_loc_copy[np.argmin(possible_lengths)] = [9999999., 999999., 0.]
         registered_indice.append(images[0][andi_args[0]][andi_args[1]])
+
+    for i, index in enumerate(andi2_indices):
+        index_sum = np.sum(images[0] == index)
+        if index_sum <= 1:
+            andi2_indices[i] = -1
     return np.array(andi2_indices)
 
 

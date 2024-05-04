@@ -4,9 +4,6 @@ from andi_datasets.datasets_phenom import datasets_phenom
 
 
 public_data_path = 'public_data_validation_v1'
-path_results = 'res_validation'
-if not os.path.exists(path_results):
-    os.makedirs(path_results)
 
 
 def write_config(exp_n, fov_n):
@@ -36,10 +33,10 @@ def write_config(exp_n, fov_n):
         f.write(input_str)
 
 # Define the number of experiments and number of FOVS
-N_EXP = 12
+N_EXP = 13
 N_FOVS = 30
 
-for exp in range(4, N_EXP):
+for exp in range(0, N_EXP):
     for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:

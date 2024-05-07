@@ -341,7 +341,6 @@ plt.legend()
 plt.show()
 
 
-exit(1)
 
 disp_ = []
 
@@ -357,7 +356,7 @@ plt.plot(np.arange(len(xs3)), xs3, label='3')
 plt.plot(np.arange(len(xs4)), xs4, label='4')
 plt.legend()
 plt.show()
-exit(1)
+
 
 
 def samples_GHE(serie, tau):
@@ -403,7 +402,7 @@ def plot_diff_coefs(trajectory_list, *args, t_range=None):
     weights = [1, 2, 10]
     nrow = len(weights) + 1
     ncol = 5
-
+    print("here")
     for traj in trajectory_list:
         if traj.get_index() == 0:
             denoised = [[[] for _ in range(ncol)] for _ in range(nrow)]
@@ -547,6 +546,7 @@ def uncumulate(xs:np.ndarray):
 
 
 if __name__ == '__main__':
+    print("MAIN FUNCTION")
     N = 1
     T = 200
     t_range = [0, 200]
@@ -566,6 +566,7 @@ if __name__ == '__main__':
                                                               )
     """
     print('---------')
+
     trajs_model2, labels_model2 = models_phenom().multi_state(N=N,
                                                               L=L,
                                                               T=T,
@@ -630,7 +631,6 @@ if __name__ == '__main__':
                     changepoints, alphas, Ds, state_num,
                     t_range=t_range)
     plt.show()
-    exit(1)
 
 
     #input_tif = f'{WINDOWS_PATH}/20220217_aa4_cel8_no_ir.tif'
@@ -643,7 +643,7 @@ if __name__ == '__main__':
     input_tif = f'{WINDOWS_PATH}/multi3.tif'
 
     output_img_fname = f'{WINDOWS_PATH}/mymethod.tif'
-    input_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0_singlestate.csv'
+    input_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0.csv'
     #input_trj_fname = f'{WINDOWS_PATH}/multi3.csv'
     #input_trj_fname = f'{WINDOWS_PATH}/multi3.csv'
     gt_trj_fname = f'{WINDOWS_PATH}/trajs_fov_0.csv'

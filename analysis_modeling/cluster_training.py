@@ -40,16 +40,19 @@ print(class_weight, count_0, count_1)
 print(input_features.shape)
 
 input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
-input_reg_signals = input_reg_signals[:, :, input_signals.shape[-1]//2:]
+input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
 
-INPUT_CLS_SHAPE = [-1, input_signals.shape[1], input_signals.shape[2], 1]
-INPUT_REG_SHAPE = [-1, input_reg_signals.shape[1], input_reg_signals.shape[2], 1]
+input_signals = np.swapaxes(input_signals, 1, 2)
+input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
+
+INPUT_CLS_SHAPE = [-1, 1, input_signals.shape[1], input_signals.shape[2]]
+INPUT_REG_SHAPE = [-1, 1, input_reg_signals.shape[1], input_reg_signals.shape[2]]
 
 input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
 input_labels = input_labels.reshape(-1, 1)
 input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
 input_reg_labels = input_reg_labels.reshape(-1, 1)
-input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[1], 1)
+input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[1])
 
 
 def shuffle(data, *args):
@@ -108,23 +111,31 @@ val_input, val_label, val_feature = shuffle(val_input, val_label, val_feature)
 train_reg_input, train_reg_label = shuffle(train_reg_input, train_reg_label)
 val_reg_input, val_reg_label = shuffle(val_reg_input, val_reg_label)
 
+print(f'train_cls_shape:{train_input.shape}\n',
+      f'train_feat_shape:{train_feature.shape}\n'
+      f'val_cls_shape:{val_input.shape}\n',
+      f'val_feat_shape:{val_feature.shape}\n'
+      f'train_reg_shape:{train_reg_input.shape}\n',
+      f'val_reg_shape:{val_reg_input.shape}\n',
+     )
 
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
 
-x1 = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
+x1 = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
-x1 = layers.Bidirectional(layers.LSTM(32))(x1)
+x1 = layers.Bidirectional(layers.LSTM(128))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 
-x2 = layers.Dense(units=32)(feature_input)
+x2 = layers.Dense(units=train_input.shape[-1])(feature_input)
 x2 = layers.ReLU()(x2)
-x2 = layers.Dense(units=32)(x2)
+x2 = layers.Dense(units=train_input.shape[-1] * 2)(x2)
 x2 = layers.ReLU()(x2)
 x2 = layers.Flatten()(x2)
 cls_concat = layers.concatenate([x1, x2])
-cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_concat)
+cls_dense = layers.Dense(units=10, activation='relu')(cls_concat)
+cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_dense)
 
 cls_model = keras.Model(
     inputs=[signal_input, feature_input],
@@ -133,7 +144,7 @@ cls_model = keras.Model(
 )
 
 cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   metrics=[tf.keras.metrics.BinaryAccuracy(name='Acc'),
                            tf.keras.metrics.FalsePositives(name='FP'),
                            tf.keras.metrics.FalseNegatives(name='FN')]

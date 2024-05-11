@@ -52,7 +52,7 @@ input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
 input_labels = input_labels.reshape(-1, 1)
 input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
 input_reg_labels = input_reg_labels.reshape(-1, 1)
-input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[1])
+input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[-1])
 
 
 def shuffle(data, *args):

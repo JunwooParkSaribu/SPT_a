@@ -1,0 +1,167 @@
+import os
+import sys
+import json
+sys.path.insert(0, os.path.abspath('../'))
+import numpy as np
+import random
+import tensorflow as tf
+from tensorflow import keras
+from keras import layers
+
+print(tf.__version__)
+print(tf.config.list_physical_devices('GPU'))
+
+SHIFT_WIDTH = 40
+REG_JUMP = 2
+
+SHUFFLE = True
+MAX_EPOCHS = 10000
+BATCH_SIZE = 256
+PATIENCE = 100
+NB_FEATURES = 2
+
+loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
+input_signals = loaded['input_signals']
+input_labels = loaded['input_labels']
+input_features = loaded['input_features']
+input_reg_signals = loaded['input_reg_signals']
+input_reg_labels = loaded['input_reg_labels']
+count_0 = loaded['count_0']
+count_1 = loaded['count_1']
+
+total = count_0 + count_1
+weight_for_0 = (1 / count_0) * (total / 2.0)
+weight_for_1 = (1 / count_1) * (total / 2.0)
+class_weight = {0: weight_for_0, 1:weight_for_1}
+
+print(input_signals.shape, input_labels.shape)
+print(input_reg_signals.shape, input_reg_labels.shape)
+print(class_weight, count_0, count_1)
+print(input_features.shape)
+
+input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
+input_reg_signals = input_reg_signals[:, :, input_signals.shape[-1]//2:]
+
+INPUT_CLS_SHAPE = [-1, input_signals.shape[1], input_signals.shape[2], 1]
+INPUT_REG_SHAPE = [-1, input_reg_signals.shape[1], input_reg_signals.shape[2], 1]
+
+input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
+input_labels = input_labels.reshape(-1, 1)
+input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
+input_reg_labels = input_reg_labels.reshape(-1, 1)
+input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[1], 1)
+
+
+def shuffle(data, *args):
+    shuffle_index = np.arange(data.shape[0])
+    np.random.shuffle(shuffle_index)
+    args = list(args)
+    for i, arg in enumerate(args):
+        args[i] = arg[shuffle_index]
+    return data, *args
+
+
+train_input = []
+train_label = []
+train_feature = []
+val_input = []
+val_label = []
+val_feature = []
+cur_count_0 = 0
+cur_count_1 = 0
+for i in range(len(input_labels)):
+    if input_labels[i] == 0:
+        cur_count_0 += 1
+        if cur_count_0 < int(count_0 * 0.8):
+            train_input.append(input_signals[i])
+            train_label.append(input_labels[i])
+            train_feature.append(input_features[i])
+        else:
+            val_input.append(input_signals[i])
+            val_label.append(input_labels[i])
+            val_feature.append(input_features[i])
+    else:
+        cur_count_1 += 1
+        if cur_count_1 < int(count_1 * 0.8):
+            train_input.append(input_signals[i])
+            train_label.append(input_labels[i])
+            train_feature.append(input_features[i])
+        else:
+            val_input.append(input_signals[i])
+            val_label.append(input_labels[i])
+            val_feature.append(input_features[i])
+
+train_input = np.array(train_input)
+train_label = np.array(train_label)
+train_feature = np.array(train_feature)
+val_input = np.array(val_input)
+val_label = np.array(val_label)
+val_feature = np.array(val_feature)
+
+train_reg_input = input_reg_signals[:int(input_reg_signals.shape[0] * 0.8)]
+train_reg_label = input_reg_labels[:int(input_reg_labels.shape[0] * 0.8)]
+val_reg_input = input_reg_signals[int(input_reg_signals.shape[0] * 0.8):]
+val_reg_label = input_reg_labels[int(input_reg_labels.shape[0] * 0.8):]
+
+train_input, train_label, train_feature = shuffle(train_input, train_label, train_feature)
+val_input, val_label, val_feature = shuffle(val_input, val_label, val_feature)
+train_reg_input, train_reg_label = shuffle(train_reg_input, train_reg_label)
+val_reg_input, val_reg_label = shuffle(val_reg_input, val_reg_label)
+
+
+signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
+feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
+
+x1 = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
+x1 = layers.ReLU()(x1)
+x1 = layers.Bidirectional(layers.LSTM(32))(x1)
+x1 = layers.ReLU()(x1)
+x1 = layers.Flatten()(x1)
+
+x2 = layers.Dense(units=32)(feature_input)
+x2 = layers.ReLU()(x2)
+x2 = layers.Dense(units=32)(x2)
+x2 = layers.ReLU()(x2)
+x2 = layers.Flatten()(x2)
+cls_concat = layers.concatenate([x1, x2])
+cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_concat)
+
+cls_model = keras.Model(
+    inputs=[signal_input, feature_input],
+    outputs=[cls_last_layer],
+    name='anomalous_detection'
+)
+
+cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+                  metrics=[tf.keras.metrics.BinaryAccuracy(name='Acc'),
+                           tf.keras.metrics.FalsePositives(name='FP'),
+                           tf.keras.metrics.FalseNegatives(name='FN')]
+                 )
+
+cls_model.build(input_shape=INPUT_CLS_SHAPE[1:])
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                  patience=PATIENCE,
+                                                  mode='min',
+                                                  restore_best_weights=True,
+                                                 )
+try:
+    cls_model.summary()
+    keras.utils.plot_model(cls_model, "cls_model.png", show_shapes=True)
+except:
+    pass
+
+cls_history = cls_model.fit(x=[train_input, train_feature],
+                        y=train_label,
+                        validation_data=([val_input, val_feature], val_label),
+                        batch_size=BATCH_SIZE,
+                        epochs=MAX_EPOCHS,
+                        shuffle=True,
+                        callbacks=[early_stopping],
+                        class_weight=class_weight,
+                        verbose=2
+                       )
+
+cls_model.save(f'./models/cls_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
+history_dict = cls_history.history
+json.dump(history_dict, open(f'./models/history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))

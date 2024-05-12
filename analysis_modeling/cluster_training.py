@@ -183,6 +183,17 @@ cls_model.save(f'./models/cls_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = cls_history.history
 json.dump(history_dict, open(f'./models/history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
 
+del cls_model
+del history_dict
+del train_input
+del train_label
+del train_feature
+del val_input
+del val_label
+del val_feature
+del input_signals
+del input_labels
+del input_features
 
 
 ############# REGRESSION ###############

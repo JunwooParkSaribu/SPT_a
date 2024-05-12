@@ -17,7 +17,7 @@ REG_JUMP = 2
 SHUFFLE = True
 MAX_EPOCHS = 10000
 BATCH_SIZE = 1024
-PATIENCE = 250
+PATIENCE = 500
 NB_FEATURES = 2
 
 loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
@@ -34,6 +34,11 @@ weight_for_0 = (1 / count_0) * (total / 2.0)
 weight_for_1 = (1 / count_1) * (total / 2.0)
 class_weight = {0: weight_for_0, 1:weight_for_1}
 
+print(input_signals.shape, input_labels.shape)
+print(input_reg_signals.shape, input_reg_labels.shape)
+print(class_weight, count_0, count_1)
+print(input_features.shape)
+
 
 def shuffle(data, *args):
     shuffle_index = np.arange(data.shape[0])
@@ -41,31 +46,24 @@ def shuffle(data, *args):
     args = list(args)
     for i, arg in enumerate(args):
         args[i] = arg[shuffle_index]
-    return data, *args
+    return data[shuffle_index], *args
 
-
-print(input_signals.shape, input_labels.shape)
-print(input_reg_signals.shape, input_reg_labels.shape)
-print(class_weight, count_0, count_1)
-print(input_features.shape)
 
 
 input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
 input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
-input_signals = np.swapaxes(input_signals, 1, 2)
-input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
-INPUT_CLS_SHAPE = [-1, 1, input_signals.shape[1], input_signals.shape[2]]
-INPUT_REG_SHAPE = [-1, 1, input_reg_signals.shape[1], input_reg_signals.shape[2]]
+#input_signals = np.swapaxes(input_signals, 1, 2)
+#input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
+INPUT_CLS_SHAPE = [-1, input_signals.shape[1], input_signals.shape[2], 1]
+INPUT_REG_SHAPE = [-1, input_reg_signals.shape[1], input_reg_signals.shape[2], 1]
 
 
 input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
 input_labels = input_labels.reshape(-1, 1)
 input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
 input_reg_labels = input_reg_labels.reshape(-1, 1)
-input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[-1])
 input_signals, input_labels, input_features = shuffle(input_signals, input_labels, input_features)
 input_reg_signals, input_reg_labels = shuffle(input_reg_signals, input_reg_labels)
-
 
 train_input = []
 train_label = []
@@ -124,12 +122,14 @@ print(f'train_cls_shape:{train_input.shape}\n',
      )
 
 
+
+
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
 
 x1 = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
-x1 = layers.Bidirectional(layers.LSTM(128))(x1)
+x1 = layers.Bidirectional(layers.LSTM(256))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 
@@ -139,7 +139,7 @@ x2 = layers.Dense(units=train_input.shape[-1] * 2)(x2)
 x2 = layers.ReLU()(x2)
 x2 = layers.Flatten()(x2)
 cls_concat = layers.concatenate([x1, x2])
-cls_dense = layers.Dense(units=10, activation='relu')(cls_concat)
+cls_dense = layers.Dense(units=64, activation='relu')(cls_concat)
 cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_dense)
 
 cls_model = keras.Model(
@@ -148,18 +148,19 @@ cls_model = keras.Model(
     name='anomalous_detection'
 )
 
+
 cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
                   metrics=[tf.keras.metrics.BinaryAccuracy(name='Acc'),
                            tf.keras.metrics.FalsePositives(name='FP'),
                            tf.keras.metrics.FalseNegatives(name='FN')]
                  )
-
-cls_model.build(input_shape=INPUT_CLS_SHAPE[1:])
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_Acc',
                                                   patience=PATIENCE,
                                                   mode='min',
+                                                  verbose=1,
                                                   restore_best_weights=True,
+                                                  start_from_epoch=15
                                                  )
 try:
     cls_model.summary()

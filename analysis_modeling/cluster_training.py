@@ -16,8 +16,8 @@ REG_JUMP = 2
 
 SHUFFLE = True
 MAX_EPOCHS = 10000
-BATCH_SIZE = 256
-PATIENCE = 100
+BATCH_SIZE = 1024
+PATIENCE = 250
 NB_FEATURES = 2
 
 loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
@@ -34,26 +34,6 @@ weight_for_0 = (1 / count_0) * (total / 2.0)
 weight_for_1 = (1 / count_1) * (total / 2.0)
 class_weight = {0: weight_for_0, 1:weight_for_1}
 
-print(input_signals.shape, input_labels.shape)
-print(input_reg_signals.shape, input_reg_labels.shape)
-print(class_weight, count_0, count_1)
-print(input_features.shape)
-
-input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
-input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
-
-input_signals = np.swapaxes(input_signals, 1, 2)
-input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
-
-INPUT_CLS_SHAPE = [-1, 1, input_signals.shape[1], input_signals.shape[2]]
-INPUT_REG_SHAPE = [-1, 1, input_reg_signals.shape[1], input_reg_signals.shape[2]]
-
-input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
-input_labels = input_labels.reshape(-1, 1)
-input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
-input_reg_labels = input_reg_labels.reshape(-1, 1)
-input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[-1])
-
 
 def shuffle(data, *args):
     shuffle_index = np.arange(data.shape[0])
@@ -62,6 +42,29 @@ def shuffle(data, *args):
     for i, arg in enumerate(args):
         args[i] = arg[shuffle_index]
     return data, *args
+
+
+print(input_signals.shape, input_labels.shape)
+print(input_reg_signals.shape, input_reg_labels.shape)
+print(class_weight, count_0, count_1)
+print(input_features.shape)
+
+
+input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
+input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
+input_signals = np.swapaxes(input_signals, 1, 2)
+input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
+INPUT_CLS_SHAPE = [-1, 1, input_signals.shape[1], input_signals.shape[2]]
+INPUT_REG_SHAPE = [-1, 1, input_reg_signals.shape[1], input_reg_signals.shape[2]]
+
+
+input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
+input_labels = input_labels.reshape(-1, 1)
+input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
+input_reg_labels = input_reg_labels.reshape(-1, 1)
+input_features = input_features.reshape(-1, INPUT_CLS_SHAPE[-1])
+input_signals, input_labels, input_features = shuffle(input_signals, input_labels, input_features)
+input_reg_signals, input_reg_labels = shuffle(input_reg_signals, input_reg_labels)
 
 
 train_input = []
@@ -100,16 +103,17 @@ train_feature = np.array(train_feature)
 val_input = np.array(val_input)
 val_label = np.array(val_label)
 val_feature = np.array(val_feature)
-
 train_reg_input = input_reg_signals[:int(input_reg_signals.shape[0] * 0.8)]
 train_reg_label = input_reg_labels[:int(input_reg_labels.shape[0] * 0.8)]
 val_reg_input = input_reg_signals[int(input_reg_signals.shape[0] * 0.8):]
 val_reg_label = input_reg_labels[int(input_reg_labels.shape[0] * 0.8):]
 
+
 train_input, train_label, train_feature = shuffle(train_input, train_label, train_feature)
 val_input, val_label, val_feature = shuffle(val_input, val_label, val_feature)
 train_reg_input, train_reg_label = shuffle(train_reg_input, train_reg_label)
 val_reg_input, val_reg_label = shuffle(val_reg_input, val_reg_label)
+
 
 print(f'train_cls_shape:{train_input.shape}\n',
       f'train_feat_shape:{train_feature.shape}\n'
@@ -118,6 +122,7 @@ print(f'train_cls_shape:{train_input.shape}\n',
       f'train_reg_shape:{train_reg_input.shape}\n',
       f'val_reg_shape:{val_reg_input.shape}\n',
      )
+
 
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")

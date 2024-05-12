@@ -182,3 +182,50 @@ cls_history = cls_model.fit(x=[train_input, train_feature],
 cls_model.save(f'./models/cls_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = cls_history.history
 json.dump(history_dict, open(f'./models/history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
+
+
+
+############# REGRESSION ###############
+
+
+reg_input = keras.Input(shape=train_reg_input.shape[1:], name="reg_signals")
+
+x = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
+x = layers.ReLU()(x)
+x = layers.Bidirectional(layers.LSTM(256))(x)
+x = layers.ReLU()(x)
+x = layers.Flatten()(x)
+reg_dense = layers.Dense(units=64, activation='relu')(x)
+reg_last_layer = layers.Dense(units=32)(reg_dense)
+
+reg_model = keras.Model(
+    inputs=[reg_input],
+    outputs=[reg_last_layer],
+    name='anomalous_regression'
+)
+
+reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error'),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+                  metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
+                          ]
+                 )
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                  patience=PATIENCE,
+                                                  mode='min',
+                                                  verbose=1,
+                                                  restore_best_weights=True,
+                                                  start_from_epoch=15
+                                                 )
+
+reg_history = reg_model.fit(x=train_reg_input,
+                        y=train_reg_label,
+                        validation_data=(val_reg_input, val_reg_label),
+                        batch_size=BATCH_SIZE,
+                        epochs=MAX_EPOCHS,
+                        shuffle=True,
+                        callbacks=[early_stopping],
+                        verbose=2
+                       )
+reg_model.save(f'./models/reg_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
+history_dict = reg_history.history
+json.dump(history_dict, open(f'./models/reg_history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))

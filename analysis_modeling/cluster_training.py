@@ -123,7 +123,7 @@ print(f'train_cls_shape:{train_input.shape}\n',
 
 
 
-
+"""
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
 
@@ -194,7 +194,7 @@ del val_feature
 del input_signals
 del input_labels
 del input_features
-
+"""
 
 ############# REGRESSION ###############
 

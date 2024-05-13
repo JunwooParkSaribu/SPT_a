@@ -17,7 +17,7 @@ REG_JUMP = 2
 SHUFFLE = True
 MAX_EPOCHS = 10000
 BATCH_SIZE = 1024
-PATIENCE = 500
+PATIENCE = 200
 NB_FEATURES = 2
 
 loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
@@ -123,7 +123,7 @@ print(f'train_cls_shape:{train_input.shape}\n',
 
 
 
-"""
+
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
 
@@ -151,11 +151,11 @@ cls_model = keras.Model(
 
 cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
                   optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
-                  metrics=[tf.keras.metrics.BinaryAccuracy(name='Acc'),
+                  metrics=[tf.keras.metrics.BinaryAccuracy(name='acc'),
                            tf.keras.metrics.FalsePositives(name='FP'),
                            tf.keras.metrics.FalseNegatives(name='FN')]
                  )
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_Acc',
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_acc',
                                                   patience=PATIENCE,
                                                   mode='min',
                                                   verbose=1,
@@ -194,7 +194,7 @@ del val_feature
 del input_signals
 del input_labels
 del input_features
-"""
+
 
 ############# REGRESSION ###############
 

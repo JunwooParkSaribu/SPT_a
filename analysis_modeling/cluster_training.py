@@ -57,7 +57,7 @@ input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
 INPUT_CLS_SHAPE = [-1, input_signals.shape[1], input_signals.shape[2], 1]
 INPUT_REG_SHAPE = [-1, input_reg_signals.shape[1], input_reg_signals.shape[2], 1]
 
-
+input_features = input_features.reshape(-1, input_signals.shape[1], 1, 1)
 input_signals = input_signals.reshape(INPUT_CLS_SHAPE)
 input_labels = input_labels.reshape(-1, 1)
 input_reg_signals = input_reg_signals.reshape(INPUT_REG_SHAPE)
@@ -125,7 +125,7 @@ print(f'train_cls_shape:{train_input.shape}\n',
 
 
 signal_input = keras.Input(shape=(None, SHIFT_WIDTH, 1), name="signals")
-feature_input = keras.Input(shape=(None), name="features")
+feature_input = keras.Input(shape=(None, 1, 1), name="features")
 
 x1 = layers.ConvLSTM1D(filters=16, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
@@ -133,7 +133,8 @@ x1 = layers.Bidirectional(layers.LSTM(16))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 
-x2 = layers.Flatten()(feature_input)
+x2 = layers.ConvLSTM1D(filters=1, kernel_size=2, strides=1, padding='same')(feature_input)
+x2 = layers.Flatten()(x2)
 cls_concat = layers.concatenate([x1, x2])
 cls_dense = layers.Dense(units=2, activation='relu')(cls_concat)
 cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_dense)

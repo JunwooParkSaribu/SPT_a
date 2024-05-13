@@ -17,7 +17,6 @@ REG_JUMP = 2
 SHUFFLE = True
 MAX_EPOCHS = 10000
 BATCH_SIZE = 1024
-PATIENCE = 150
 NB_FEATURES = 2
 
 loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
@@ -50,8 +49,13 @@ def shuffle(data, *args):
 
 
 
-input_signals = input_signals[:, :, input_signals.shape[-1]//2:]
-input_reg_signals = input_reg_signals[:, :, input_reg_signals.shape[-1]//2:]
+input_signals = np.maximum(input_signals, np.zeros_like(input_signals))
+#input_reg_signals = np.maximum(input_reg_signals, np.zeros_like(input_reg_signals))
+
+
+
+input_signals = input_signals[:, :, :input_signals.shape[-1]//2]
+input_reg_signals = input_reg_signals[:, :, :input_reg_signals.shape[-1]//2]
 #input_signals = np.swapaxes(input_signals, 1, 2)
 #input_reg_signals = np.swapaxes(input_reg_signals, 1, 2)
 INPUT_CLS_SHAPE = [-1, input_signals.shape[1], input_signals.shape[2], 1]
@@ -156,7 +160,7 @@ cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
                            tf.keras.metrics.TrueNegatives(name='TN')]
                  )
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                  patience=PATIENCE,
+                                                  patience=100,
                                                   mode='min',
                                                   verbose=1,
                                                   restore_best_weights=True,
@@ -197,7 +201,7 @@ del input_features
 
 
 ############# REGRESSION ###############
-
+"""
 
 reg_input = keras.Input(shape=(None, SHIFT_WIDTH, 1), name="reg_signals")
 
@@ -221,7 +225,7 @@ reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error
                           ]
                  )
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                  patience=PATIENCE,
+                                                  patience=50,
                                                   mode='min',
                                                   verbose=1,
                                                   restore_best_weights=True,
@@ -240,3 +244,4 @@ reg_history = reg_model.fit(x=train_reg_input,
 reg_model.save(f'./models/reg_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = reg_history.history
 json.dump(history_dict, open(f'./models/reg_history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
+"""

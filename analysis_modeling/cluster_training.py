@@ -151,9 +151,9 @@ cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
                            tf.keras.metrics.FalsePositives(name='FP'),
                            tf.keras.metrics.FalseNegatives(name='FN')]
                  )
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_acc',
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
                                                   patience=PATIENCE,
-                                                  mode='max',
+                                                  mode='min',
                                                   verbose=1,
                                                   restore_best_weights=True,
                                                   start_from_epoch=15

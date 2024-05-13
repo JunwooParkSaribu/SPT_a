@@ -127,19 +127,15 @@ print(f'train_cls_shape:{train_input.shape}\n',
 signal_input = keras.Input(shape=train_input.shape[1:], name="signals")
 feature_input = keras.Input(shape=train_feature.shape[1:], name="features")
 
-x1 = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
+x1 = layers.ConvLSTM1D(filters=16, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
-x1 = layers.Bidirectional(layers.LSTM(256))(x1)
+x1 = layers.Bidirectional(layers.LSTM(16))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 
-x2 = layers.Dense(units=train_input.shape[-1])(feature_input)
-x2 = layers.ReLU()(x2)
-x2 = layers.Dense(units=train_input.shape[-1] * 2)(x2)
-x2 = layers.ReLU()(x2)
-x2 = layers.Flatten()(x2)
+x2 = layers.Flatten()(feature_input)
 cls_concat = layers.concatenate([x1, x2])
-cls_dense = layers.Dense(units=64, activation='relu')(cls_concat)
+cls_dense = layers.Dense(units=2, activation='relu')(cls_concat)
 cls_last_layer = layers.Dense(units=1, activation='sigmoid')(cls_dense)
 
 cls_model = keras.Model(
@@ -157,7 +153,7 @@ cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
                  )
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_acc',
                                                   patience=PATIENCE,
-                                                  mode='min',
+                                                  mode='max',
                                                   verbose=1,
                                                   restore_best_weights=True,
                                                   start_from_epoch=15
@@ -181,7 +177,7 @@ cls_history = cls_model.fit(x=[train_input, train_feature],
 
 cls_model.save(f'./models/cls_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = cls_history.history
-json.dump(history_dict, open(f'./models/history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
+json.dump(history_dict, open(f'./models/cls_history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
 
 del cls_model
 del history_dict

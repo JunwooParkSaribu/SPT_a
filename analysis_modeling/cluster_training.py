@@ -17,7 +17,7 @@ REG_JUMP = 2
 SHUFFLE = True
 MAX_EPOCHS = 10000
 BATCH_SIZE = 1024
-PATIENCE = 200
+PATIENCE = 150
 NB_FEATURES = 2
 
 loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
@@ -149,7 +149,9 @@ cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
                   optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
                   metrics=[tf.keras.metrics.BinaryAccuracy(name='acc'),
                            tf.keras.metrics.FalsePositives(name='FP'),
-                           tf.keras.metrics.FalseNegatives(name='FN')]
+                           tf.keras.metrics.FalseNegatives(name='FN'),
+                           tf.keras.metrics.TruePositives(name='TP'),
+                           tf.keras.metrics.TrueNegatives(name='TN')]
                  )
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
                                                   patience=PATIENCE,

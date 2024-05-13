@@ -48,12 +48,6 @@ def shuffle(data, *args):
     return data[shuffle_index], *args
 
 
-
-input_signals = np.maximum(input_signals, np.zeros_like(input_signals))
-#input_reg_signals = np.maximum(input_reg_signals, np.zeros_like(input_reg_signals))
-
-
-
 input_signals = input_signals[:, :, :input_signals.shape[-1]//2]
 input_reg_signals = input_reg_signals[:, :, :input_reg_signals.shape[-1]//2]
 #input_signals = np.swapaxes(input_signals, 1, 2)
@@ -201,7 +195,7 @@ del input_features
 
 
 ############# REGRESSION ###############
-"""
+
 
 reg_input = keras.Input(shape=(None, SHIFT_WIDTH, 1), name="reg_signals")
 
@@ -244,4 +238,3 @@ reg_history = reg_model.fit(x=train_reg_input,
 reg_model.save(f'./models/reg_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = reg_history.history
 json.dump(history_dict, open(f'./models/reg_history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
-"""

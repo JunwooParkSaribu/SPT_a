@@ -133,7 +133,7 @@ x1 = layers.Bidirectional(layers.LSTM(16))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 
-x2 = layers.ConvLSTM1D(filters=1, kernel_size=2, strides=1, padding='same')(feature_input)
+x2 = layers.ConvLSTM1D(filters=16, kernel_size=2, strides=1, padding='same')(feature_input)
 x2 = layers.Flatten()(x2)
 cls_concat = layers.concatenate([x1, x2])
 cls_dense = layers.Dense(units=2, activation='relu')(cls_concat)

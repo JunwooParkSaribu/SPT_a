@@ -205,7 +205,7 @@ x = layers.Bidirectional(layers.LSTM(256))(x)
 x = layers.ReLU()(x)
 x = layers.Flatten()(x)
 reg_dense = layers.Dense(units=64, activation='relu')(x)
-reg_last_layer = layers.Dense(units=32)(reg_dense)
+reg_last_layer = layers.Dense(units=1)(reg_dense)
 
 reg_model = keras.Model(
     inputs=[reg_input],

@@ -122,7 +122,7 @@ print(f'train_cls_shape:{train_input.shape}\n',
 
 
 
-signal_input = keras.Input(shape=(None, SHIFT_WIDTH, 1), name="signals")
+signal_input = keras.Input(shape=(None, None, 1), name="signals")
 feature_input = keras.Input(shape=(None, 1, 1), name="features")
 
 x1 = layers.ConvLSTM1D(filters=16, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
@@ -197,14 +197,14 @@ del input_features
 ############# REGRESSION ###############
 
 
-reg_input = keras.Input(shape=(None, SHIFT_WIDTH, 1), name="reg_signals")
+reg_input = keras.Input(shape=(None, None, 1), name="reg_signals")
 
-x = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
+x = layers.ConvLSTM1D(filters=16, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
 x = layers.ReLU()(x)
-x = layers.Bidirectional(layers.LSTM(256))(x)
+x = layers.Bidirectional(layers.LSTM(16))(x)
 x = layers.ReLU()(x)
 x = layers.Flatten()(x)
-reg_dense = layers.Dense(units=64, activation='relu')(x)
+reg_dense = layers.Dense(units=2, activation='relu')(x)
 reg_last_layer = layers.Dense(units=1)(reg_dense)
 
 reg_model = keras.Model(

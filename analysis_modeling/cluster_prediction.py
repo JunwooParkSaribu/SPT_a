@@ -12,7 +12,7 @@ import os
 
 print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
-model_nums = [18, 19]
+model_nums = [20]
 
 WINDOW_WIDTHS = np.arange(10, 100, 2)
 SHIFT_WIDTH = 40

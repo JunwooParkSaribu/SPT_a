@@ -13,13 +13,14 @@ print(tf.config.list_physical_devices('GPU'))
 
 SHIFT_WIDTH = 40
 REG_JUMP = 2
+MODEL = 22
 
 SHUFFLE = True
 MAX_EPOCHS = 10000
 BATCH_SIZE = 1024
 NB_FEATURES = 2
 
-loaded = np.load(f'./training_data/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
+loaded = np.load(f'./training_data/{MODEL}/training_set_{SHIFT_WIDTH}_{REG_JUMP}.npz')
 input_signals = loaded['input_signals']
 input_labels = loaded['input_labels']
 input_features = loaded['input_features']

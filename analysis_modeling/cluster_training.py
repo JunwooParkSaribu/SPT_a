@@ -126,9 +126,9 @@ print(f'train_cls_shape:{train_input.shape}\n',
 signal_input = keras.Input(shape=(None, None, 1), name="signals")
 feature_input = keras.Input(shape=(None, 1, 1), name="features")
 
-x1 = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
+x1 = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
-x1 = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, padding='same', dropout=0.1)(x1)
+x1 = layers.Bidirectional(layers.LSTM(128))(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Bidirectional(layers.LSTM(128))(x1)
 x1 = layers.ReLU()(x1)
@@ -149,7 +149,7 @@ cls_model = keras.Model(
 
 
 cls_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
-                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
                   metrics=[tf.keras.metrics.BinaryAccuracy(name='acc'),
                            tf.keras.metrics.FalsePositives(name='FP'),
                            tf.keras.metrics.FalseNegatives(name='FN'),

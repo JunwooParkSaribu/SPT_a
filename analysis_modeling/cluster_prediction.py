@@ -12,11 +12,11 @@ import os
 
 print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
-model_nums = [20]
+model_nums = [22]
 
 WINDOW_WIDTHS = np.arange(10, 100, 2)
 SHIFT_WIDTH = 40
-JUMP_D = 5
+JUMP_D = 2
 
 
 def uncumulate(xs:np.ndarray):
@@ -86,21 +86,22 @@ def make_signal(x_pos, y_pos, win_widths):
     return all_vals, normalized_vals
 
 
-def slice_data(signal_seq, jump_d, ext_width):
+def slice_data(signal_seq, jump_d, ext_width, shift_width):
     slice_d = []
     indice = []
     for i in range(ext_width, signal_seq.shape[1] - ext_width, jump_d):
-        crop = signal_seq[:, i - SHIFT_WIDTH//2: i + SHIFT_WIDTH//2]
-        if crop.shape[1] != SHIFT_WIDTH:
-            crop = np.hstack((crop, np.zeros((crop.shape[0], SHIFT_WIDTH - crop.shape[1])) ))
+        crop = signal_seq[:, i - shift_width//2: i + shift_width//2]
+        if crop.shape[1] != shift_width:
+            crop = np.hstack((crop, np.zeros((crop.shape[0], shift_width - crop.shape[1])) ))
         slice_d.append(crop)
         indice.append(i)
     return np.array(slice_d), np.array(indice) - ext_width
 
 
-def merge_close_points(changepoints, signal, seuil=5):
+def merge_close_points(changepoints, signal, pred_probas, seuil=5):
     seq_sums = []
     val_orders = np.argsort(np.sum(signal[:, changepoints], axis=0))[::-1]
+    # val_orders = np.argsort(pred_probas)[::-1]
 
     filtered_cps = []
     all_cps_range = set()
@@ -113,7 +114,7 @@ def merge_close_points(changepoints, signal, seuil=5):
     return filtered_cps
 
 
-def signal_from_extended_data(x, y, win_widths, ext_width, jump_d):
+def signal_from_extended_data(x, y, win_widths, ext_width, jump_d, shift_width):
     datas = []
     for data in [x, y]:
         delta_prev_data = -uncumulate(data[:min(data.shape[0], ext_width)])
@@ -129,7 +130,7 @@ def signal_from_extended_data(x, y, win_widths, ext_width, jump_d):
         datas.append(ext_data)
 
     signal, norm_signal = make_signal(datas[0], datas[1], win_widths)
-    sliced_signals, slice_indice = slice_data(signal, jump_d, min(data.shape[0], ext_width))
+    sliced_signals, slice_indice = slice_data(signal, jump_d, min(data.shape[0], ext_width), shift_width)
 
     return (signal[:, delta_prev_data.shape[0]:signal.shape[1] - delta_next_data.shape[0]],
             norm_signal[:, delta_prev_data.shape[0]:signal.shape[1] - delta_next_data.shape[0]],
@@ -138,7 +139,39 @@ def signal_from_extended_data(x, y, win_widths, ext_width, jump_d):
            signal)
 
 
-def ana_cp_predict(model, x, y, win_widths, jump_d, check_proba=False):
+def climb_mountain(signal, cp, seuil=5):
+    while True:
+        vals = [signal[x] if 0<=x<signal.shape[0] else -1 for x in range(cp-seuil,cp+1+seuil)]
+        if len(vals) == 0:
+            return -1
+        new_cp = cp + np.argmax(vals) - seuil
+        if new_cp == cp:
+            return new_cp
+        else:
+            cp = new_cp
+
+
+def press_cp(cps, jump_d):
+    filtered_cps = []
+    if len(cps) == 0:
+        return []
+    if len(cps) == 1:
+        return cps
+
+    for i in range(len(cps)):
+        if i == 0:
+            if cps[i] + jump_d == cps[i + 1]:
+                filtered_cps.append(cps[i])
+        elif i == len(cps) - 1:
+            if cps[i] - jump_d == cps[i - 1]:
+                filtered_cps.append(cps[i])
+        else:
+            if cps[i] == cps[i - 1] + jump_d or cps[i] == cps[i + 1] - jump_d:
+                filtered_cps.append(cps[i])
+    return np.array(filtered_cps)
+
+
+def ana_cp_predict(model, x, y, win_widths, jump_d, shift_width, check_proba=False):
     cps = []
     if x.shape[0] < win_widths[0]:
         return cps
@@ -146,7 +179,8 @@ def ana_cp_predict(model, x, y, win_widths, jump_d, check_proba=False):
     signal, norm_signal, input_signals, indice, ext_signal = signal_from_extended_data(x, y,
                                                                                        win_widths,
                                                                                        win_widths[-1] // 2,
-                                                                                       jump_d)
+                                                                                       jump_d,
+                                                                                       shift_width)
 
     input_signals = np.array(input_signals).reshape(-1, input_signals.shape[1], SHIFT_WIDTH, 1)
     feat1 = np.array([np.mean(signal, axis=1) ** 2 / np.std(signal, axis=1) ** 2] * input_signals.shape[0])
@@ -156,8 +190,49 @@ def ana_cp_predict(model, x, y, win_widths, jump_d, check_proba=False):
         pred = model.predict([input_signals, feat1], verbose=0).flatten()
         cps = indice[pred >= 0.5]
 
+    cps = press_cp(cps, jump_d)
     if len(cps) == 0:
         return cps
+
+    _, _, sliced_signals, _, _ = signal_from_extended_data(x, y,
+                                                           win_widths,
+                                                           win_widths[-1] // 2,
+                                                           jump_d,
+                                                           10)
+    slice_sum = np.sum(sliced_signals, axis=(1, 2))
+    slice_sum = np.array([[val] * jump_d for val in slice_sum]).flatten()
+    slice_sum /= np.max(slice_sum)
+    merged_cps = list(map(climb_mountain,
+                          [slice_sum] * len(cps),
+                          cps,
+                          [5 * jump_d] * len(cps)))
+    merged_cps = np.sort(np.unique(merged_cps))
+    if -1 in merged_cps:
+        merged_cps = np.delete(merged_cps, 0)
+    for idx, mer_cp in enumerate(merged_cps):
+        merged_cps[idx] = cps[np.argmin(abs(cps - float(mer_cp)))]
+
+    reg_inputs = []
+    for merged_cp in merged_cps:
+        xx = signal[:, max(0, -shift_width//2 + merged_cp) : min(signal.shape[1], shift_width//2 + merged_cp)]
+        if merged_cp < shift_width//2:
+            xx = np.hstack((np.zeros((xx.shape[0], shift_width - xx.shape[1])), xx))
+        elif merged_cp > signal.shape[1] - shift_width//2:
+            xx = np.hstack((xx, np.zeros((xx.shape[0], shift_width - xx.shape[1]))))
+        reg_inputs.append(xx)
+    reg_inputs = np.array(reg_inputs).reshape(-1, signal.shape[0], shift_width, 1)
+
+    if len(merged_cps) != 0:
+        reg_outputs = regression_model.predict(reg_inputs, verbose=0).flatten()
+        final_cps = np.round(merged_cps + reg_outputs).astype(int)
+        final_cps = merge_close_points(final_cps, signal, None, seuil=3)
+        return np.sort(final_cps)
+    else:
+        return []
+
+
+
+    """
 
     reg_inputs = input_signals[cps // jump_d, :, :, :]
     reg_inputs = np.array(reg_inputs).reshape(-1, signal.shape[0], SHIFT_WIDTH, 1)
@@ -192,6 +267,7 @@ def ana_cp_predict(model, x, y, win_widths, jump_d, check_proba=False):
     if len(cps_doublecheck) > 0:
         cps_doublecheck = merge_close_points(np.array(cps_doublecheck), signal, seuil=10)
     return np.sort(cps_doublecheck)
+    """
 
 
 for model_num in model_nums:

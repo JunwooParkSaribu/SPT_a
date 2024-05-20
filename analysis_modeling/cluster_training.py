@@ -13,7 +13,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 SHIFT_WIDTH = 40
 REG_JUMP = 2
-MODEL = 22
+MODEL = 23
 
 SHUFFLE = True
 MAX_EPOCHS = 10000
@@ -239,3 +239,5 @@ reg_history = reg_model.fit(x=train_reg_input,
 reg_model.save(f'./models/reg_model_{SHIFT_WIDTH}_{REG_JUMP}.keras')
 history_dict = reg_history.history
 json.dump(history_dict, open(f'./models/reg_history_{SHIFT_WIDTH}_{REG_JUMP}.json', 'w'))
+
+print(f'Trained Model, dataset Number: {MODEL}')

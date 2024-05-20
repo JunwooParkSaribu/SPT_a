@@ -128,9 +128,9 @@ feature_input = keras.Input(shape=(None, 1, 1), name="features")
 
 x1 = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, padding='same', dropout=0.1)(signal_input)
 x1 = layers.ReLU()(x1)
-x1 = layers.Bidirectional(layers.LSTM(128))(x1)
+x1 = layers.Bidirectional(layers.LSTM(256))(x1)
 x1 = layers.ReLU()(x1)
-x1 = layers.Bidirectional(layers.LSTM(128))(x1)
+x1 = layers.Dense(units=64)(x1)
 x1 = layers.ReLU()(x1)
 x1 = layers.Flatten()(x1)
 

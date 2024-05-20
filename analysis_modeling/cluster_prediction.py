@@ -339,7 +339,7 @@ for model_num in model_nums:
                         length_traj = df[df.traj_idx == idx].shape[0]
 
                         try:
-                            cps = ana_cp_predict(classification_model, x, y, WINDOW_WIDTHS, JUMP_D)
+                            cps = ana_cp_predict(classification_model, x, y, WINDOW_WIDTHS, JUMP_D, SHIFT_WIDTH)
                         except Exception as e:
                             print(f'err at track:{track}, exp:{exp}, fov:{fov}, idx:{idx}')
                             print(e)

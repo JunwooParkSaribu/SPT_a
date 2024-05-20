@@ -1,10 +1,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
-import IPython
-import IPython.display
 import numpy as np
-import random
 import pandas as pd
 import tensorflow as tf
 from andi_datasets.datasets_phenom import datasets_phenom
@@ -12,7 +9,7 @@ import os
 
 print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
-model_nums = [23]
+model_nums = [24]
 
 WINDOW_WIDTHS = np.arange(20, 100, 2)
 SHIFT_WIDTH = 40

@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 from andi_datasets.datasets_phenom import datasets_phenom
 import os
+import matplotlib.pyplot as plt
 
 print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
@@ -168,6 +169,18 @@ def press_cp(cps, jump_d):
     return np.array(filtered_cps)
 
 
+def slice_sum_divide(slices, jump_d, shift_width):
+    slice_d = []
+    for i in range(0, slices.shape[0], jump_d):
+        crop = slices[i - shift_width//2: i + shift_width//2]
+        if i <= shift_width//2:
+            crop = np.hstack((np.zeros((shift_width - crop.shape[0])), crop))
+        elif i >= slices.shape[0] - shift_width//2:
+            crop = np.hstack((crop, np.zeros((shift_width - crop.shape[0]))))
+        slice_d.append(crop)
+    return np.array(slice_d)
+
+
 def ana_cp_predict(model, x, y, win_widths, jump_d, shift_width, check_proba=False):
     cps = []
     if x.shape[0] < win_widths[0]:
@@ -179,26 +192,29 @@ def ana_cp_predict(model, x, y, win_widths, jump_d, shift_width, check_proba=Fal
                                                                                        jump_d,
                                                                                        shift_width)
 
+    _, _, sliced_signals, _, _ = signal_from_extended_data(x, y,
+                                                           win_widths,
+                                                           win_widths[-1] // 2,
+                                                           1,
+                                                           10)
+
+    slice_sum = np.sum(sliced_signals, axis=(1, 2))
+    slice_sum /= np.max(slice_sum)
+
     input_signals = np.array(input_signals).reshape(-1, input_signals.shape[1], SHIFT_WIDTH, 1)
     feat1 = np.array([np.mean(signal, axis=1) ** 2 / np.std(signal, axis=1) ** 2] * input_signals.shape[0])
     feat1 = feat1.reshape(-1, input_signals.shape[1], 1, 1)
+    input_slice_sum = slice_sum_divide(slice_sum, jump_d, shift_width).reshape(-1, 1, SHIFT_WIDTH, 1)
+    input_slice_snr = np.array([np.mean(slice_sum)**2 / np.std(slice_sum)**2] * input_slice_sum.shape[0])
 
     if input_signals.shape[0] != 0:
-        pred = model.predict([input_signals, feat1], verbose=0).flatten()
+        pred = model.predict([input_signals, feat1, input_slice_sum, input_slice_snr], verbose=0).flatten()
         cps = indice[pred >= 0.5]
 
     cps = press_cp(cps, jump_d)
     if len(cps) == 0:
         return cps
 
-    _, _, sliced_signals, _, _ = signal_from_extended_data(x, y,
-                                                           win_widths,
-                                                           win_widths[-1] // 2,
-                                                           jump_d,
-                                                           10)
-    slice_sum = np.sum(sliced_signals, axis=(1, 2))
-    slice_sum = np.array([[val] * jump_d for val in slice_sum]).flatten()
-    slice_sum /= np.max(slice_sum)
     merged_cps = list(map(climb_mountain,
                           [slice_sum] * len(cps),
                           cps,

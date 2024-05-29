@@ -13,7 +13,6 @@ print(tf.config.list_physical_devices('GPU'))
 N = 3
 D = 0.1
 Ts = np.arange(64, 512, 8).astype(int)
-print(Ts)
 
 
 def uncumulate(xs:np.ndarray):

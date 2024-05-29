@@ -12,8 +12,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 N = 3
 D = 0.1
-Ts = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64,
-      68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128]
+Ts = np.arange(64, 512, 8)
 
 
 def uncumulate(xs:np.ndarray):

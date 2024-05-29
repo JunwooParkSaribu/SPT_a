@@ -12,7 +12,8 @@ print(tf.config.list_physical_devices('GPU'))
 
 N = 3
 D = 0.1
-Ts = np.arange(64, 512, 8)
+Ts = np.arange(64, 512, 8).astype(int)
+print(Ts)
 
 
 def uncumulate(xs:np.ndarray):
@@ -36,13 +37,12 @@ for T in Ts:
     total_range = T + 200
     input_data = []
     input_label = []
-
     for i in range(12000):
         alpha = np.random.uniform(low=0.001, high=1.999)
         # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
         trajs_model, labels_model = models_phenom().single_state(N=N,
                                                                  L=None,
-                                                                 T=total_range,
+                                                                 T=int(total_range),
                                                                  alphas=alpha,  # Fixed alpha for each state
                                                                  Ds=[D, 0],  # Mean and variance of each state
                                                                  )

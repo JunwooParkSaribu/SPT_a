@@ -12,9 +12,10 @@ print(tf.__version__)
 print(tf.config.list_physical_devices('GPU'))
 
 
-N = 10
+N = 3
 T = 16
 D = 0.1
+total_range = T + 200
 
 
 def uncumulate(xs:np.ndarray):
@@ -36,7 +37,7 @@ def shuffle(data, *args):
 
 input_data = []
 input_label = []
-total_range = T + 200
+
 for i in range(10000):
     alpha = np.random.uniform(low=0.001, high=1.999)
     # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
@@ -56,7 +57,7 @@ for i in range(10000):
         input_data.append((xs + ys) / 2)
         input_label.append(alpha)
 
-        for _ in range(3):
+        for _ in range(15):
             random_start = np.random.randint(5, total_range - T)
             xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
             ys = trajs_model[:, n_traj, 1][random_start:random_start + T]

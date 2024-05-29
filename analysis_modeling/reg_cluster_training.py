@@ -11,9 +11,9 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 3
-T = 128
 D = 0.1
-total_range = T + 200
+Ts = [8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64,
+      68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128]
 
 
 def uncumulate(xs:np.ndarray):
@@ -33,34 +33,24 @@ def shuffle(data, *args):
     return data[shuffle_index], *args
 
 
-input_data = []
-input_label = []
+for T in Ts:
+    total_range = T + 200
+    input_data = []
+    input_label = []
 
-for i in range(12000):
-    alpha = np.random.uniform(low=0.001, high=1.999)
-    # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
-    trajs_model, labels_model = models_phenom().single_state(N=N,
-                                                             L=None,
-                                                             T=total_range,
-                                                             alphas=alpha,  # Fixed alpha for each state
-                                                             Ds=[D, 0],  # Mean and variance of each state
-                                                             )
-    for n_traj in range(N):
-        # var_length = np.random.randint(-4, 4)
-        xs = trajs_model[:, n_traj, 0][:T]
-        ys = trajs_model[:, n_traj, 1][:T]
-        xs = xs / (np.std(xs))
-        xs = np.cumsum(abs(uncumulate(xs))) / T
-        ys = ys / (np.std(ys))
-        ys = np.cumsum(abs(uncumulate(ys))) / T
-        input_data.append((xs + ys) / 2)
-        input_label.append(alpha)
-
-        for _ in range(25):
+    for i in range(12000):
+        alpha = np.random.uniform(low=0.001, high=1.999)
+        # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
+        trajs_model, labels_model = models_phenom().single_state(N=N,
+                                                                 L=None,
+                                                                 T=total_range,
+                                                                 alphas=alpha,  # Fixed alpha for each state
+                                                                 Ds=[D, 0],  # Mean and variance of each state
+                                                                 )
+        for n_traj in range(N):
             # var_length = np.random.randint(-4, 4)
-            random_start = np.random.randint(10, total_range - T)
-            xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
-            ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
+            xs = trajs_model[:, n_traj, 0][:T]
+            ys = trajs_model[:, n_traj, 1][:T]
             xs = xs / (np.std(xs))
             xs = np.cumsum(abs(uncumulate(xs))) / T
             ys = ys / (np.std(ys))
@@ -68,67 +58,75 @@ for i in range(12000):
             input_data.append((xs + ys) / 2)
             input_label.append(alpha)
 
+            for _ in range(25):
+                # var_length = np.random.randint(-4, 4)
+                random_start = np.random.randint(10, total_range - T)
+                xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
+                ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
+                xs = xs / (np.std(xs))
+                xs = np.cumsum(abs(uncumulate(xs))) / T
+                ys = ys / (np.std(ys))
+                ys = np.cumsum(abs(uncumulate(ys))) / T
+                input_data.append((xs + ys) / 2)
+                input_label.append(alpha)
 
-input_data = np.array(input_data).reshape(-1, 1, T, 1)
-input_label = np.array(input_label).reshape(-1, 1)
-input_data, input_label = shuffle(input_data, input_label)
+    input_data = np.array(input_data).reshape(-1, 1, T, 1)
+    input_label = np.array(input_label).reshape(-1, 1)
+    input_data, input_label = shuffle(input_data, input_label)
 
-train_input = input_data[:int(input_data.shape[0] * 0.8)]
-train_label = input_label[:int(input_data.shape[0] * 0.8)]
-val_input = input_data[int(input_data.shape[0] * 0.8):]
-val_label = input_label[int(input_data.shape[0] * 0.8):]
+    train_input = input_data[:int(input_data.shape[0] * 0.8)]
+    train_label = input_label[:int(input_data.shape[0] * 0.8)]
+    val_input = input_data[int(input_data.shape[0] * 0.8):]
+    val_label = input_label[int(input_data.shape[0] * 0.8):]
 
-train_input, train_label = shuffle(train_input, train_label)
-val_input, val_label = shuffle(val_input, val_label)
+    train_input, train_label = shuffle(train_input, train_label)
+    val_input, val_label = shuffle(val_input, val_label)
 
-print(f'train_reg_shape:{train_input.shape}\n',
-      f'train_label_shape:{train_label.shape}\n'
-      f'val_reg_shape:{val_input.shape}\n',
-      f'val_label_shape:{val_label.shape}\n'
-     )
+    print(f'train_reg_shape:{train_input.shape}\n',
+          f'train_label_shape:{train_label.shape}\n'
+          f'val_reg_shape:{val_input.shape}\n',
+          f'val_label_shape:{val_label.shape}\n'
+         )
 
-# Shape [batch, time, features] => [batch, time, lstm_units]
-reg_input = keras.Input(shape=(1, None, 1), name="reg_signals")
+    # Shape [batch, time, features] => [batch, time, lstm_units]
+    reg_input = keras.Input(shape=(1, None, 1), name="reg_signals")
+    x = layers.ConvLSTM1D(filters=32, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
+    x = layers.ReLU()(x)
+    x = layers.Bidirectional(layers.LSTM(32, dropout=0.1))(x)
 
+    x = layers.Flatten()(x)
+    reg_dense = layers.Dense(units=2, activation='relu')(x)
+    reg_last_layer = layers.Dense(units=1)(reg_dense)
 
-x = layers.ConvLSTM1D(filters=32, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
-x = layers.ReLU()(x)
-x = layers.Bidirectional(layers.LSTM(32, dropout=0.1))(x)
+    reg_model = keras.Model(
+        inputs=[reg_input],
+        outputs=[reg_last_layer],
+        name='anomalous_regression'
+    )
 
-x = layers.Flatten()(x)
-reg_dense = layers.Dense(units=2, activation='relu')(x)
-reg_last_layer = layers.Dense(units=1)(reg_dense)
+    reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error'),
+                      optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3/2),
+                      metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
+                              ]
+                     )
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                      patience=50,
+                                                      mode='min',
+                                                      verbose=1,
+                                                      restore_best_weights=True,
+                                                      start_from_epoch=15
+                                                     )
 
-reg_model = keras.Model(
-    inputs=[reg_input],
-    outputs=[reg_last_layer],
-    name='anomalous_regression'
-)
+    reg_history = reg_model.fit(x=train_input,
+                                y=train_label,
+                                validation_data=(val_input, val_label),
+                                batch_size=1024,
+                                epochs=1500,
+                                shuffle=True,
+                                callbacks=[early_stopping],
+                                verbose=2
+                                )
 
-
-reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error'),
-                  optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3/2),
-                  metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
-                          ]
-                 )
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                  patience=50,
-                                                  mode='min',
-                                                  verbose=1,
-                                                  restore_best_weights=True,
-                                                  start_from_epoch=15
-                                                 )
-
-
-reg_history = reg_model.fit(x=train_input,
-                        y=train_label,
-                        validation_data=(val_input, val_label),
-                        batch_size=1024,
-                        epochs=1500,
-                        shuffle=True,
-                        callbacks=[early_stopping],
-                        verbose=2
-                       )
-reg_model.save(f'./models/reg_model_{T}.keras')
-history_dict = reg_history.history
-json.dump(history_dict, open(f'./models/reg_history_{T}.json', 'w'))
+    reg_model.save(f'./models/reg_model_{T}.keras')
+    history_dict = reg_history.history
+    json.dump(history_dict, open(f'./models/reg_history_{T}.json', 'w'))

@@ -1,5 +1,3 @@
-import os
-import sys
 import numpy as np
 import tensorflow as tf
 import json
@@ -13,7 +11,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 3
-T = 8
+T = 128
 D = 0.1
 total_range = T + 200
 

@@ -12,7 +12,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 N = 3
 D = 0.1
-Ts = np.arange(176, 257, 16).astype(int)
+Ts = np.arange(8, 17, 4).astype(int)
 
 
 def uncumulate(xs:np.ndarray):
@@ -112,7 +112,7 @@ for T in Ts:
                                                       mode='min',
                                                       verbose=1,
                                                       restore_best_weights=True,
-                                                      start_from_epoch=15
+                                                      start_from_epoch=5
                                                      )
 
     reg_history = reg_model.fit(x=train_input,

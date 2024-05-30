@@ -11,8 +11,17 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 3
-D = 0.1
-Ts = np.arange(16, 17, 4).astype(int)
+Ts = [16, 32, 48, 64, 128]
+
+
+def radius_list(xs:np.ndarray, ys:np.ndarray):
+    assert xs.ndim == 1 and ys.ndim == 1
+    rad_list = [0.]
+    disp_list = []
+    for i in range(1, len(xs)):
+        rad_list.append(np.sqrt((xs[i] - xs[0])**2 + (ys[i] - ys[0])**2))
+        disp_list.append(np.sqrt((xs[i] - xs[i-1])**2 + (ys[i] - ys[i-1])**2))
+    return np.array(rad_list) / np.mean(disp_list) / len(xs)
 
 
 def uncumulate(xs:np.ndarray):
@@ -34,14 +43,16 @@ def shuffle(data, *args):
 
 for T in Ts:
     total_range = T + 200
+
     input_data = []
     input_label = []
     for i in range(12000):
+        D = np.random.uniform(low=0.01, high=10.0)
         alpha = np.random.uniform(low=0.001, high=1.999)
         # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
         trajs_model, labels_model = models_phenom().single_state(N=N,
                                                                  L=None,
-                                                                 T=int(total_range),
+                                                                 T=total_range,
                                                                  alphas=alpha,  # Fixed alpha for each state
                                                                  Ds=[D, 0],  # Mean and variance of each state
                                                                  )
@@ -49,11 +60,15 @@ for T in Ts:
             # var_length = np.random.randint(-4, 4)
             xs = trajs_model[:, n_traj, 0][:T]
             ys = trajs_model[:, n_traj, 1][:T]
+            rad_list = radius_list(xs, ys)
+
             xs = xs / (np.std(xs))
             xs = np.cumsum(abs(uncumulate(xs))) / T
             ys = ys / (np.std(ys))
             ys = np.cumsum(abs(uncumulate(ys))) / T
-            input_data.append((xs + ys) / 2)
+
+            input_list = np.vstack((((xs + ys) / 2), rad_list)).T
+            input_data.append(input_list)
             input_label.append(alpha)
 
             for _ in range(25):
@@ -61,15 +76,22 @@ for T in Ts:
                 random_start = np.random.randint(10, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
+                rad_list = radius_list(xs, ys)
+
                 xs = xs / (np.std(xs))
                 xs = np.cumsum(abs(uncumulate(xs))) / T
                 ys = ys / (np.std(ys))
                 ys = np.cumsum(abs(uncumulate(ys))) / T
-                input_data.append((xs + ys) / 2)
+
+                input_list = np.vstack((((xs + ys) / 2), rad_list)).T
+                input_data.append(input_list)
                 input_label.append(alpha)
 
-    input_data = np.array(input_data).reshape(-1, 1, T, 1)
-    input_label = np.array(input_label).reshape(-1, 1)
+    input_data = np.array(input_data)
+    input_label = np.array(input_label)
+
+    input_data = input_data.reshape(-1, T, 2, 1)
+    input_label = input_label.reshape(-1, 1)
     input_data, input_label = shuffle(input_data, input_label)
 
     train_input = input_data[:int(input_data.shape[0] * 0.8)]
@@ -87,13 +109,14 @@ for T in Ts:
          )
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
-    reg_input = keras.Input(shape=(1, None, 1), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=32, kernel_size=2, strides=1, padding='same', dropout=0.1)(reg_input)
+    reg_input = keras.Input(shape=(None, 2, 1), name="reg_signals")
+    x = layers.ConvLSTM1D(filters=64, kernel_size=2, strides=1,
+                          padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.ReLU()(x)
     x = layers.Bidirectional(layers.LSTM(32, dropout=0.1))(x)
 
     x = layers.Flatten()(x)
-    reg_dense = layers.Dense(units=2, activation='relu')(x)
+    reg_dense = layers.Dense(units=32, activation='relu')(x)
     reg_last_layer = layers.Dense(units=1)(reg_dense)
 
     reg_model = keras.Model(
@@ -103,17 +126,17 @@ for T in Ts:
     )
 
     reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error'),
-                      optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3/2),
+                      optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3 / 2),
                       metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
-                              ]
-                     )
+                               ]
+                      )
     early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
                                                       patience=50,
                                                       mode='min',
                                                       verbose=1,
                                                       restore_best_weights=True,
-                                                      start_from_epoch=5
-                                                     )
+                                                      start_from_epoch=3
+                                                      )
 
     reg_history = reg_model.fit(x=train_input,
                                 y=train_label,
@@ -124,7 +147,6 @@ for T in Ts:
                                 callbacks=[early_stopping],
                                 verbose=2
                                 )
-
     reg_model.save(f'./models/reg_model_{T}.keras')
     history_dict = reg_history.history
     json.dump(history_dict, open(f'./models/reg_history_{T}.json', 'w'))

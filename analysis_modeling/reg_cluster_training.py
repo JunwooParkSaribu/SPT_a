@@ -11,7 +11,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 10
-Ts = [32, 48, 64, 128]
+Ts = [32, 64, 128]
 
 
 def radius_list(xs:np.ndarray, ys:np.ndarray):
@@ -49,7 +49,6 @@ for T in Ts:
 
     for alpha in np.arange(0.001, 2, 0.001):
         D = np.random.uniform(low=0.01, high=10.0)
-        # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
         trajs_model, labels_model = models_phenom().single_state(N=N,
                                                                  L=None,
                                                                  T=total_range,
@@ -95,8 +94,6 @@ for T in Ts:
 
     for alpha in np.arange(0.001, 2, 0.001):
         D = np.random.uniform(low=0.01, high=10.0)
-        alpha = np.random.uniform(low=0.001, high=1.999)
-        # alpha = np.random.choice([0.01, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 1.99], 1)[0]
         trajs_model, labels_model = models_phenom().single_state(N=3,
                                                                  L=None,
                                                                  T=total_range,
@@ -138,13 +135,13 @@ for T in Ts:
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
     reg_input = keras.Input(shape=(None, 1, 2), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=64, kernel_size=2, strides=1,
+    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.ReLU()(x)
-    x = layers.Bidirectional(layers.LSTM(32, dropout=0.1))(x)
-
+    x = layers.Bidirectional(layers.LSTM(64, dropout=0.1))(x)
+    x = layers.ReLU()(x)
     x = layers.Flatten()(x)
-    reg_dense = layers.Dense(units=32, activation='relu')(x)
+    reg_dense = layers.Dense(units=64, activation='relu')(x)
     reg_last_layer = layers.Dense(units=1)(reg_dense)
 
     reg_model = keras.Model(
@@ -178,3 +175,4 @@ for T in Ts:
     reg_model.save(f'./models/reg_model_{T}.keras')
     history_dict = reg_history.history
     json.dump(history_dict, open(f'./models/reg_history_{T}.json', 'w'))
+    print(f'--------------------------- {T} finished ------------------------------')

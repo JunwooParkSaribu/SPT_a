@@ -135,14 +135,13 @@ for T in Ts:
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
     reg_input = keras.Input(shape=(None, 1, 2), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1,
+    x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
-    x = layers.ReLU()(x)
     x = layers.Bidirectional(layers.LSTM(64, dropout=0.1))(x)
-    x = layers.ReLU()(x)
     x = layers.Flatten()(x)
-    reg_dense = layers.Dense(units=64, activation='relu')(x)
-    reg_last_layer = layers.Dense(units=1)(reg_dense)
+    x = layers.Dense(units=128, activation='leaky_relu')(x)
+    x = layers.Dense(units=64, activation='leaky_relu')(x)
+    reg_last_layer = layers.Dense(units=1, activation='relu')(x)
 
     reg_model = keras.Model(
         inputs=[reg_input],
@@ -150,7 +149,7 @@ for T in Ts:
         name='anomalous_regression'
     )
 
-    reg_model.compile(loss=tf.keras.losses.MeanSquaredError(name='mean_squared_error'),
+    reg_model.compile(loss=tf.keras.losses.Huber(name='huber_loss'),
                       optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3 / 2),
                       metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
                                ]

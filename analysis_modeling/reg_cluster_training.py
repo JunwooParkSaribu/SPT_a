@@ -42,6 +42,7 @@ def shuffle(data, *args):
 
 
 for T in Ts:
+    print(f'--------------------------- {T} start ------------------------------')
     total_range = T + 200
 
     input_data = []
@@ -135,12 +136,12 @@ for T in Ts:
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
     reg_input = keras.Input(shape=(None, 1, 2), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1,
+    x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.Bidirectional(layers.LSTM(64, dropout=0.1))(x)
     x = layers.Flatten()(x)
+    x = layers.Dense(units=256, activation='leaky_relu')(x)
     x = layers.Dense(units=128, activation='leaky_relu')(x)
-    x = layers.Dense(units=64, activation='leaky_relu')(x)
     reg_last_layer = layers.Dense(units=1, activation='relu')(x)
 
     reg_model = keras.Model(

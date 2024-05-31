@@ -159,7 +159,7 @@ for T in Ts:
                                ]
                       )
     early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                      patience=50,
+                                                      patience=20,
                                                       mode='min',
                                                       verbose=1,
                                                       restore_best_weights=True,

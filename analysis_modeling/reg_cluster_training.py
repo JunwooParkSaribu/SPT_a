@@ -11,7 +11,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 10
-Ts = [48, 80, 96]
+Ts = [32, 80, 96]
 
 
 def radius_list(xs:np.ndarray, ys:np.ndarray):
@@ -67,7 +67,11 @@ for T in Ts:
             ys = ys / (np.std(ys))
             ys = np.cumsum(abs(uncumulate(ys))) / T
 
-            input_list = np.vstack((((xs + ys) / 2), rad_list)).T
+            input_list = np.vstack((xs, rad_list)).T
+            input_data.append(input_list)
+            input_label.append(alpha)
+
+            input_list = np.vstack((ys, rad_list)).T
             input_data.append(input_list)
             input_label.append(alpha)
 
@@ -83,7 +87,11 @@ for T in Ts:
                 ys = ys / (np.std(ys))
                 ys = np.cumsum(abs(uncumulate(ys))) / T
 
-                input_list = np.vstack((((xs + ys) / 2), rad_list)).T
+                input_list = np.vstack((xs, rad_list)).T
+                input_data.append(input_list)
+                input_label.append(alpha)
+
+                input_list = np.vstack((ys, rad_list)).T
                 input_data.append(input_list)
                 input_label.append(alpha)
 
@@ -113,7 +121,11 @@ for T in Ts:
                 ys = ys / (np.std(ys))
                 ys = np.cumsum(abs(uncumulate(ys))) / T
 
-                input_list = np.vstack((((xs + ys) / 2), rad_list)).T
+                input_list = np.vstack((xs, rad_list)).T
+                valid_data.append(input_list)
+                valid_label.append(alpha)
+
+                input_list = np.vstack((ys, rad_list)).T
                 valid_data.append(input_list)
                 valid_label.append(alpha)
 

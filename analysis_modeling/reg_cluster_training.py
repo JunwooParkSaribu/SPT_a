@@ -11,7 +11,7 @@ print(tf.config.list_physical_devices('GPU'))
 
 
 N = 10
-Ts = [64, 16, 128, 48]
+Ts = [5, 8, 12, 48]
 
 
 def radius_list(xs:np.ndarray, ys:np.ndarray):

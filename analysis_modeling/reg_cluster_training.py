@@ -75,9 +75,9 @@ for T in Ts:
             input_data.append(input_list)
             input_label.append(alpha)
 
-            for _ in range(100):
+            for random_start in range(5, total_range - T, 3):
                 # var_length = np.random.randint(-4, 4)
-                random_start = np.random.randint(5, total_range - T)
+                # random_start = np.random.randint(5, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
                 rad_list = radius_list(xs, ys)
@@ -110,8 +110,8 @@ for T in Ts:
                                                                  Ds=[D, 0],
                                                                  )
         for n_traj in range(3):
-            for _ in range(100):
-                random_start = np.random.randint(0, total_range - T)
+            for random_start in range(5, total_range - T, 3):
+                #random_start = np.random.randint(0, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
                 rad_list = radius_list(xs, ys)
@@ -150,10 +150,12 @@ for T in Ts:
     reg_input = keras.Input(shape=(None, 1, 2), name="reg_signals")
     x = layers.ConvLSTM1D(filters=512, kernel_size=3, strides=1,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
-    x = layers.Bidirectional(layers.LSTM(256, dropout=0.1))(x)
-    x = layers.Flatten()(x)
+    x = layers.LSTM(512, dropout=0.1)(x)
     x = layers.Dense(units=512, activation='leaky_relu')(x)
     x = layers.Dense(units=256, activation='leaky_relu')(x)
+    x = layers.Dense(units=256, activation='leaky_relu')(x)
+    x = layers.Dense(units=128, activation='leaky_relu')(x)
+    x = layers.Dense(units=64, activation='leaky_relu')(x)
     reg_last_layer = layers.Dense(units=1, activation='relu')(x)
 
     reg_model = keras.Model(

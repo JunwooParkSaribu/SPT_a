@@ -172,9 +172,10 @@ for T in Ts:
     x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
+    x = layers.Flatten()(x)
     x = layers.Dense(units=64, activation='leaky_relu')(x)
     reg_last_layer = layers.Dense(units=1, activation='relu')(x)
 

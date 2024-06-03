@@ -61,17 +61,21 @@ for T in Ts:
             xs = trajs_model[:, n_traj, 0][:T]
             ys = trajs_model[:, n_traj, 1][:T]
             rad_list = radius_list(xs, ys)
+            xs_raw = xs.copy()
+            ys_raw = ys.copy()
+            xs_raw = xs_raw - float(xs_raw[0])
+            ys_raw = ys_raw - float(ys_raw[0])
 
             xs = xs / (np.std(xs))
             xs = np.cumsum(abs(uncumulate(xs))) / T
             ys = ys / (np.std(ys))
             ys = np.cumsum(abs(uncumulate(ys))) / T
 
-            input_list = np.vstack((xs, rad_list)).T
+            input_list = np.vstack((xs, rad_list, xs_raw)).T
             input_data.append(input_list)
             input_label.append(alpha)
 
-            input_list = np.vstack((ys, rad_list)).T
+            input_list = np.vstack((ys, rad_list, ys_raw)).T
             input_data.append(input_list)
             input_label.append(alpha)
 
@@ -81,17 +85,21 @@ for T in Ts:
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
                 rad_list = radius_list(xs, ys)
+                xs_raw = xs.copy()
+                ys_raw = ys.copy()
+                xs_raw = xs_raw - float(xs_raw[0])
+                ys_raw = ys_raw - float(ys_raw[0])
 
                 xs = xs / (np.std(xs))
                 xs = np.cumsum(abs(uncumulate(xs))) / T
                 ys = ys / (np.std(ys))
                 ys = np.cumsum(abs(uncumulate(ys))) / T
 
-                input_list = np.vstack((xs, rad_list)).T
+                input_list = np.vstack((xs, rad_list, xs_raw)).T
                 input_data.append(input_list)
                 input_label.append(alpha)
 
-                input_list = np.vstack((ys, rad_list)).T
+                input_list = np.vstack((ys, rad_list, ys_raw)).T
                 input_data.append(input_list)
                 input_label.append(alpha)
 
@@ -115,17 +123,21 @@ for T in Ts:
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
                 rad_list = radius_list(xs, ys)
+                xs_raw = xs.copy()
+                ys_raw = ys.copy()
+                xs_raw = xs_raw - float(xs_raw[0])
+                ys_raw = ys_raw - float(ys_raw[0])
 
                 xs = xs / (np.std(xs))
                 xs = np.cumsum(abs(uncumulate(xs))) / T
                 ys = ys / (np.std(ys))
                 ys = np.cumsum(abs(uncumulate(ys))) / T
 
-                input_list = np.vstack((xs, rad_list)).T
+                input_list = np.vstack((xs, rad_list, xs_raw)).T
                 valid_data.append(input_list)
                 valid_label.append(alpha)
 
-                input_list = np.vstack((ys, rad_list)).T
+                input_list = np.vstack((ys, rad_list, ys_raw)).T
                 valid_data.append(input_list)
                 valid_label.append(alpha)
 
@@ -135,9 +147,9 @@ for T in Ts:
     train_input, train_label = shuffle(input_data, input_label)
     val_input, val_label = shuffle(valid_data, valid_label)
 
-    train_input = train_input.reshape(-1, T, 1, 2)
+    train_input = train_input.reshape(-1, T, 1, 3)
     train_label = train_label.reshape(-1, 1)
-    val_input = val_input.reshape(-1, T, 1, 2)
+    val_input = val_input.reshape(-1, T, 1, 3)
     val_label = val_label.reshape(-1, 1)
 
     print(f'train_reg_shape:{train_input.shape}\n',
@@ -147,11 +159,11 @@ for T in Ts:
          )
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
-    reg_input = keras.Input(shape=(None, 1, 2), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=512, kernel_size=3, strides=1, return_sequences=True,
+    reg_input = keras.Input(shape=(None, 1, 3), name="reg_signals")
+    x = layers.ConvLSTM1D(filters=512, kernel_size=4, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=256, kernel_size=4, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1, return_sequences=True,
@@ -160,7 +172,7 @@ for T in Ts:
     x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Dense(units=64, activation='leaky_relu')(x)

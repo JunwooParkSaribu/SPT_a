@@ -178,7 +178,7 @@ for T in Ts:
     reg_history = reg_model.fit(x=train_input,
                                 y=train_label,
                                 validation_data=(val_input, val_label),
-                                batch_size=1024,
+                                batch_size=2048,
                                 epochs=1500,
                                 shuffle=True,
                                 callbacks=[early_stopping],

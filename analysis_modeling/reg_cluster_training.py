@@ -163,19 +163,20 @@ for T in Ts:
     x = layers.ConvLSTM1D(filters=512, kernel_size=4, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=256, kernel_size=4, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=512, kernel_size=4, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=128, kernel_size=3, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1,
+    x = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Flatten()(x)
+    x = layers.Dense(units=128, activation='leaky_relu')(x)
     x = layers.Dense(units=64, activation='leaky_relu')(x)
     reg_last_layer = layers.Dense(units=1, activation='relu')(x)
 
@@ -186,7 +187,7 @@ for T in Ts:
     )
 
     reg_model.compile(loss=tf.keras.losses.Huber(name='huber_loss'),
-                      optimizer=tf.keras.optimizers.RMSprop(learning_rate=1e-3, momentum=0.1),
+                      optimizer=tf.keras.optimizers.RMSprop(learning_rate=1e-3/2, momentum=0.1),
                       metrics=[tf.keras.metrics.MeanAbsoluteError(name='MAE'),
                                ]
                       )

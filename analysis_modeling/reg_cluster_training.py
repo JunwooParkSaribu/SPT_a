@@ -160,7 +160,7 @@ for T in Ts:
 
     # Shape [batch, time, features] => [batch, time, lstm_units]
     reg_input = keras.Input(shape=(None, 1, 3), name="reg_signals")
-    x = layers.ConvLSTM1D(filters=512, kernel_size=4, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=512, kernel_size=5, strides=1, return_sequences=True,
                           padding='same', dropout=0.1, data_format="channels_last")(reg_input)
     x = layers.BatchNormalization()(x)
     x = layers.ConvLSTM1D(filters=512, kernel_size=4, strides=1, return_sequences=True,
@@ -170,9 +170,12 @@ for T in Ts:
                           padding='same', dropout=0.1, data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.ConvLSTM1D(filters=256, kernel_size=3, strides=1, return_sequences=True,
+                          padding='same', dropout=0.1, data_format="channels_last")(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1, return_sequences=True,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
-    x = layers.ConvLSTM1D(filters=256, kernel_size=2, strides=1, return_sequences=True,
+    x = layers.ConvLSTM1D(filters=128, kernel_size=2, strides=1,
                           padding='same', data_format="channels_last")(x)
     x = layers.BatchNormalization()(x)
     x = layers.Flatten()(x)

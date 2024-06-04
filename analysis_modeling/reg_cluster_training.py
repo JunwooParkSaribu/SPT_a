@@ -79,7 +79,7 @@ for T in Ts:
             input_data.append(input_list)
             input_label.append(alpha)
 
-            for random_start in range(5, total_range - T, 3):
+            for random_start in range(5, total_range - T, 2):
                 # var_length = np.random.randint(-4, 4)
                 # random_start = np.random.randint(5, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
@@ -118,7 +118,7 @@ for T in Ts:
                                                                  Ds=[D, 0],
                                                                  )
         for n_traj in range(3):
-            for random_start in range(5, total_range - T, 3):
+            for random_start in range(5, total_range - T, 2):
                 #random_start = np.random.randint(0, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]

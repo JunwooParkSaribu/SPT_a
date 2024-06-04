@@ -198,6 +198,7 @@ for T in Ts:
                                                       restore_best_weights=True,
                                                       start_from_epoch=3
                                                       )
+    reg_model.summary()
 
     reg_history = reg_model.fit(x=train_input,
                                 y=train_label,

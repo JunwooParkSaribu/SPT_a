@@ -21,7 +21,9 @@ def radius_list(xs:np.ndarray, ys:np.ndarray):
     for i in range(1, len(xs)):
         rad_list.append(np.sqrt((xs[i] - xs[0])**2 + (ys[i] - ys[0])**2))
         disp_list.append(np.sqrt((xs[i] - xs[i-1])**2 + (ys[i] - ys[i-1])**2))
-    return np.array(rad_list) / np.mean(disp_list) / len(xs)
+    return (np.array(rad_list) / np.mean(disp_list) / len(xs),
+            ((xs - float(xs[0]))/np.mean(disp_list)/len(xs)).copy(),
+            ((ys - float(ys[0]))/np.mean(disp_list)/len(ys)).copy())
 
 
 def uncumulate(xs:np.ndarray):
@@ -60,11 +62,7 @@ for T in Ts:
             # var_length = np.random.randint(-4, 4)
             xs = trajs_model[:, n_traj, 0][:T]
             ys = trajs_model[:, n_traj, 1][:T]
-            rad_list = radius_list(xs, ys)
-            xs_raw = xs.copy()
-            ys_raw = ys.copy()
-            xs_raw = xs_raw - float(xs_raw[0])
-            ys_raw = ys_raw - float(ys_raw[0])
+            rad_list, xs_raw, ys_raw = radius_list(xs, ys)
 
             xs = xs / (np.std(xs))
             xs = np.cumsum(abs(uncumulate(xs))) / T
@@ -84,11 +82,7 @@ for T in Ts:
                 # random_start = np.random.randint(5, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
-                rad_list = radius_list(xs, ys)
-                xs_raw = xs.copy()
-                ys_raw = ys.copy()
-                xs_raw = xs_raw - float(xs_raw[0])
-                ys_raw = ys_raw - float(ys_raw[0])
+                rad_list, xs_raw, ys_raw = radius_list(xs, ys)
 
                 xs = xs / (np.std(xs))
                 xs = np.cumsum(abs(uncumulate(xs))) / T
@@ -122,11 +116,7 @@ for T in Ts:
                 #random_start = np.random.randint(0, total_range - T)
                 xs = trajs_model[:, n_traj, 0][random_start:random_start + T]
                 ys = trajs_model[:, n_traj, 1][random_start:random_start + T]
-                rad_list = radius_list(xs, ys)
-                xs_raw = xs.copy()
-                ys_raw = ys.copy()
-                xs_raw = xs_raw - float(xs_raw[0])
-                ys_raw = ys_raw - float(ys_raw[0])
+                rad_list, xs_raw, ys_raw = radius_list(xs, ys)
 
                 xs = xs / (np.std(xs))
                 xs = np.cumsum(abs(uncumulate(xs))) / T

@@ -478,7 +478,7 @@ for track in [1, 2]:
 
 # Define the number of experiments and number of FOVS
 print(f'Submit number: {submit_number}')
-for track in [2]:
+for track in [2, 1]:
     path_track = path_results + f'track_{track}/'
 
     for exp in range(N_EXP):

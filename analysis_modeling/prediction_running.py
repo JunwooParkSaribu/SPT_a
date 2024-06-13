@@ -591,6 +591,7 @@ for track in [2, 1]:
                 df = pd.read_csv(public_data_path + f'track_{track}/exp_{exp}/videos_fov_{fov}_track.csv')
             traj_idx = np.sort(df.traj_idx.unique())
             submission_file = path_exp + f'fov_{fov}.txt'
+            outputs = ''
 
             # Loop over each index
             for idx in traj_idx:
@@ -611,6 +612,8 @@ for track in [2, 1]:
                     prediction_traj.append(state)
                     prediction_traj.append(cp)
 
-                with open(submission_file, 'a') as f:
-                    formatted_numbers = ','.join(map(str, prediction_traj))
-                    f.write(formatted_numbers + '\n')
+                outputs += ','.join(map(str, prediction_traj))
+                outputs += '\n'
+
+            with open(submission_file, 'w') as f:
+                f.write(outputs)

@@ -620,4 +620,3 @@ for track in [2, 1]:
 
             with open(submission_file, 'w') as f:
                 f.write(outputs)
-                

@@ -407,18 +407,21 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.20, cluste
                 target_label = np.argmax(max_dist_mean)
                 """
 
-                if right_length < 32 or left_length < 32:
-                    if after_cluster_pred_probas[prev_cluster_pred_label] > 0.001 or prev_cluster_pred_probas[
-                        after_cluster_pred_label] > 0.001:
-                        delete_cps = start_cps[i]
-                elif right_length < 64 or left_length < 64:
-                    if after_cluster_pred_probas[prev_cluster_pred_label] > 0.02 or prev_cluster_pred_probas[
-                        after_cluster_pred_label] > 0.02:
-                        delete_cps = start_cps[i]
-                else:
-                    if after_cluster_pred_probas[prev_cluster_pred_label] > 0.05 or prev_cluster_pred_probas[
-                        after_cluster_pred_label] > 0.05:
-                        delete_cps = start_cps[i]
+                del_conditions = [0.005, 0.02, 0.05, 0.10]
+                len_conds = [-1, -1]
+
+                for cond_k, length in enumerate([left_length, right_length]):
+                    if length < 16:
+                        len_conds[cond_k] = 0
+                    elif length < 32:
+                        len_conds[cond_k] = 1
+                    elif length < 64:
+                        len_conds[cond_k] = 2
+                    else:
+                        len_conds[cond_k] = 3
+
+                if after_cluster_pred_probas[prev_cluster_pred_label] > del_conditions[len_conds[1]] or prev_cluster_pred_probas[after_cluster_pred_label] > del_conditions[len_conds[0]]:
+                    delete_cps = start_cps[i]
 
         if delete_cps == -1:
             filtered_cps = start_cps
@@ -617,3 +620,4 @@ for track in [2, 1]:
 
             with open(submission_file, 'w') as f:
                 f.write(outputs)
+                

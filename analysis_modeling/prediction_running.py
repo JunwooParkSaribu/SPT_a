@@ -2,8 +2,10 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
 from skimage.restoration import denoise_tv_chambolle
-from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
+from sklearn.mixture import GaussianMixture
+from sklearn.model_selection import GridSearchCV
 
 
 print(tf.__version__)
@@ -16,10 +18,18 @@ reg_k_model = tf.keras.models.load_model(f'./models/alpha_reg_models/reg_k_model
 MAX_DENSITY_NB = 25
 EXT_WIDTH = 100
 WIN_WIDTHS = np.arange(20, 50, 2)
+param_grid = {
+    "n_components": range(2, 5),
+}
+CLUSTER_IMAGE = True
 
-N_EXPS = np.arange(8, 13).astype(int)
+N_EXPS = np.arange(0, 13).astype(int)
 N_FOVS = np.arange(0, 30).astype(int)
-submit_number = 6
+submit_number = 5
+
+
+def gmm_bic_score(estimator, X):
+    return -estimator.bic(X)
 
 
 def uncumulate(xs:np.ndarray):
@@ -449,35 +459,37 @@ for track in [2, 1]:
         print('--- Main processing ---')
         alpha_range = np.linspace(-2.2, 4.2, 300)
         k_range = np.linspace(-6.2, 6.2, 600)
-        all_alphas = all_alphas[np.argwhere((all_seg_lengths > 48) & (all_seg_lengths < 256)).flatten()]
-        all_ks = all_ks[np.argwhere((all_seg_lengths > 48) & (all_seg_lengths < 256)).flatten()]
+        all_alphas = all_alphas[np.argwhere((all_seg_lengths > 16) & (all_seg_lengths < 512)).flatten()]
+        all_ks = all_ks[np.argwhere((all_seg_lengths > 16) & (all_seg_lengths < 512)).flatten()]
 
-        cluster = BayesianGaussianMixture(n_components=3, max_iter=1000, n_init=20,
-                                          covariance_type='diag',
-                                          weight_concentration_prior=1e7,
-                                          mean_precision_prior=1e-7,
-                                          ).fit(np.vstack((all_alphas, all_ks)).T)
+        grid_search = GridSearchCV(
+            GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,
+            scoring=gmm_bic_score
+        )
+        grid_search.fit(np.vstack((all_alphas, all_ks)).T)
+        cluster_df = pd.DataFrame(grid_search.cv_results_)[
+            ["param_n_components", "mean_test_score"]
+        ]
+        cluster_df["mean_test_score"] = -cluster_df["mean_test_score"]
+        cluster_df = cluster_df.rename(
+            columns={
+                "param_n_components": "Number of components",
+                "mean_test_score": "BIC score",
+            }
+        )
+        opt_nb_component = np.argmin(cluster_df["BIC score"]) + param_grid['n_components'][0]
+        cluster = GaussianMixture(n_components=opt_nb_component, max_iter=2000, n_init=30,
+                                  covariance_type='tied').fit(np.vstack((all_alphas, all_ks)).T)
 
-        poten_nb_states = 0
-        weight_sum = 0
-        for mean, weight, cov in zip(cluster.means_[np.argsort(cluster.weights_)[::-1]],
-                                     cluster.weights_[np.argsort(cluster.weights_)[::-1]],
-                                     cluster.covariances_[np.argsort(cluster.weights_)[::-1]]):
-            weight_sum += weight
-            poten_nb_states += 1
-            if weight_sum >= 0.95:
-                break
-
-        cluster = BayesianGaussianMixture(n_components=poten_nb_states, max_iter=2000, n_init=20,
-                                          covariance_type='diag',
-                                          weight_concentration_prior=1e7,
-                                          mean_precision_prior=1e-7,
-                                          ).fit(np.vstack((all_alphas, all_ks)).T)
-
-        print(f'Estimated nb clusters: {poten_nb_states}')
+        if CLUSTER_IMAGE:
+            H, xedges, yedges = np.histogram2d(all_alphas, all_ks, bins=[alpha_range, k_range])
+            plt.figure(f'track{track}_exp{exp}_clusters')
+            plt.imshow(H.T, extent=(alpha_range[0], alpha_range[-1], k_range[0], k_range[-1]), origin='lower', alpha=1.0)
+            for i, cluster_mean in enumerate(cluster.means_):
+                plt.scatter(cluster_mean[0], cluster_mean[1], marker='+')
+            plt.savefig(f'track{track}_exp{exp}_clusters.png')
+        print(f'Estimated nb clusters: {opt_nb_component}')
         print('Cluster centers: ', cluster.means_)
-        print(cluster.weights_)
-        print(cluster.n_features_in_)
         print("--------------------------------")
 
         for fov in N_FOVS:

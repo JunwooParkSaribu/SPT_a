@@ -21,7 +21,7 @@ WIN_WIDTHS = np.arange(20, 50, 2)
 param_grid = {
     "n_components": range(2, 5),
 }
-CLUSTER_IMAGE = True
+CLUSTER_IMAGE = False
 
 N_EXPS = np.arange(0, 13).astype(int)
 N_FOVS = np.arange(0, 30).astype(int)
@@ -487,7 +487,8 @@ for track in [2, 1]:
             plt.imshow(H.T, extent=(alpha_range[0], alpha_range[-1], k_range[0], k_range[-1]), origin='lower', alpha=1.0)
             for i, cluster_mean in enumerate(cluster.means_):
                 plt.scatter(cluster_mean[0], cluster_mean[1], marker='+')
-            plt.savefig(f'track{track}_exp{exp}_clusters.png')
+            plt.savefig(f'./cluster_images/track{track}_exp{exp}_clusters.png')
+
         print(f'Estimated nb clusters: {opt_nb_component}')
         print('Cluster centers: ', cluster.means_)
         print("--------------------------------")

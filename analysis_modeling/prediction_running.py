@@ -372,7 +372,7 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
                 left_length = start_cps[i] - start_cps[i - 1]
                 right_length = start_cps[i + 1] - start_cps[i]
 
-                del_conditions = [0.005, 0.02, 0.05, 0.10]
+                del_conditions = [0.0005, 0.002, 0.05, 0.10]
                 len_conds = [-1, -1]
 
                 for cond_k, length in enumerate([left_length, right_length]):

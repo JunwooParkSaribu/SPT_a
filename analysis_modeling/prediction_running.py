@@ -25,7 +25,7 @@ CLUSTER_IMAGE = False
 
 N_EXPS = np.arange(0, 13).astype(int)
 N_FOVS = np.arange(0, 30).astype(int)
-submit_number = 5
+submit_number = 7
 
 
 def gmm_bic_score(estimator, X):

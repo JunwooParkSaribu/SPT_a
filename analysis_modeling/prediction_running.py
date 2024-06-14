@@ -459,8 +459,8 @@ for track in [2, 1]:
         print('--- Main processing ---')
         alpha_range = np.linspace(-2.2, 4.2, 300)
         k_range = np.linspace(-6.2, 6.2, 600)
-        all_alphas = all_alphas[np.argwhere((all_seg_lengths > 16) & (all_seg_lengths < 512)).flatten()]
-        all_ks = all_ks[np.argwhere((all_seg_lengths > 16) & (all_seg_lengths < 512)).flatten()]
+        all_alphas = all_alphas[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
+        all_ks = all_ks[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
 
         grid_search = GridSearchCV(
             GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,

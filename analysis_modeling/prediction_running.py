@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from skimage.restoration import denoise_tv_chambolle
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import GridSearchCV
+import gc
 
 
 print(tf.__version__)
@@ -15,6 +16,7 @@ reg_model_nums = [5, 8, 12, 16, 32, 48, 64, 128, 144]
 reg_models = {n: tf.keras.models.load_model(f'./models/alpha_reg_models/reg_model_{n}.keras') for n in reg_model_nums}
 reg_k_model = tf.keras.models.load_model(f'./models/alpha_reg_models/reg_k_model.keras')
 
+
 MAX_DENSITY_NB = 25
 EXT_WIDTH = 100
 WIN_WIDTHS = np.arange(20, 50, 2)
@@ -23,9 +25,11 @@ param_grid = {
 }
 CLUSTER_IMAGE = False
 
+
 N_EXPS = np.arange(0, 13).astype(int)
 N_FOVS = np.arange(0, 30).astype(int)
-submit_number = 7
+TRACKS = [2, 1]
+submit_number = 8
 
 
 def gmm_bic_score(estimator, X):
@@ -372,7 +376,7 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
                 left_length = start_cps[i] - start_cps[i - 1]
                 right_length = start_cps[i + 1] - start_cps[i]
 
-                del_conditions = [0.0005, 0.002, 0.05, 0.10]
+                del_conditions = [1e-6, 0.0005, 0.30, 0.50]
                 len_conds = [-1, -1]
 
                 for cond_k, length in enumerate([left_length, right_length]):
@@ -398,133 +402,206 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
     alpha_preds = np.array(alpha_preds)
     filtered_cps = np.array(filtered_cps)
     k_preds = np.array(k_preds)
-    return filtered_cps, alpha_preds, k_preds, seg_lengths
+    states = []
+
+    for k, alpha in zip(k_preds, alpha_preds):
+        if k < -2 and alpha < 1.0:
+            states.append(0)
+        elif alpha < 1.0:
+            states.append(1)
+        elif alpha > 1.9:
+            states.append(3)
+        else:
+            states.append(2)
+    return filtered_cps, alpha_preds, k_preds, states, seg_lengths
 
 
-public_data_path = f'public_data_validation_v1/' # make sure the folder has this name or change it
-path_results = f'result_validation_{submit_number}/'
-if not os.path.exists(path_results):
-    os.makedirs(path_results)
+def load_priors(path, track, exp):
+    try:
+        loaded = np.load(f'{path}/priors_{track}_{exp}.npz')
+        all_alphas = loaded['alphas']
+        all_seg_lengths = loaded['seg_lengths']
+        all_ks = loaded['all_ks'].flatten()
+    except Exception as e:
+        print(f'No priors for exp:{exp}')
+        return -1, -1, -1
+    return all_alphas, all_ks, all_seg_lengths
 
 
-for track in [1, 2]:
+def make_priors(datapath, savepath):
+    for track in TRACKS:
+        for exp in N_EXPS:
+            if not os.path.exists(f'{savepath}/priors_{track}_{exp}.npz'):
+                print(f'Prior building: Track: {track}, Exp: {exp}')
+                all_seg_lengths = []
+                all_alphas = []
+                all_ks = []
 
-    # Create the folder of the track if it does not exists
-    path_track = path_results + f'track_{track}/'
-    if not os.path.exists(path_track):
-        os.makedirs(path_track)
+                for fov in range(N_FOVS):
+                    if track == 2:
+                        df = pd.read_csv(datapath + f'track_{track}/exp_{exp}/trajs_fov_{fov}.csv')
+                    else:
+                        df = pd.read_csv(datapath + f'track_{track}/exp_{exp}/videos_fov_{fov}_track.csv')
+                    traj_idx = np.sort(df.traj_idx.unique())
+                    for idx in traj_idx:
+                        x = np.array(df[df.traj_idx == idx])[:, 2]
+                        y = np.array(df[df.traj_idx == idx])[:, 3]
 
-    for exp in N_EXPS:
-        # Create the folder of the experiment if it does not exits
-        path_exp = path_track + f'exp_{exp}/'
-        if not os.path.exists(path_exp):
-            os.makedirs(path_exp)
-        """
-        file_name = path_exp + 'ensemble_labels.txt'
+                        cps, alphas, ks, state, seg_lengths = exhaustive_cps_search(x, y,
+                                                                                    WIN_WIDTHS,
+                                                                                    EXT_WIDTH,
+                                                                                    search_seuil=0.25,
+                                                                                    cluster=None)
+                        all_alphas.extend(alphas)
+                        all_seg_lengths.extend(seg_lengths)
+                        all_ks.extend(ks)
 
-        with open(file_name, 'a') as f:
-            # Save the model (random) and the number of states (2 in this case)
-            model_name = np.random.choice(datasets_phenom().avail_models_name, size = 1)[0]
-            f.write(f'model: {model_name}; num_state: {2} \n')
+                all_alphas = np.array(all_alphas)
+                all_seg_lengths = np.array(all_seg_lengths)
+                all_ks = np.array(all_ks)
+                np.savez(f'{savepath}/priors_{track}_{exp}.npz', alphas=all_alphas, seg_lengths=all_seg_lengths, all_ks=all_ks)
+                del all_alphas
+                del all_seg_lengths
+                del all_ks
+                del cps
+                del alphas
+                del ks
+                del state
+                del seg_lengths
 
-            # Create some dummy data for 2 states. This means 2 columns
-            # and 5 rows
-            data = np.random.rand(5, 2)
-
-            data[-1,:] /= data[-1,:].sum()
-
-            # Save the data in the corresponding ensemble file
-            np.savetxt(f, data, delimiter = ';')
-        """
-
-
-# Define the number of experiments and number of FOVS
-print(f'Submit number: {submit_number}')
-for track in [2, 1]:
-    path_track = path_results + f'track_{track}/'
-
-    for exp in N_EXPS:
-        path_exp = path_track + f'exp_{exp}/'
-        print(f'Track: {track}, Exp: {exp}')
-        try:
-            loaded = np.load(f'{path_results}/priors_{track}_{exp}.npz')
-            all_alphas = loaded['alphas']
-            all_seg_lengths = loaded['seg_lengths']
-            all_ks = loaded['all_ks'].flatten()
-            no_priors = False
-        except:
-            no_priors = True
-            print(f'No priors for exp:{exp}')
-
-        print('--- Main processing ---')
-        alpha_range = np.linspace(-2.2, 4.2, 300)
-        k_range = np.linspace(-6.2, 6.2, 600)
-        all_alphas = all_alphas[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
-        all_ks = all_ks[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
-
-        grid_search = GridSearchCV(
-            GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,
-            scoring=gmm_bic_score
-        )
-        grid_search.fit(np.vstack((all_alphas, all_ks)).T)
-        cluster_df = pd.DataFrame(grid_search.cv_results_)[
-            ["param_n_components", "mean_test_score"]
-        ]
-        cluster_df["mean_test_score"] = -cluster_df["mean_test_score"]
-        cluster_df = cluster_df.rename(
-            columns={
-                "param_n_components": "Number of components",
-                "mean_test_score": "BIC score",
-            }
-        )
-        opt_nb_component = np.argmin(cluster_df["BIC score"]) + param_grid['n_components'][0]
-        cluster = GaussianMixture(n_components=opt_nb_component, max_iter=2000, n_init=30,
-                                  covariance_type='tied').fit(np.vstack((all_alphas, all_ks)).T)
-
-        if CLUSTER_IMAGE:
-            H, xedges, yedges = np.histogram2d(all_alphas, all_ks, bins=[alpha_range, k_range])
-            plt.figure(f'track{track}_exp{exp}_clusters')
-            plt.imshow(H.T, extent=(alpha_range[0], alpha_range[-1], k_range[0], k_range[-1]), origin='lower', alpha=1.0)
-            for i, cluster_mean in enumerate(cluster.means_):
-                plt.scatter(cluster_mean[0], cluster_mean[1], marker='+')
-            plt.savefig(f'./cluster_images/track{track}_exp{exp}_clusters.png')
-
-        print(f'Estimated nb clusters: {opt_nb_component}')
-        print('Cluster centers: ', cluster.means_)
-        print("--------------------------------")
-
-        for fov in N_FOVS:
-            # We read the corresponding csv file from the public data and extract the indices of the trajectories:
-            if track == 2:
-                df = pd.read_csv(public_data_path + f'track_{track}/exp_{exp}/trajs_fov_{fov}.csv')
             else:
-                df = pd.read_csv(public_data_path + f'track_{track}/exp_{exp}/videos_fov_{fov}_track.csv')
-            traj_idx = np.sort(df.traj_idx.unique())
-            submission_file = path_exp + f'fov_{fov}.txt'
-            outputs = ''
+                print(f'prior_ok: Track: {track}, Exp: {exp}')
 
-            # Loop over each index
-            for idx in traj_idx:
-                # Get the lenght of the trajectory
-                x = np.array(df[df.traj_idx == idx])[:, 2]
-                y = np.array(df[df.traj_idx == idx])[:, 3]
-                length_traj = df[df.traj_idx == idx].shape[0]
 
-                cps, alphas, ks, _ = exhaustive_cps_search(x, y, WIN_WIDTHS,
-                                                           EXT_WIDTH,
-                                                           search_seuil=0.25,
-                                                           cluster=cluster)
+def main():    # Define the number of experiments and number of FOVS
+    print(f'Submit number: {submit_number}')
+    print('--- Main processing ---')
+    alpha_range = np.linspace(-2.2, 4.2, 300)
+    k_range = np.linspace(-6.2, 6.2, 600)
 
-                prediction_traj = [idx.astype(int)]
-                for k, alpha, state, cp in zip(ks, alphas, [99999999] * len(cps), cps[1:]):
-                    prediction_traj.append(10 ** k)
-                    prediction_traj.append(alpha)
-                    prediction_traj.append(state)
-                    prediction_traj.append(cp)
+    public_data_path = f'public_data_validation_v1/'  # make sure the folder has this name or change it
+    path_results = f'result_validation_{submit_number}/'
+    if not os.path.exists(path_results):
+        os.makedirs(path_results)
 
-                outputs += ','.join(map(str, prediction_traj))
-                outputs += '\n'
+    for track in TRACKS:
 
-            with open(submission_file, 'w') as f:
-                f.write(outputs)
+        # Create the folder of the track if it does not exists
+        path_track = path_results + f'track_{track}/'
+        if not os.path.exists(path_track):
+            os.makedirs(path_track)
 
+        for exp in N_EXPS:
+            # Create the folder of the experiment if it does not exits
+            path_exp = path_track + f'exp_{exp}/'
+            if not os.path.exists(path_exp):
+                os.makedirs(path_exp)
+            """
+            file_name = path_exp + 'ensemble_labels.txt'
+
+            with open(file_name, 'a') as f:
+                # Save the model (random) and the number of states (2 in this case)
+                model_name = np.random.choice(datasets_phenom().avail_models_name, size = 1)[0]
+                f.write(f'model: {model_name}; num_state: {2} \n')
+
+                # Create some dummy data for 2 states. This means 2 columns
+                # and 5 rows
+                data = np.random.rand(5, 2)
+
+                data[-1,:] /= data[-1,:].sum()
+
+                # Save the data in the corresponding ensemble file
+                np.savetxt(f, data, delimiter = ';')
+            """
+
+    make_priors(public_data_path, path_results)
+
+    for track in TRACKS:
+        path_track = path_results + f'track_{track}/'
+
+        for exp in N_EXPS:
+            path_exp = path_track + f'exp_{exp}/'
+            print(f'Predicting:  Track: {track}, Exp: {exp}')
+            all_alphas, all_ks, all_seg_lengths = load_priors(path_results, track, exp)
+            all_alphas = all_alphas[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
+            all_ks = all_ks[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
+
+            grid_search = GridSearchCV(
+                GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,
+                scoring=gmm_bic_score
+            )
+            grid_search.fit(np.vstack((all_alphas, all_ks)).T)
+            cluster_df = pd.DataFrame(grid_search.cv_results_)[
+                ["param_n_components", "mean_test_score"]
+            ]
+            cluster_df["mean_test_score"] = -cluster_df["mean_test_score"]
+            cluster_df = cluster_df.rename(
+                columns={
+                    "param_n_components": "Number of components",
+                    "mean_test_score": "BIC score",
+                }
+            )
+            opt_nb_component = np.argmin(cluster_df["BIC score"]) + param_grid['n_components'][0]
+            cluster = GaussianMixture(n_components=opt_nb_component, max_iter=2000, n_init=30,
+                                      covariance_type='tied').fit(np.vstack((all_alphas, all_ks)).T)
+
+            if CLUSTER_IMAGE:
+                H, xedges, yedges = np.histogram2d(all_alphas, all_ks, bins=[alpha_range, k_range])
+                plt.figure(f'track{track}_exp{exp}_clusters')
+                plt.imshow(H.T, extent=(alpha_range[0], alpha_range[-1], k_range[0], k_range[-1]), origin='lower', alpha=1.0)
+                for i, cluster_mean in enumerate(cluster.means_):
+                    plt.scatter(cluster_mean[0], cluster_mean[1], marker='+')
+                plt.savefig(f'./cluster_images/track{track}_exp{exp}_clusters.png')
+
+            print(f'Estimated nb clusters: {opt_nb_component}')
+            print('Cluster centers: ', cluster.means_)
+            print("--------------------------------")
+
+            for fov in N_FOVS:
+                # We read the corresponding csv file from the public data and extract the indices of the trajectories:
+                if track == 2:
+                    df = pd.read_csv(public_data_path + f'track_{track}/exp_{exp}/trajs_fov_{fov}.csv')
+                else:
+                    df = pd.read_csv(public_data_path + f'track_{track}/exp_{exp}/videos_fov_{fov}_track.csv')
+                traj_idx = np.sort(df.traj_idx.unique())
+                submission_file = path_exp + f'fov_{fov}.txt'
+                outputs = ''
+
+                # Loop over each index
+                for idx in traj_idx:
+                    # Get the lenght of the trajectory
+                    x = np.array(df[df.traj_idx == idx])[:, 2]
+                    y = np.array(df[df.traj_idx == idx])[:, 3]
+
+                    cps, alphas, ks, states, seg_lengths = exhaustive_cps_search(x, y, WIN_WIDTHS,
+                                                                                 EXT_WIDTH,
+                                                                                 search_seuil=0.25,
+                                                                                 cluster=cluster)
+
+                    prediction_traj = [idx.astype(int)]
+                    for k, alpha, state, cp in zip(ks, alphas, states, cps[1:]):
+                        prediction_traj.append(10 ** k)
+                        prediction_traj.append(alpha)
+                        prediction_traj.append(state)
+                        prediction_traj.append(cp)
+
+                    outputs += ','.join(map(str, prediction_traj))
+                    outputs += '\n'
+
+                with open(submission_file, 'w') as f:
+                    f.write(outputs)
+
+            del seg_lengths
+            del states
+            del cps
+            del alphas
+            del ks
+            del prediction_traj
+            del all_alphas
+            del all_ks
+            del all_seg_lengths
+            gc.collect()
+
+
+if __name__ == "__main__":
+    main()

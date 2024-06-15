@@ -322,13 +322,18 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
 
     start_cps.append(0)
     start_cps.append(len(x))
-    start_cps = np.sort(start_cps)
-    cps_copy = [0]
-    for i in range(1, len(start_cps) - 1):
-        if start_cps[i] - start_cps[i - 1] > np.min(reg_model_nums) and start_cps[i + 1] - start_cps[i] > np.min(reg_model_nums):
-            cps_copy.append(start_cps[i])
-    start_cps = cps_copy
-    start_cps.append(len(x))
+    start_cps = list(np.sort(start_cps))
+    while True:
+        short_segment_flag = 0
+        sorted_indice_tuple, sorted_indice = sort_by_signal(slice_norm_signal, start_cps[1:-1])
+        for (l, r), i in zip(sorted_indice_tuple, sorted_indice):
+            i += 1
+            if start_cps[i] - start_cps[i - 1] < np.min(reg_model_nums) or start_cps[i + 1] - start_cps[i] < np.min(reg_model_nums):
+                start_cps.remove(start_cps[i])
+                short_segment_flag = 1
+                break
+        if short_segment_flag == 0:
+            break
 
     while True:
         filtered_cps = []

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import json
 import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,8 +27,8 @@ param_grid = {
 CLUSTER_IMAGE = False
 
 
-N_EXPS = np.arange(0, 13).astype(int)
 N_FOVS = np.arange(0, 30).astype(int)
+N_EXPS = np.arange(5, 13).astype(int)
 TRACKS = [2, 1]
 submit_number = 8
 
@@ -515,33 +516,44 @@ def main():    # Define the number of experiments and number of FOVS
             """
 
     make_priors(public_data_path, path_results)
+    with open(f'{path_results}nb_states_prior.json') as f:
+        states_priors = []
+        states_json = json.load(f)
+        for track_n in TRACKS:
+            states_priors.append(np.array(states_json[f'track{track_n}'])[N_EXPS])
 
-    for track in TRACKS:
+    for track, st_arr in zip(TRACKS, states_priors):
         path_track = path_results + f'track_{track}/'
 
-        for exp in N_EXPS:
+        for exp, nb_state in zip(N_EXPS, st_arr):
             path_exp = path_track + f'exp_{exp}/'
             print(f'Predicting:  Track: {track}, Exp: {exp}')
             all_alphas, all_ks, all_seg_lengths = load_priors(path_results, track, exp)
             all_alphas = all_alphas[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
             all_ks = all_ks[np.argwhere((all_seg_lengths > 32) & (all_seg_lengths < 512)).flatten()]
 
-            grid_search = GridSearchCV(
-                GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,
-                scoring=gmm_bic_score
-            )
-            grid_search.fit(np.vstack((all_alphas, all_ks)).T)
-            cluster_df = pd.DataFrame(grid_search.cv_results_)[
-                ["param_n_components", "mean_test_score"]
-            ]
-            cluster_df["mean_test_score"] = -cluster_df["mean_test_score"]
-            cluster_df = cluster_df.rename(
-                columns={
-                    "param_n_components": "Number of components",
-                    "mean_test_score": "BIC score",
-                }
-            )
-            opt_nb_component = np.argmin(cluster_df["BIC score"]) + param_grid['n_components'][0]
+            if nb_state == -1:
+                grid_search = GridSearchCV(
+                    GaussianMixture(max_iter=1000, n_init=50, covariance_type='tied'), param_grid=param_grid,
+                    scoring=gmm_bic_score
+                )
+                grid_search.fit(np.vstack((all_alphas, all_ks)).T)
+                cluster_df = pd.DataFrame(grid_search.cv_results_)[
+                    ["param_n_components", "mean_test_score"]
+                ]
+                cluster_df["mean_test_score"] = -cluster_df["mean_test_score"]
+                cluster_df = cluster_df.rename(
+                    columns={
+                        "param_n_components": "Number of components",
+                        "mean_test_score": "BIC score",
+                    }
+                )
+                opt_nb_component = np.argmin(cluster_df["BIC score"]) + param_grid['n_components'][0]
+                print(f'Estimated nb clusters: {opt_nb_component}')
+            else:
+                opt_nb_component = nb_state
+                print(f'Fixed nb clusters: {opt_nb_component}')
+
             cluster = GaussianMixture(n_components=opt_nb_component, max_iter=2000, n_init=30,
                                       covariance_type='tied').fit(np.vstack((all_alphas, all_ks)).T)
 
@@ -553,7 +565,6 @@ def main():    # Define the number of experiments and number of FOVS
                     plt.scatter(cluster_mean[0], cluster_mean[1], marker='+')
                 plt.savefig(f'./cluster_images/track{track}_exp{exp}_clusters.png')
 
-            print(f'Estimated nb clusters: {opt_nb_component}')
             print('Cluster centers: ', cluster.means_)
             print("--------------------------------")
 

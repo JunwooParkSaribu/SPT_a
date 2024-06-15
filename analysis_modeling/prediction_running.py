@@ -28,7 +28,7 @@ CLUSTER_IMAGE = False
 
 
 N_FOVS = np.arange(0, 30).astype(int)
-N_EXPS = np.arange(5, 13).astype(int)
+N_EXPS = np.arange(0, 13).astype(int)
 TRACKS = [2, 1]
 submit_number = 8
 
@@ -325,7 +325,7 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
     start_cps = np.sort(start_cps)
     cps_copy = [0]
     for i in range(1, len(start_cps) - 1):
-        if start_cps[i] - start_cps[i - 1] > 5 and start_cps[i + 1] - start_cps[i] > 5:
+        if start_cps[i] - start_cps[i - 1] > np.min(reg_model_nums) and start_cps[i + 1] - start_cps[i] > np.min(reg_model_nums):
             cps_copy.append(start_cps[i])
     start_cps = cps_copy
     start_cps.append(len(x))

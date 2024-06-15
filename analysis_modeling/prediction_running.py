@@ -406,9 +406,9 @@ def exhaustive_cps_search(x, y, win_widths, ext_width, search_seuil=0.25, cluste
     states = []
 
     for k, alpha in zip(k_preds, alpha_preds):
-        if k < -2 and alpha < 1.0:
+        if k < -2 and alpha < 0.2:
             states.append(0)
-        elif alpha < 1.0:
+        elif alpha < 0.2:
             states.append(1)
         elif alpha > 1.9:
             states.append(3)

@@ -438,7 +438,7 @@ def make_priors(datapath, savepath):
                 all_alphas = []
                 all_ks = []
 
-                for fov in range(N_FOVS):
+                for fov in N_FOVS:
                     if track == 2:
                         df = pd.read_csv(datapath + f'track_{track}/exp_{exp}/trajs_fov_{fov}.csv')
                     else:

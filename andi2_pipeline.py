@@ -3,6 +3,8 @@ import numpy as np
 from andi_datasets.datasets_phenom import datasets_phenom
 
 
+N_EXP = 13
+N_FOVS = 30
 public_data_path = 'public_data_validation_v1'
 
 
@@ -32,9 +34,6 @@ def write_config(exp_n, fov_n):
                      f'TRACK_VISUALIZATION = False\n')
         f.write(input_str)
 
-# Define the number of experiments and number of FOVS
-N_EXP = 13
-N_FOVS = 30
 
 for exp in range(0, N_EXP):
     for fov in range(0, N_FOVS):
@@ -44,7 +43,9 @@ for exp in range(0, N_EXP):
         with open("main.py") as file:
             exec(file.read())
 
+
 exit(1)
+
 
 for track in [1, 2]:
     # Create the folder of the track if it does not exists
@@ -52,7 +53,7 @@ for track in [1, 2]:
     if not os.path.exists(path_track):
         os.makedirs(path_track)
 
-    for exp in range(10):
+    for exp in range(N_EXP):
         # Create the folder of the experiment if it does not exits
         path_exp = path_track + f'exp_{exp}/'
         if not os.path.exists(path_exp):

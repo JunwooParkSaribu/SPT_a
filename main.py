@@ -1064,6 +1064,7 @@ if __name__ == '__main__':
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
 
+    """
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
             if andi2_indices is not None:
@@ -1071,11 +1072,18 @@ if __name__ == '__main__':
                     final_trajectories.append(trajectory)
             else:
                 final_trajectories.append(trajectory)
+    """
 
     print(f'Total number of trajectories: {len(final_trajectories)}')
-    if andi2_indices is not None and len(final_trajectories) != 10:
+    if len(andi2_indices) != 10:
         print(f'indexing err on {input_tif}')
         exit(1)
+
+    for trajectory in trajectory_list:
+        if not trajectory.delete(cutoff=cutoff):
+            final_trajectories.append(trajectory)
+    np.savez(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_vip_indices.npz', andi2_indices=np.array(andi2_indices))
+
 
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)

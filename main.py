@@ -1016,6 +1016,7 @@ if __name__ == '__main__':
     images = check_video_ext(params['localization']['VIDEO'], andi2=True)
     loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])
     andi2_indices = get_and2_indice(images, loc)
+    andi2_indices = andi2_indices[andi2_indices > -1]
     images = images[1:] / 255.
 
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)

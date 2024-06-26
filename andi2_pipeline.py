@@ -1,7 +1,5 @@
 import os
 import numpy as np
-from andi_datasets.datasets_phenom import datasets_phenom
-
 
 N_EXP = 13
 N_FOVS = 30
@@ -35,45 +33,10 @@ def write_config(exp_n, fov_n):
         f.write(input_str)
 
 
-for exp in range(3, N_EXP):
+for exp in range(0, N_EXP):
     for fov in range(0, N_FOVS):
         write_config(exp, fov)
         with open("Localization.py") as file:
             exec(file.read())
         with open("main.py") as file:
             exec(file.read())
-
-
-exit(1)
-
-
-for track in [1, 2]:
-    # Create the folder of the track if it does not exists
-    path_track = path_results + f'track_{track}/'
-    if not os.path.exists(path_track):
-        os.makedirs(path_track)
-
-    for exp in range(N_EXP):
-        # Create the folder of the experiment if it does not exits
-        path_exp = path_track + f'exp_{exp}/'
-        if not os.path.exists(path_exp):
-            os.makedirs(path_exp)
-        file_name = path_exp + 'ensemble_labels.txt'
-
-        with open(file_name, 'a') as f:
-            # Save the model (random) and the number of states (2 in this case)
-            model_name = np.random.choice(datasets_phenom().avail_models_name, size=1)[0]
-            f.write(f'model: {model_name}; num_state: {2} \n')
-
-            # Create some dummy data for 2 states. This means 2 columns
-            # and 5 rows
-            data = np.random.rand(5, 2)
-
-            data[-1, :] /= data[-1, :].sum()
-
-            # Save the data in the corresponding ensemble file
-            np.savetxt(f, data, delimiter=';')
-
-
-
-

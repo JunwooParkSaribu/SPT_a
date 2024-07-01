@@ -41,14 +41,14 @@ for exp in range(7, N_EXP):
     for fov in range(0, N_FOVS):
         while True:
             write_config(exp, fov)
-            proc_loc = run_command(['python3', f'Localization.py'])
+            proc_loc = run_command(['python3.10', f'Localization.py'])
             proc_loc.wait()
             if proc_loc.poll() == 0:
                 print(f'Exp:{exp} Fov:{fov} localization finished')
             else:
                 print(f'Exp:{exp} Fov:{fov} localization has failed: status:{proc_loc.poll()}')
 
-            proc_track = run_command(['python3', f'Localization.py'])
+            proc_track = run_command(['python3.10', f'Localization.py'])
             proc_track.wait()
             if proc_track.poll() == 0:
                 print(f'Exp:{exp} Fov:{fov} tracking has successfully finished')

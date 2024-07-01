@@ -37,7 +37,7 @@ def write_config(exp_n, fov_n):
         f.write(input_str)
 
 
-for exp in range(7, N_EXP):
+for exp in range(0, N_EXP):
     for fov in range(0, N_FOVS):
         while True:
             write_config(exp, fov)

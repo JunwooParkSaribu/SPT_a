@@ -48,7 +48,7 @@ for exp in range(0, N_EXP):
             else:
                 print(f'Exp:{exp} Fov:{fov} localization has failed: status:{proc_loc.poll()}')
 
-            proc_track = run_command(['python3.10', f'Localization.py'])
+            proc_track = run_command(['python3.10', f'main.py'])
             proc_track.wait()
             if proc_track.poll() == 0:
                 print(f'Exp:{exp} Fov:{fov} tracking has successfully finished')

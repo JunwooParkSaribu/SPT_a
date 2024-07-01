@@ -1,9 +1,9 @@
 import os
 import numpy as np
 
-N_EXP = 13
+N_EXP = 12
 N_FOVS = 30
-public_data_path = 'public_data_validation_v1'
+public_data_path = 'public_data_challenge_v0'
 
 
 def write_config(exp_n, fov_n):
@@ -33,10 +33,23 @@ def write_config(exp_n, fov_n):
         f.write(input_str)
 
 
-for exp in range(0, N_EXP):
+for exp in range(7, N_EXP):
     for fov in range(0, N_FOVS):
-        write_config(exp, fov)
-        with open("Localization.py") as file:
-            exec(file.read())
-        with open("main.py") as file:
-            exec(file.read())
+        while True:
+            write_config(exp, fov)
+            proc_loc = run_command(['python3', f'Localization.py'])
+            proc_loc.wait()
+            if proc_loc.poll() == 0:
+                print(f'Exp:{exp} Fov:{fov} localization finished')
+            else:
+                print(f'Exp:{exp} Fov:{fov} localization has failed: status:{proc.poll()}')
+
+            proc_track = run_command(['python3', f'Localization.py'])
+            proc_track.wait()
+            if proc_track.poll() == 0:
+                print(f'Exp:{exp} Fov:{fov} tracking has successfully finished')
+            else:
+                print(f'Exp:{exp} Fov:{fov} tracking has failed: status:{proc.poll()}')
+
+            if  proc_loc.poll() == 0 and proc_track.poll() == 0:
+                break

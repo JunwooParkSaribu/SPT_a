@@ -449,8 +449,19 @@ def proba_direction(paired_probas, paired_infos, paired_positions):
                          [-info1[2] * np.sqrt(info1[0]) * np.sqrt(info1[1]), info1[1]]])
         cov2 = np.array([[info2[0], -info2[2] * np.sqrt(info2[0]) * np.sqrt(info2[1])],
                          [-info2[2] * np.sqrt(info2[0]) * np.sqrt(info2[1]), info2[1]]])
-        eig_vals_1, eig_vecs_1 = np.linalg.eig(cov1)
-        eig_vals_2, eig_vecs_2 = np.linalg.eig(cov2)
+
+        ### NEED TO FIX
+        try:
+            eig_vals_1, eig_vecs_1 = np.linalg.eig(cov1)
+            eig_vals_2, eig_vecs_2 = np.linalg.eig(cov2)
+        except Exception as e:
+            print(e)
+            print('cov1', cov1)
+            print('cov2', cov2)
+            print(info1)
+            print(info2)
+            sys.exit(f'Rho has err during localization')
+
         eig_vals = np.array([eig_vals_1, eig_vals_2])
         eig_vecs = np.array([eig_vecs_1, eig_vecs_2])
         major_args = np.array([np.argmax(eig_vals[0]), np.argmax(eig_vals[1])])

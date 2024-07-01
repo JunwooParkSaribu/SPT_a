@@ -1,9 +1,13 @@
-import os
-import numpy as np
+import subprocess
 
 N_EXP = 12
 N_FOVS = 30
 public_data_path = 'public_data_challenge_v0'
+
+
+def run_command(cmd):
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process
 
 
 def write_config(exp_n, fov_n):

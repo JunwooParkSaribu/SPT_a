@@ -55,5 +55,6 @@ for exp in range(0, N_EXP):
             else:
                 print(f'Exp:{exp} Fov:{fov} tracking has failed: status:{proc_track.poll()}')
 
-            if  proc_loc.poll() == 0 and proc_track.poll() == 0:
+            if proc_loc.poll() == 0 and proc_track.poll() == 0:
                 break
+                

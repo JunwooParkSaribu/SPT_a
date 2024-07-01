@@ -57,4 +57,3 @@ for exp in range(0, N_EXP):
 
             if proc_loc.poll() == 0 and proc_track.poll() == 0:
                 break
-                

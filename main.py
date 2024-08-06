@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+import sys
 import matplotlib.pyplot as plt
 import concurrent.futures
 from scipy.stats import gmean
@@ -564,7 +565,7 @@ def simple_connect(localization: dict, localization_infos: dict,
 
             if 2 in on:
                 before_time = timer()
-                linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas, linkage_imgs)
+                linkage_log_probas = img_kl_divergence(linkage_pairs, linkage_log_probas)
                 #print(f'{"2: image kl_divergence duration":<35}:{(timer() - before_time):.2f}s')
 
             if 3 in on:

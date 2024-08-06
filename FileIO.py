@@ -109,21 +109,6 @@ def write_trxyt(file: str, trajectory_list: list, pixel_microns=1.0, frame_rate=
         print(e)
 
 
-def write_andi2_label(model_labels, filename: str):
-    try:
-        with open(filename, 'w', encoding="utf-8") as f:
-            input = f''
-            for traj_idx in range(model_labels.shape[1]):
-                input += f'{traj_idx},'
-                changepoints, alphas, Ds, state_nums = label_continuous_to_list(model_labels[:, traj_idx, :])
-                for cp, alpha, D, state_num in zip(changepoints, alphas, Ds, state_nums):
-                    input += f'{D},{alpha},{state_num},{cp},'
-                input += f'\n'
-            f.write(input)
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-
 def read_mosaic(file: str) -> dict:
     filetypes = ['csv']
     localizations = {}

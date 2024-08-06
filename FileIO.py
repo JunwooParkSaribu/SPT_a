@@ -2,9 +2,7 @@ import numpy as np
 from TrajectoryObject import TrajectoryObj
 from numba.typed import Dict
 from numba.core import types
-from andi_datasets.utils_challenge import label_continuous_to_list
 from ImageModule import read_tif
-from andi_datasets.utils_videos import import_tiff_video
 
 
 def read_trajectory(file: str, andi_gt=False) -> dict | list:
@@ -388,8 +386,4 @@ def check_video_ext(args, andi2=False):
         print(f'video format err, only .tif or .tiff are acceptable')
         exit(1)
     else:
-        if andi2:
-            video = import_tiff_video(args)
-        else:
-            video = read_tif(args)
-        return video
+        return read_tif(args)

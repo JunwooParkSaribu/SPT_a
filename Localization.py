@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import tifffile
 import concurrent.futures
+import image_pad
 from numba import njit
 from FileIO import write_localization, read_parameters, check_video_ext
 from numba.typed import List as nbList
@@ -100,15 +101,31 @@ def region_max_filter(maps, window_sizes, thresholds):
 
 #@njit
 def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
+    
+    ext_copy = ext_imgs.copy()
+    before_time = timer()
     for pdf, (n, r, c) in zip(pdfs, indices):
         bg = (np.ones(pdf.shape) * bg_means[n]).reshape(window_size)
         pdf = np.ascontiguousarray(pdf).reshape(window_size)
         row_indice = np.array([r - int((window_size[1]-1)/2), r + int((window_size[1]-1)/2)]) + int(extend/2)
         col_indice = np.array([c - int((window_size[0]-1)/2), c + int((window_size[0]-1)/2)]) + int(extend/2)
+        ext_copy[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1] -= pdf
+        ext_copy[n][row_indice[0]:row_indice[1] + 1, col_indice[0]:col_indice[1] + 1] = (
+            np.maximum(ext_copy[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1], bg))
+        ext_copy[n] = boundary_smoothing(ext_copy[n], row_indice, col_indice)
+    print(f'{"Py_subtraction":<35}:{(timer() - before_time):.2f}s')
+    
+    before_time = timer()
+    for pdf, (n, r, c) in zip(pdfs, indices):
+        bg = (np.ones(pdf.shape) * bg_means[n]).reshape(window_size)
+        pdf = np.ascontiguousarray(pdf).reshape(window_size)
+        row_indice = np.array([r - int((window_size[1]-1)/2), r + int((window_size[1]-1)/2)], dtype=np.intc) + int(extend/2)
+        col_indice = np.array([c - int((window_size[0]-1)/2), c + int((window_size[0]-1)/2)], dtype=np.intc) + int(extend/2)
         ext_imgs[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1] -= pdf
         ext_imgs[n][row_indice[0]:row_indice[1] + 1, col_indice[0]:col_indice[1] + 1] = (
             np.maximum(ext_imgs[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1], bg))
-        ext_imgs[n] = boundary_smoothing(ext_imgs[n], row_indice, col_indice)
+        ext_imgs[n] = image_pad.boundary_smoothing(ext_imgs[n], row_indice, col_indice)
+    print(f'{"C_subtraction":<35}:{(timer() - before_time):.2f}s')
     return ext_imgs
 
 
@@ -161,10 +178,10 @@ def likelihood(crop_imgs, gauss_grid, bg_squared_sums, bg_means, window_size):
 
     before_time = timer()
     i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1))
-    print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
+    #print(f'{"likelihood subtraction":<35}:{(timer() - before_time):.2f}s')
     before_time = timer()
     i_hat = i_hat @ g_bar / g_squared_sum
-    print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+    #print(f'{"likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
@@ -381,10 +398,17 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     bg_means = bgs[multi_winsizes[0][0]][:, 0]
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
-    extended_imgs = add_block_noise(extended_imgs, extend)
+
+    copycopy = extended_imgs.copy()
+    before_time = timer()
+    copycopy = add_block_noise(copycopy, extend)
+    print(f'{"Py_block_noise":<35}:{(timer() - before_time):.2f}s')
+    before_time = timer()
+    extended_imgs = image_pad.add_block_noise(extended_imgs, extend)
+    print(f'{"C_block_noise":<35}:{(timer() - before_time):.2f}s')
 
     while 1:
-        print(f'INDEX: {index}')
+        #print(f'INDEX: {index}')
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[:, index:]
         radiuss = bin_radius[index:]
@@ -395,18 +419,24 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             win_s_dict[ws[0]] = []
 
         if index == bin_thresholds.shape[1] - 1:
-            print(f'BACKWARD PROCESS')
+            #print(f'BACKWARD PROCESS')
             for df_loop in range(deflation_loop_backward):
+                print("?????????")
                 h_maps = []
                 for step, (g_grid, window_size, radius) in (
                         enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
                     crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
+                    print(np.array(crop_imgs).shape)
                     crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                             window_size[0] * window_size[1])
+                    print(crop_imgs.shape)
                     crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                    all_crop_imgs[window_size[0]] = crop_imgs
+                    #all_crop_imgs[window_size[0]] = crop_imgs
+                    print(crop_imgs.shape)
                     bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
-                    c = likelihood(crop_imgs.copy(), g_grid, bg_squared_sums, bg_means, window_size)
+                    c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
+                    print(c.shape)
+                    exit(1)
                     h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
                 h_maps = np.array(h_maps)
 
@@ -418,13 +448,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     plt.imshow(hm[0], vmin=0., vmax=1.)
                 plt.show()
                 """
-
+                print('&&&&&&&&&&&')
                 back_indices = [[] for _ in range(multi_thresholds.shape[1])]
                 for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
                     back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
                                                                       multi_thresholds[:, backward_index])
                 reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
                 regress_imgs_copy = extended_imgs.copy()
+                print('!!!!!')
                 for regress_comp_set in reregress_indice:
                     loss_vals = []
                     selected_dt = []
@@ -497,6 +528,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         if df_loop < deflation_loop_backward - 1:
                             del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(int).T
                             extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend=0)
+            print('############')
             return coords, reg_pdfs, reg_infos
 
         else:
@@ -517,7 +549,12 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                 before_time = timer()
                 c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
-                #print(f'{step}{": 3 calcul":<35}:{(timer() - before_time):.2f}s')
+                print(f'{"Py_likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+
+                before_time = timer()
+                c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])
+                print(f'{"C_likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+
                 before_time = timer()
                 h_map = mapping(h_map, c, args[7])
                 h_maps.append(h_map)
@@ -546,6 +583,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     ns = []
                     rs = []
                     cs = []
+                    print('@@@')
                     for i1, i2, i3, i4, i5 in win_s_dict[ws]:
                         regress_imgs.append(i1)
                         bg_regress.append(i2)
@@ -557,6 +595,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     for err_i, (x_var, y_var, rho) in enumerate(zip(x_vars, y_vars, rhos)):
                         if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
+                    print('@@@@@@')
                     if len(err_indice) == len(pdfs):
                         print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
                         index += 1
@@ -722,7 +761,7 @@ def unpack_coefs(coefs, window_size):
     y_var = abs(1/(-2 * coefs[:, 2] * k))
     for err_indice, (xvar_check, yvar_check, r) in enumerate(zip(x_var, y_var, rho)):
         if xvar_check < 0 or yvar_check < 0 or xvar_check > 3 * window_size[0] or yvar_check > 3 * window_size[1] or r < -1 or r > 1 or np.isnan(r):
-            print(r, np.isnan(r))
+            #print(r, np.isnan(r))
             err_indices.append(err_indice)
 
     for i, (b, d) in enumerate(zip(coefs[:, 1], coefs[:, 3])):
@@ -979,8 +1018,8 @@ def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
         args[5] = np.array([thresholds for _ in range(len(args[3]))]).T
     else:
         args[5] = np.ones((len(imgs), len(args[3]))) * args[5]
-    print(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
-    print(f'Thresholds: {args[5]}')
+    #(f'{"background calcul":<35}:{(timer() - before_time):.2f}s')
+    #print(f'Thresholds: {args[5]}')
     before_time = timer()
     xy_coord, pdf, info = localization(imgs, bgs, forward_gauss_grids, backward_gauss_grids, *args)
     print(f'{"localization calcul":<35}:{(timer() - before_time):.2f}s')
@@ -993,8 +1032,8 @@ if __name__ == '__main__':
     params = read_parameters('./config.txt')
 
     andi=True
-    images = check_video_ext(params['localization']['VIDEO'], andi2=True)[1:] / 255.
-    #images = check_video_ext(params['localization']['VIDEO'], andi2=False)
+    #images = check_video_ext(params['localization']['VIDEO'], andi2=True) / 255.
+    images = check_video_ext(params['localization']['VIDEO'], andi2=False)
     
     OUTPUT_DIR = params['localization']['OUTPUT_DIR']
     OUTPUT_LOC = f'{OUTPUT_DIR}/{params["localization"]["VIDEO"].split("/")[-1].split(".tif")[0]}'

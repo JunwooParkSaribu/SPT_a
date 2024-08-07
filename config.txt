@@ -1,4 +1,4 @@
-VIDEO=sample2.tif
+VIDEO=./sample.tif
 OUTPUT_DIR=.
 
 # LOCALIZATION

@@ -5,6 +5,7 @@ import numpy as np
 import tifffile
 import concurrent.futures
 import image_pad
+import regression
 from numba import njit
 from FileIO import write_localization, read_parameters, check_video_ext
 from numba.typed import List as nbList
@@ -482,7 +483,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         regress_imgs = np.array(regress_imgs)
 
                         if len(regress_imgs) > 0:
-
+                            print(regress_imgs.shape, '#####')
+                            print(np.array(bg_regress).shape)
                             pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                         (ws, ws), p0=args[6], decomp_n=args[8])
 
@@ -811,19 +813,19 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
     if p0 is None:
         p0 = [1.5, 0., 1.5, 0., 0., 0.5]  # x_var, x_mu, y_var, y_mu, rho, amp
     coef_vals = np.array(pack_vars(nbList(p0), nb_imgs))
-    imgs = imgs.reshape(imgs.shape[0], window_size[0], window_size[1])
+    imgs = imgs.reshape(imgs.shape[0], window_size[0] * window_size[1])
     ## background for each crop image needed rather than background intensity for whole image.
-    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-2
+    imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0] * window_size[1])) + 1e-2
     yk_2 = imgs.astype(np.float64).copy()
     x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
-              .reshape(-1, window_size[0], window_size[1]))
+              .reshape(-1, window_size[0] * window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
-              .reshape(-1, window_size[0], window_size[1]))
+              .reshape(-1, window_size[0] * window_size[1]))
     while k < repeat:
         if k != 0:
-            yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
-                          coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
-                          coef_vals[:, 4].reshape(-1, 1, 1) * x_grid * y_grid + coef_vals[:, 5].reshape(-1, 1, 1))
+            yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1) * x_grid +
+                          coef_vals[:, 2].reshape(-1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1) * y_grid +
+                          coef_vals[:, 4].reshape(-1, 1) * x_grid * y_grid + coef_vals[:, 5].reshape(-1, 1))
         yk_2 *= yk_2
         coef1 = yk_2 * x_grid**4
         coef2 = yk_2 * x_grid**3
@@ -848,7 +850,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
                  [coef4, coef8, coef11, coef13, coef7, coef14],
                  [coef5, coef4, coef12, coef7, coef3, coef8],
                  [coef6, coef9, coef13, coef14, coef8, coef15]]
-            ), axis=(3, 4)).transpose(2, 0, 1)
+            ), axis=(3)).transpose(2, 0, 1)
         ans1 = x_grid ** 2 * yk_2 * np.log(imgs)
         ans2 = x_grid * yk_2 * np.log(imgs)
         ans3 = y_grid ** 2 * yk_2 * np.log(imgs)
@@ -858,7 +860,7 @@ def guo_algorithm(imgs, bgs, p0=None, window_size=(7, 7), repeat=5, decomp_n=2):
         ans_matrix = np.sum(
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5], [ans6]]
-            ), axis=(3, 4), dtype=np.float64).transpose(2, 0, 1)
+            ), axis=(3), dtype=np.float64).transpose(2, 0, 1)
         coef_matrix = matrix_decomp(coef_matrix, decomp_n)
         ans_matrix = matrix_decomp(ans_matrix, decomp_n)
         decomp_coef_vals = matrix_decomp(coef_vals, decomp_n)

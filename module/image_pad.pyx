@@ -6,6 +6,9 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cdef double[:,::1] image_overlap(double[:,::1] img1, double[:,::1] img2, int div):
     cdef int row_max, col_max
     cdef Py_ssize_t r, c
@@ -21,6 +24,9 @@ cdef double[:,::1] image_overlap(double[:,::1] img1, double[:,::1] img2, int div
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cdef double contig_image_mean(double[:,::1] img):
     cdef int count, row_max, col_max
     cdef double sum
@@ -43,6 +49,9 @@ cdef double contig_image_mean(double[:,::1] img):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cdef double image_mean(double[:,:] img):
     cdef int count, row_max, col_max
     cdef double sum
@@ -65,6 +74,9 @@ cdef double image_mean(double[:,:] img):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cdef double image_std(double[:,:] img):
     cdef int count, row_max, col_max
     cdef double var, mean
@@ -88,6 +100,9 @@ cdef double image_std(double[:,:] img):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cdef double contig_image_std(double[:,::1] img):
     cdef int count, row_max, col_max
     cdef double var, mean
@@ -111,6 +126,9 @@ cdef double contig_image_std(double[:,::1] img):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef double[:,::1] boundary_smoothing(double[:,::1] img, int[::1] row_indice, int[::1] col_indice):
     cdef int border_max
     cdef int repeat_n
@@ -171,6 +189,9 @@ cpdef double[:,::1] boundary_smoothing(double[:,::1] img, int[::1] row_indice, i
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef double[:,:,::1] add_block_noise(double[:,:,::1] imgs, int extend):
     cdef int gap, row_max, col_max, img_nb, c, r, i, csize, rsize, rand_index
     cdef double m, std
@@ -306,6 +327,9 @@ cpdef double[:,:,::1] add_block_noise(double[:,:,::1] imgs, int extend):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef double[:,:,::1] likelihood(crop_imgs, double[:, ::1] gauss_grid, double[::1] bg_squared_sums, bg_means, int window_size1, int window_size2):
     cdef int surface_window, index
     cdef double g_squared_sum, g_mean
@@ -335,6 +359,9 @@ cpdef double[:,:,::1] likelihood(crop_imgs, double[:, ::1] gauss_grid, double[::
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef double[:,:,::1] image_cropping(extended_imgs, int extend, int window_size0, int window_size1, int shift):
     cropped_imgs = []
     cdef int start_row, end_row, start_col, end_col, row_size, col_size, nb_imgs

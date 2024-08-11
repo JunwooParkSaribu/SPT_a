@@ -331,3 +331,35 @@ cpdef double[:,:,::1] likelihood(crop_imgs, double[:, ::1] gauss_grid, double[::
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /
                                         (bg_squared_sums - (surface_window * bg_means)))).T
     return L.reshape(crop_imgs.shape[0], crop_imgs.shape[1], 1)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef double[:,:,::1] image_cropping(extended_imgs, int extend, int window_size0, int window_size1, int shift):
+    cropped_imgs = []
+    cdef int start_row, end_row, start_col, end_col, row_size, col_size, nb_imgs
+    cdef int [::1] row_indice, col_indice
+    cdef Py_ssize_t n, r, c, index
+    nb_imgs = extended_imgs.shape[0]
+    row_size = extended_imgs.shape[1]
+    col_size = extended_imgs.shape[2]
+    start_row = int(extend/2 - (window_size1-1)/2)
+    end_row = row_size - window_size1 - start_row + 1
+    start_col = int(extend/2 - (window_size0-1)/2)
+    end_col = col_size - window_size0 - start_col + 1
+    row_indice = np.arange(start_row, end_row, shift, dtype=np.intc)
+    col_indice = np.arange(start_col, end_col, shift, dtype=np.intc)
+
+    #cdef double [:,:,::1] img_view = extended_imgs
+    #cdef double [:,::1] tmp
+    cropped_imgs = np.zeros([nb_imgs, len(row_indice) * len(col_indice), window_size0* window_size1], dtype=np.double)
+
+
+    index = 0
+    for r in row_indice:
+        for c in col_indice:
+            #cropped_imgs.append(img_view[n][r:r + window_size1, c:c + window_size0])
+            cropped_imgs[:, index] = extended_imgs[:, r:r + window_size1, c:c + window_size0].reshape(-1, window_size0*window_size1)
+            index += 1
+    print(cropped_imgs.shape)
+    return cropped_imgs

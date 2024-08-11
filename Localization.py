@@ -101,7 +101,7 @@ def region_max_filter(maps, window_sizes, thresholds):
 
 #@njit
 def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
-    
+    """
     ext_copy = ext_imgs.copy()
     before_time = timer()
     for pdf, (n, r, c) in zip(pdfs, indices):
@@ -114,7 +114,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
             np.maximum(ext_copy[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1], bg))
         ext_copy[n] = boundary_smoothing(ext_copy[n], row_indice, col_indice)
     print(f'{"Py_subtraction":<35}:{(timer() - before_time):.2f}s')
-    
+    """
     before_time = timer()
     for pdf, (n, r, c) in zip(pdfs, indices):
         bg = (np.ones(pdf.shape) * bg_means[n]).reshape(window_size)
@@ -126,7 +126,7 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
             np.maximum(ext_imgs[n][row_indice[0]:row_indice[1]+1, col_indice[0]:col_indice[1]+1], bg))
         ext_imgs[n] = image_pad.boundary_smoothing(ext_imgs[n], row_indice, col_indice)
     print(f'{"C_subtraction":<35}:{(timer() - before_time):.2f}s')
-    return ext_imgs
+    return np.array(ext_imgs)
 
 
 #@njit
@@ -399,13 +399,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = np.zeros((imgs.shape[0], imgs.shape[1] + extend, imgs.shape[2] + extend))
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
 
-    copycopy = extended_imgs.copy()
     before_time = timer()
-    copycopy = add_block_noise(copycopy, extend)
+    extended_imgs = add_block_noise(extended_imgs, extend)
     print(f'{"Py_block_noise":<35}:{(timer() - before_time):.2f}s')
+    """
     before_time = timer()
-    extended_imgs = image_pad.add_block_noise(extended_imgs, extend)
+    extended_imgs = np.array(image_pad.add_block_noise(extended_imgs, extend))
     print(f'{"C_block_noise":<35}:{(timer() - before_time):.2f}s')
+    """
 
     while 1:
         #print(f'INDEX: {index}')
@@ -425,18 +426,25 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 h_maps = []
                 for step, (g_grid, window_size, radius) in (
                         enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
-                    crop_imgs = image_cropping(extended_imgs, extend, window_size, shift=1)
-                    print(np.array(crop_imgs).shape)
+                    """
+                    ext_copies = extended_imgs.copy()
+                    print(extended_imgs.shape)
+                    before_time = timer()
+                    crop_imgs = image_cropping(ext_copies, extend, window_size, shift=1)
                     crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
                                                             window_size[0] * window_size[1])
-                    print(crop_imgs.shape)
+                    #print(crop_imgs.shape)
                     crop_imgs = np.moveaxis(crop_imgs, 0, 1)
-                    #all_crop_imgs[window_size[0]] = crop_imgs
-                    print(crop_imgs.shape)
+                    print(f'{"PY_cropping":<35}:{(timer() - before_time):.2f}s')
+                    """
+                    before_time = timer()
+                    crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=1)
+                    #crop_imgs = np.array(crop_imgs).reshape(imgs.shape[1] * imgs.shape[2], imgs.shape[0],
+                    #                                        window_size[0] * window_size[1])
+                    print(f'{"C_cropping":<35}:{(timer() - before_time):.2f}s')
                     bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
-                    c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
+                    c = np.array(image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1]))
                     print(c.shape)
-                    exit(1)
                     h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
                 h_maps = np.array(h_maps)
 
@@ -456,6 +464,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
                 regress_imgs_copy = extended_imgs.copy()
                 print('!!!!!')
+                before_time = timer()
                 for regress_comp_set in reregress_indice:
                     loss_vals = []
                     selected_dt = []
@@ -473,8 +482,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         regress_imgs = np.array(regress_imgs)
 
                         if len(regress_imgs) > 0:
+
                             pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                         (ws, ws), p0=args[6], decomp_n=args[8])
+
                             penalty = 0
                             for x_var, y_var, rho, dx, dy in zip(x_vars, y_vars, rhos, xs, ys):
                                 if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
@@ -528,7 +539,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         if df_loop < deflation_loop_backward - 1:
                             del_indices = np.round(np.array([ns, rs+ys, cs+xs])).astype(int).T
                             extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend=0)
-            print('############')
+            print(f'{"PY_total_regression":<35}:{(timer() - before_time):.2f}s')
             return coords, reg_pdfs, reg_infos
 
         else:
@@ -547,15 +558,16 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 all_crop_imgs[window_size[0]] = crop_imgs
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
 
+                """
                 before_time = timer()
                 c = likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size)
                 print(f'{"Py_likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
+                """
 
                 before_time = timer()
                 c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])
                 print(f'{"C_likelihood dotproduct":<35}:{(timer() - before_time):.2f}s')
 
-                before_time = timer()
                 h_map = mapping(h_map, c, args[7])
                 h_maps.append(h_map)
                 #print(f'{step}{": hmap calcul":<35}:{(timer() - before_time):.2f}s')

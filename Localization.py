@@ -423,7 +423,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
         if index == bin_thresholds.shape[1] - 1:
             #print(f'BACKWARD PROCESS')
             for df_loop in range(deflation_loop_backward):
-                print("?????????")
                 h_maps = []
                 for step, (g_grid, window_size, radius) in (
                         enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
@@ -445,7 +444,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     print(f'{"C_cropping":<35}:{(timer() - before_time):.2f}s')
                     bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
                     c = np.array(image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1]))
-                    print(c.shape)
                     h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
                 h_maps = np.array(h_maps)
 
@@ -457,14 +455,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     plt.imshow(hm[0], vmin=0., vmax=1.)
                 plt.show()
                 """
-                print('&&&&&&&&&&&')
+
                 back_indices = [[] for _ in range(multi_thresholds.shape[1])]
                 for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
                     back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
                                                                       multi_thresholds[:, backward_index])
                 reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
                 regress_imgs_copy = extended_imgs.copy()
-                print('!!!!!')
+   
                 before_time = timer()
                 for regress_comp_set in reregress_indice:
                     loss_vals = []
@@ -483,8 +481,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         regress_imgs = np.array(regress_imgs)
 
                         if len(regress_imgs) > 0:
-                            print(regress_imgs.shape, '#####')
-                            print(np.array(bg_regress).shape)
                             pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
                                                                                         (ws, ws), p0=args[6], decomp_n=args[8])
 
@@ -737,10 +733,17 @@ def intensity_reg(imgs, pdfs, center_i):
 
 
 def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0, repeat=5):
-    imgs = np.array(imgs)
-    bgs = np.array(bgs)
+    imgs = np.array(imgs).reshape([-1, window_size[0] * window_size[1]])
+    bgs = np.array(bgs).reshape([-1, window_size[0] * window_size[1]])
+    p0 = np.array(p0)
+    x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
+              .reshape(-1, window_size[0] * window_size[1]))
+    y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
+              .reshape(-1, window_size[0] * window_size[1]))
     qt_imgs, grid = quantification(imgs, window_size, amp)
-    coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, repeat=repeat, decomp_n=decomp_n)
+    #coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, repeat=repeat, decomp_n=decomp_n)
+    coefs = regression.guo_algorithm(imgs, bgs, p0=p0, xgrid=x_grid, ygrid=y_grid, 
+                                     window_size=window_size, repeat=repeat, decomp_n=decomp_n)
     variables, err_indices = unpack_coefs(coefs, window_size)
     if len(err_indices) > 0:
         coefs = guo_algorithm(imgs, bgs, p0=p0, window_size=window_size, repeat=repeat+1, decomp_n=decomp_n)

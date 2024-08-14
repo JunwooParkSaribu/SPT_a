@@ -4,6 +4,7 @@ from libc.stdlib cimport malloc, free
 from libc.math cimport sin, cos, acos, exp, sqrt, fabs, M_PI, log
 import numpy as np
 cimport cython
+import copy
 
 
 @cython.boundscheck(False)
@@ -11,10 +12,10 @@ cimport cython
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-cpdef double [:,::1] pack_vars(double[::1] vars, int len_img):
+cpdef pack_vars(double[::1] vars, int len_img):
     cdef double a,b,c,d,e,f
-    cdef double [:,::1] var_stack = np.zeros([len_img, 6], dtype=np.double)
     cdef Py_ssize_t i
+    var_stack = np.zeros([len_img, 6], dtype=np.double)
 
     a = -1. / (2 * vars[0] * (1 - vars[4]*vars[4]))
     b = vars[1] / ((1 - vars[4] * vars[4]) * vars[0]) - (vars[4] * vars[3]) / ((1 - vars[4] * vars[4]) * sqrt(vars[0]) * sqrt(vars[2]))
@@ -86,46 +87,43 @@ def unpack_coefs(coefs, window_size):
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-cpdef guo_algorithm(double[:,:,::1] imgs, double[:,::1] bgs, double[::1] p0, window_size=(7, 7), repeat=5, decomp_n=2):
+cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0, 
+                    xgrid, ygrid, window_size=(7, 7), repeat=5, decomp_n=2):
     cdef int k, nb_imgs
-    cdef double [:,::1] coef_vals, imgs_view, bgs_view, yk_2_view
+    cdef double [:,::1] imgs_view, bgs_view
 
     k = 0
     nb_imgs = imgs.shape[0]
     coef_vals = pack_vars(p0, nb_imgs)
-    imgs = imgs.reshape(imgs.shape[0], window_size[0] * window_size[1])
-    yk_2 = imgs.copy()
-
     img_view = imgs
     bgs_view = bgs
-    yk_2_view = yk_2
+
     ## background for each crop image needed rather than background intensity for whole image.
     #imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-2
+    element_wise_subtraction_2d(img_view, bgs_view)
     element_wise_maximum_2d(img_view)
-    x_grid = (np.array([list(np.arange(-int(window_size[0]/2), int((window_size[0]/2) + 1), 1))] * window_size[1])
-              .reshape(-1, window_size[0], window_size[1]))
-    y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
-              .reshape(-1, window_size[0], window_size[1]))
+    yk_2 = imgs.copy()
+
     while k < repeat:
         if k != 0:
-            yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1, 1) * x_grid**2 + coef_vals[:, 1].reshape(-1, 1, 1) * x_grid +
-                          coef_vals[:, 2].reshape(-1, 1, 1) * y_grid**2 + coef_vals[:, 3].reshape(-1, 1, 1) * y_grid +
-                          coef_vals[:, 4].reshape(-1, 1, 1) * x_grid * y_grid + coef_vals[:, 5].reshape(-1, 1, 1))
-        yk_2 *= yk_2
-        coef1 = yk_2 * x_grid**4
-        coef2 = yk_2 * x_grid**3
-        coef3 = yk_2 * x_grid**2 * y_grid**2
-        coef4 = yk_2 * x_grid**2 * y_grid
-        coef5 = yk_2 * x_grid**3 * y_grid
-        coef6 = yk_2 * x_grid**2
-        coef7 = yk_2 * x_grid * y_grid**2
-        coef8 = yk_2 * x_grid * y_grid
-        coef9 = yk_2 * x_grid
-        coef10 = yk_2 * y_grid**4
-        coef11 = yk_2 * y_grid**3
-        coef12 = yk_2 * x_grid * y_grid**3
-        coef13 = yk_2 * y_grid**2
-        coef14 = yk_2 * y_grid
+            yk_2 = np.exp(coef_vals[:, 0].reshape(-1, 1) * xgrid**2 + coef_vals[:, 1].reshape(-1, 1) * xgrid +
+                          coef_vals[:, 2].reshape(-1, 1) * ygrid**2 + coef_vals[:, 3].reshape(-1, 1) * ygrid +
+                          coef_vals[:, 4].reshape(-1, 1) * xgrid * ygrid + coef_vals[:, 5].reshape(-1, 1))
+        yk_2 = yk_2 * yk_2
+        coef1 = yk_2 * xgrid * xgrid * xgrid * xgrid
+        coef2 = yk_2 * xgrid * xgrid * xgrid
+        coef3 = yk_2 * xgrid**2 * ygrid**2
+        coef4 = yk_2 * xgrid**2 * ygrid
+        coef5 = yk_2 * xgrid * xgrid * xgrid * ygrid
+        coef6 = yk_2 * xgrid**2
+        coef7 = yk_2 * xgrid * ygrid**2
+        coef8 = yk_2 * xgrid * ygrid
+        coef9 = yk_2 * xgrid
+        coef10 = yk_2 * ygrid * ygrid * ygrid * ygrid
+        coef11 = yk_2 * ygrid * ygrid * ygrid
+        coef12 = yk_2 * xgrid * ygrid * ygrid * ygrid
+        coef13 = yk_2 * ygrid**2
+        coef14 = yk_2 * ygrid
         coef15 = yk_2
         coef_matrix = np.sum(
             np.array(
@@ -135,17 +133,17 @@ cpdef guo_algorithm(double[:,:,::1] imgs, double[:,::1] bgs, double[::1] p0, win
                  [coef4, coef8, coef11, coef13, coef7, coef14],
                  [coef5, coef4, coef12, coef7, coef3, coef8],
                  [coef6, coef9, coef13, coef14, coef8, coef15]]
-            ), axis=(3, 4)).transpose(2, 0, 1)
-        ans1 = x_grid ** 2 * yk_2 * np.log(imgs)
-        ans2 = x_grid * yk_2 * np.log(imgs)
-        ans3 = y_grid ** 2 * yk_2 * np.log(imgs)
-        ans4 = y_grid * yk_2 * np.log(imgs)
-        ans5 = x_grid * y_grid * yk_2 * np.log(imgs)
+            ), axis=(3)).transpose(2, 0, 1)
+        ans1 = xgrid ** 2 * yk_2 * np.log(imgs)
+        ans2 = xgrid * yk_2 * np.log(imgs)
+        ans3 = ygrid ** 2 * yk_2 * np.log(imgs)
+        ans4 = ygrid * yk_2 * np.log(imgs)
+        ans5 = xgrid * ygrid * yk_2 * np.log(imgs)
         ans6 = yk_2 * np.log(imgs)
         ans_matrix = np.sum(
             np.array(
                 [[ans1], [ans2], [ans3], [ans4], [ans5], [ans6]]
-            ), axis=(3, 4), dtype=np.float64).transpose(2, 0, 1)
+            ), axis=(3), dtype=np.float64).transpose(2, 0, 1)
         coef_matrix = matrix_decomp(coef_matrix, decomp_n)
         ans_matrix = matrix_decomp(ans_matrix, decomp_n)
         decomp_coef_vals = matrix_decomp(coef_vals, decomp_n)
@@ -174,3 +172,35 @@ cpdef element_wise_maximum_2d(double [:,::1] array1):
     for i in range(row_size):
         for j in range(col_size):
             array1[i][j] = max(1e-2, array1[i][j])
+
+
+cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):
+    assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
+    cdef int row_size, col_size
+    cdef Py_ssize_t i, j
+    row_size = array1.shape[0]
+    col_size = array1.shape[1]
+
+    for i in range(row_size):
+        for j in range(col_size):
+            array1[i][j] = array1[i][j] - array2[i][j]
+
+
+cpdef matrix_pow_2d(double [:,::1] array1, int power):
+    cdef int row_size, col_size
+    cdef Py_ssize_t i, j, k
+    cdef double tmp
+    row_size = array1.shape[0]
+    col_size = array1.shape[1]
+    assert(power >= 0)
+    if power == 0:
+        for i in range(row_size):
+            for j in range(col_size):
+                array1[i][j] = 1.0 
+    elif power >= 2:
+        power -= 1
+        for i in range(row_size):
+            for j in range(col_size):
+                    tmp = array1[i][j]
+                    for k in range(power):
+                        array1[i][j] = array1[i][j] * tmp

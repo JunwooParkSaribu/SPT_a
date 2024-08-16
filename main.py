@@ -1021,14 +1021,15 @@ if __name__ == '__main__':
     #andi_gt_list = read_trajectory(f'{WINDOWS_PATH}/trajs_fov_0.csv', andi_gt=True)
 
 
-    #images = read_tif(input_tif)
-    #loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
-    #andi2_indices = None
-
-    images = check_video_ext(params['localization']['VIDEO'], andi2=True)
-    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])
-    andi2_indices = get_and2_indice(images, loc)
+    images = read_tif(input_tif)
+    loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
+    andi2_indices = None
     images = images[1:] / 255.
+
+    #images = check_video_ext(params['localization']['VIDEO'], andi2=True)
+    #loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])
+    #andi2_indices = get_and2_indice(images, loc)
+    #images = images[1:] / 255.
 
     time_steps, mean_nb_per_time, xyz_min, xyz_max = count_localizations(loc)
     print(f'Mean nb of molecules per frame: {mean_nb_per_time:.2f} molecules/frame')
@@ -1076,7 +1077,6 @@ if __name__ == '__main__':
         #trajectory_optimality_check(trajectory_list, localizations, distrib=segment_distribution)
         segment_distribution = trajectory_to_segments(trajectory_list, blink_lag)
 
-    """
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
             if andi2_indices is not None:
@@ -1084,19 +1084,18 @@ if __name__ == '__main__':
                     final_trajectories.append(trajectory)
             else:
                 final_trajectories.append(trajectory)
-    """
 
+    """
     andi2_indices = andi2_indices[andi2_indices > -1]
     print(f'Total number of trajectories: {len(trajectory_list)}')
     if len(andi2_indices) != 10:
         print(f'indexing err on {input_tif}')
         exit(1)
-
     for trajectory in trajectory_list:
         if not trajectory.delete(cutoff=cutoff):
             final_trajectories.append(trajectory)
     np.savez(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_vip_indices.npz', andi2_indices=np.array(andi2_indices))
-
+    """
 
     write_xml(output_file=output_xml, trajectory_list=final_trajectories,
               snr=snr, density=density, scenario=scenario, cutoff=cutoff)

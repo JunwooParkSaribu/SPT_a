@@ -1024,7 +1024,7 @@ if __name__ == '__main__':
     images = read_tif(input_tif)
     loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images)
     andi2_indices = None
-    images = images[1:] / 255.
+    images = images
 
     #images = check_video_ext(params['localization']['VIDEO'], andi2=True)
     #loc, loc_infos = read_localization(f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_loc.csv', images[1:])

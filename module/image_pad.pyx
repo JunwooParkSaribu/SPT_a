@@ -1,4 +1,5 @@
 #cython: infer_types=True
+#cython: cdivision=True
 from libc.stdlib cimport malloc, free
 import numpy as np
 cimport cython

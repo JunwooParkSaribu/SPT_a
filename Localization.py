@@ -573,7 +573,7 @@ if __name__ == '__main__':
     CORE = params['localization']['CORE']
     DIV_Q = params['localization']['DIV_Q']
     SHIFT = params['localization']['SHIFT']
-    GAUSS_SEIDEL_DECOMP = params['localization']['GAUSS_SEIDEL_DECOMP']
+    GAUSS_SEIDEL_DECOMP = 1
     visualization = params['localization']['LOC_VISUALIZATION']
     P0 = [1.5, 0., 1.5, 0., 0., 0.5]
 

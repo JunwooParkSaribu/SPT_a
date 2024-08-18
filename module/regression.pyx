@@ -1,10 +1,9 @@
 #cython: infer_types=True
 #cython: cdivision=True
 from libc.stdlib cimport malloc, free
-from libc.math cimport sin, cos, acos, exp, sqrt, fabs, M_PI, log
+from libc.math cimport sqrt, M_PI, log
 import numpy as np
 cimport cython
-import copy
 
 
 @cython.boundscheck(False)
@@ -40,7 +39,7 @@ cpdef pack_vars(double[::1] vars, int len_img):
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-def matrix_decomp(matrix, q):
+cpdef matrix_decomp(matrix, q):
     ret_mat = []
     for x in range(0, len(matrix), q):
         ret_mat.append(matrix[x: min(x+q, len(matrix))])
@@ -52,7 +51,7 @@ def matrix_decomp(matrix, q):
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-def unpack_coefs(coefs, window_size):
+cpdef unpack_coefs(coefs, window_size):
     err_indices = []
     x_mu = []
     y_mu = []
@@ -88,7 +87,7 @@ def unpack_coefs(coefs, window_size):
 @cython.cdivision(True) 
 @cython.profile(False)
 cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0, 
-                    xgrid, ygrid, window_size=(7, 7), repeat=5, decomp_n=2):
+                    xgrid, ygrid, window_size=(7, 7), repeat=5, decomp_n=1):
     cdef int k, nb_imgs
     cdef double [:,::1] imgs_view, bgs_view
 

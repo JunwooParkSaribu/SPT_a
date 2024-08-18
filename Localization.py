@@ -1,6 +1,4 @@
-import cv2
 import matplotlib.pyplot as plt
-import sys
 import numpy as np
 import tifffile
 import concurrent.futures

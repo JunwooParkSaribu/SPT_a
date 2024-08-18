@@ -297,12 +297,11 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             h_maps = []
             for step, (g_grid, window_size, radius) in (
                     enumerate(zip(g_grids, window_sizes, radiuss))):
-                h_map = np.zeros_like(imgs)
                 crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=args[7])
                 all_crop_imgs[window_size[0]] = crop_imgs
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
                 c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])
-                h_map = mapping(h_map, c, args[7])
+                h_map = mapping(c, imgs.shape, args[7])
                 h_maps.append(h_map)
             h_maps = np.array(h_maps)
             """
@@ -368,15 +367,17 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 index += 1
 
 
-def mapping(img1, img2, shift):
+def mapping(c_likelihood, imgs_shape, shift):
     if shift == 1:
-        return img2.reshape(img1.shape[0], img1.shape[1], img1.shape[2])
-    index = 0
-    for row in range(0, img1.shape[1], shift):
-        for col in range(0, img1.shape[2], shift):
-            img1[:, row, col] = img2[:, index, 0]
-            index += 1
-    return img1
+        return np.array(c_likelihood).reshape(imgs_shape[0], imgs_shape[1], imgs_shape[2])
+    else:
+        h_map = np.zeros_like(imgs_shape)
+        index = 0
+        for row in range(0, h_map.shape[1], shift):
+            for col in range(0, h_map.shape[2], shift):
+                h_map[:, row, col] = c_likelihood[:, index, 0]
+                index += 1
+        return h_map
 
 
 def quantification(imgs, window_size, amp):

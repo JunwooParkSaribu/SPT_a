@@ -26,15 +26,19 @@ def region_max_filter2(maps, window_size, thresholds):
     return indices
 
 
-def region_max_filter(maps, window_sizes, thresholds):
+def region_max_filter(maps, window_sizes, thresholds, detect_range=0):
     indices = []
     nb_imgs = maps.shape[1]
     infos = [[] for _ in range(nb_imgs)]
     for i, (hmap, window_size) in enumerate(zip(maps, window_sizes)):
         args_map = hmap > thresholds[:, i].reshape(-1, 1, 1)
         maps[i] = hmap * args_map
-        r_start_index = int(window_size[1] // 2)
-        col_start_index = int(window_size[0] // 2)
+        if detect_range == 0:
+            r_start_index = window_size[1] // 2
+            col_start_index = window_size[0] // 2
+        else:
+            r_start_index = detect_range
+            col_start_index = detect_range
         img_n, row, col = np.where(args_map == True)
         for n, r, c in zip(img_n, row, col):
             if maps[i][n][r][c] == np.max(
@@ -48,7 +52,10 @@ def region_max_filter(maps, window_sizes, thresholds):
             info = np.array(info)
             info = info[np.argsort(info[:, 3])[::-1]]
             for mol_info in info:
-                extend = int((window_sizes[int(mol_info[0])][0] - 1) / 2)
+                if detect_range == 0:
+                    extend = (window_sizes[int(mol_info[0])][0] - 1) // 2
+                else:
+                    extend = detect_range
                 row_min = int(max(0, mol_info[1] - extend))
                 row_max = int(min(mask.shape[0] - 1, mol_info[1] + extend))
                 col_min = int(max(0, mol_info[2] - extend))
@@ -180,7 +187,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     print(f'{"Py_block_noise":<35}:{(timer() - before_time):.2f}s')
 
     while 1:
-        #print(f'INDEX: {index}')
+        #print(f'START INDEX: {index}')
         window_sizes = bin_winsizes[index:]
         thresholds = bin_thresholds[:, index:]
         radiuss = bin_radius[index:]
@@ -302,8 +309,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
                 c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])
                 h_map = mapping(c, imgs.shape, args[7])
+                h_map = h_map * (window_sizes[0][0]**2 / window_size[0]**2)
                 h_maps.append(h_map)
             h_maps = np.array(h_maps)
+        
             """
             plt.figure()
             plt.imshow(extended_imgs[0])
@@ -312,7 +321,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                 plt.imshow(hm[0], vmin=0., vmax=1.)
             plt.show()
             """
-            indices = region_max_filter(h_maps, window_sizes, thresholds)
+
+            indices = region_max_filter(h_maps, window_sizes, thresholds, detect_range=1)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
                     win_s_dict[ws].append([all_crop_imgs[ws][n]
@@ -327,6 +337,15 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     rs = []
                     cs = []
                     for i1, i2, i3, i4, i5 in win_s_dict[ws]:
+                        ############ FORCE BOUNDART TO MIN TO HAVE A EFFECT OF BOUNDED REGRESSION #########
+                        tmp = np.array(i1).reshape(ws, ws)
+                        min_tmp = np.min(tmp)
+                        tmp[:,0] = min_tmp
+                        tmp[:,-1] = min_tmp
+                        tmp[0,:] = min_tmp
+                        tmp[-1,:] = min_tmp
+                        i1 = tmp.reshape(-1)
+                        ####################################################################################
                         regress_imgs.append(i1)
                         bg_regress.append(i2)
                         ns.append(i3)
@@ -337,6 +356,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     for err_i, (x_var, y_var, rho) in enumerate(zip(x_vars, y_vars, rhos)):
                         if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
+
                     if len(err_indice) == len(pdfs):
                         print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
                         index += 1
@@ -361,9 +381,10 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                         extended_imgs_copy = extended_imgs.copy()
                         extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
-                        if np.sum(extended_imgs_copy) == np.sum(extended_imgs):
-                            index += 1
-            if len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
+                        #if np.sum(extended_imgs_copy) == np.sum(extended_imgs):
+                        #    index += 1
+
+            if np.allclose(extended_imgs_copy, extended_imgs, atol=1e-2) or len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
                 index += 1
 
 

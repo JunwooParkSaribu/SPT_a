@@ -312,6 +312,13 @@ cpdef double[:,:,::1] likelihood(crop_imgs, double[:, ::1] gauss_grid, double[::
         g_squared_sum += g_bar_view[i] * g_bar_view[i]
 
     i_hat = (crop_imgs - bg_means.reshape(crop_imgs.shape[0], 1, 1))
+
+    i_local_mins = np.min(i_hat, axis=(1, 2))
+    #i_hat_mins = np.maximum(np.zeros_like(i_hat_mins), i_hat_mins).reshape(i_hat.shape[0], 1, 1)
+    #i_hat = i_hat - i_hat_mins
+    for i in range(i_hat.shape[0]):
+        i_hat[i,:,:] -= max(0.0, i_local_mins[i])
+
     i_hat = i_hat @ g_bar / g_squared_sum
     i_hat = np.maximum(np.zeros(i_hat.shape), i_hat)
     L = ((surface_window / 2.) * np.log(1 - (i_hat ** 2 * g_squared_sum).T /

@@ -192,136 +192,97 @@ cpdef double[:,::1] boundary_smoothing(double[:,::1] img, int[::1] row_indice, i
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-cpdef double[:,:,::1] add_block_noise(double[:,:,::1] imgs, int extend):
-    cdef int gap, row_max, col_max, img_nb, c, r, i, csize, rsize, rand_index
-    cdef double m, std
-    cdef Py_ssize_t x, y
-    cdef int[:] row_indice, col_indice
+cpdef add_block_noise(imgs, extend):
     gap = extend//2
+    row_indice = range(0, len(imgs[0]), gap)
+    col_indice = range(0, len(imgs[0][0]), gap)
+    for c in col_indice:
+        crop_img = imgs[:, row_indice[1]:row_indice[1]+gap, c: min(len(imgs[0][0]) - gap, c+gap)]
+        if crop_img.shape[2] == 0:
+            break
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]) - gap, c+gap) - c)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, row_indice[0]:row_indice[0] + gap, c: min(len(imgs[0][0]) - gap, c+gap)] = np.array(ret_img_stack)
+    for r in row_indice:
+        crop_img = imgs[:, r:min(len(imgs[0]) - gap, r + gap), len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]
+        if crop_img.shape[1] == 0:
+            break
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0])-gap, r + gap) - r, gap)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, r:min(len(imgs[0])-gap, r + gap), len(imgs[0][0]) - gap: len(imgs[0][0])] = np.array(ret_img_stack)
+    for c in col_indice[::-1]:
+        crop_img = imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c: min(len(imgs[0][0]), c+gap)]
+        if crop_img.shape[2] == 0:
+            continue
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, len(imgs[0]) - gap:len(imgs[0]), c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
+    for r in row_indice:
+        crop_img = imgs[:, r:min(len(imgs[0]), r + gap), col_indice[1]: col_indice[1] + gap]
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, r:min(len(imgs[0]), r + gap), col_indice[0]: col_indice[0] + gap] = np.array(ret_img_stack)
 
-    img_nb = imgs.shape[0]
-    row_max = imgs[0].shape[0]
-    col_max = imgs[0].shape[1]
-    row_indice = np.arange(0, row_max, gap, dtype=np.intc)
-    col_indice = np.arange(0, col_max, gap, dtype=np.intc)
-
-    cdef double[:, :, ::1] img_view = imgs
-    cdef double *crop_means = <double *>malloc(img_nb * sizeof(double))
-    cdef double *crop_stds = <double *>malloc(img_nb * sizeof(double))
-
-    for i in range(img_nb):
-        for c in col_indice:
-            crop_img = img_view[i][row_indice[1]: row_indice[1] + gap, c: min(col_max - gap, c + gap)]
-            if crop_img.shape[1] == 0:
-                break
-
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=(gap * (min(col_max - gap, c+gap) - c)))
-            for x in range(row_indice[0], row_indice[0] + gap):
-                for y in range(c, min(col_max - gap, c+gap)):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for r in row_indice:
-            crop_img = img_view[i][r:min(row_max - gap, r + gap), col_max - 2 * gap: col_max - gap]
-            if crop_img.shape[0] == 0:
-                break
-
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=((min(row_max-gap, r + gap) - r) * gap))
-            for x in range(r, min(row_max-gap, r + gap)):
-                for y in range(col_max - gap, col_max):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for c in col_indice[::-1]:
-            crop_img = img_view[i][row_max - 2 * gap:row_max - gap, c: min(col_max, c + gap)]
-            if crop_img.shape[1] == 0:
-                continue
-
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=(gap * (min(col_max, c+gap) - c)))
-            for x in range(row_max - gap, row_max):
-                for y in range(c, min(col_max, c+gap)):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for r in row_indice:
-            crop_img = img_view[i][r:min(row_max, r + gap), col_indice[1]: col_indice[1] + gap]
-
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=((min(row_max, r + gap) - r) * gap))
-            for x in range(r, min(row_max, r + gap)):
-                for y in range(col_indice[0], col_indice[0] + gap):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for c in col_indice[1:-1]:
-            csize = min(col_max, c + 2 * gap) - c - gap
-
-            crop_img = image_overlap(img_view[i][row_indice[0]:row_indice[0]+gap, c-csize: c], img_view[i][row_indice[0]:row_indice[0]+gap, c+gap: c+gap+csize], 2)
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=(gap * (min(col_max, c+gap) - c)))
-            for x in range(row_indice[0], row_indice[0] + gap):
-                for y in range(c, min(col_max, c+gap)):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for r in row_indice[1:-1]:
-            rsize = min(row_max, r + 2 * gap) - r - gap
-
-            crop_img = image_overlap(img_view[i][r - rsize: r, col_max - 2 * gap: col_max - gap], img_view[i][r + gap: r+gap+rsize, col_max - 2*gap: col_max - gap], 2)
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=((min(row_max, r + gap) - r) * gap))
-            for x in range(r, min(row_max, r + gap)):
-                for y in range(col_max - gap, col_max):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for c in col_indice[1:-1]:
-            csize = min(col_max, c + 2 * gap) - c - gap
-
-            crop_img = image_overlap(img_view[i][row_max - 2*gap:row_max - gap, c-csize: c], img_view[i][row_max - 2*gap:row_max - gap, c+gap: c+gap+csize], 2)
-            m = contig_image_mean(crop_img)
-            std = contig_image_std(crop_img)
-
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=(gap * (min(col_max, c+gap) - c)))
-            for x in range(row_max - gap, row_max):
-                for y in range(c, min(col_max, c+gap)):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-        for r in row_indice[1:-1]:
-            rsize = min(row_max, r + 2 * gap) - r - gap
-
-            crop_img = image_overlap(img_view[i][r - rsize: r, col_indice[0]: col_indice[0] + gap], img_view[i][r + gap: r+gap+rsize, col_indice[0]: col_indice[0] + gap], 2)
-            m = contig_image_mean(crop_img)
-            std = image_std(crop_img)
-
-            rand_index = 0
-            rands = np.random.normal(loc=m, scale=std, size=((min(row_max, r + gap) - r) * gap))
-            for x in range(r, min(row_max, r + gap)):
-                for y in range(col_indice[0], col_indice[0] + gap):
-                    img_view[i][x][y] = rands[rand_index]
-                    rand_index += 1
-
-    free(crop_means)
-    free(crop_stds)
+    for c in col_indice[1:-1]:
+        csize = min(len(imgs[0][0]), c + 2 * gap) - c - gap
+        crop_img = (imgs[:, row_indice[0]:row_indice[0]+gap, c-csize: c]
+                    + imgs[:, row_indice[0]:row_indice[0]+gap, c+gap: c+gap+csize]) / 2
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, row_indice[0]:row_indice[0] + gap, c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
+    for r in row_indice[1:-1]:
+        rsize = min(len(imgs[0]), r + 2 * gap) - r - gap
+        crop_img = (imgs[:, r - rsize: r, len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]
+                    + imgs[:, r + gap: r+gap+rsize, len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]) / 2
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, r:min(len(imgs[0]), r + gap), len(imgs[0][0]) - gap: len(imgs[0][0])] = np.array(ret_img_stack)
+    for c in col_indice[1:-1]:
+        csize = min(len(imgs[0][0]), c + 2 * gap) - c - gap
+        crop_img = (imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c-csize: c]
+                    + imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c+gap: c+gap+csize]) / 2
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, len(imgs[0]) - gap:len(imgs[0]), c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
+    for r in row_indice[1:-1]:
+        rsize = min(len(imgs[0]), r + 2 * gap) - r - gap
+        crop_img = (imgs[:, r - rsize: r, col_indice[0]: col_indice[0] + gap]
+                    + imgs[:, r + gap: r+gap+rsize, col_indice[0]: col_indice[0] + gap]) / 2
+        crop_means = np.mean(crop_img, axis=(1, 2))
+        crop_stds = np.std(crop_img, axis=(1, 2))
+        ret_img_stack = []
+        for m, std in zip(crop_means, crop_stds):
+            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
+        ret_img_stack = np.array(ret_img_stack)
+        imgs[:, r:min(len(imgs[0]), r + gap), col_indice[0]: col_indice[0] + gap] = np.array(ret_img_stack)
     return imgs
 
 
@@ -377,16 +338,10 @@ cpdef double[:,:,::1] image_cropping(extended_imgs, int extend, int window_size0
     row_indice = np.arange(start_row, end_row, shift, dtype=np.intc)
     col_indice = np.arange(start_col, end_col, shift, dtype=np.intc)
 
-    #cdef double [:,:,::1] img_view = extended_imgs
-    #cdef double [:,::1] tmp
     cropped_imgs = np.zeros([nb_imgs, len(row_indice) * len(col_indice), window_size0* window_size1], dtype=np.double)
-
-
     index = 0
     for r in row_indice:
         for c in col_indice:
-            #cropped_imgs.append(img_view[n][r:r + window_size1, c:c + window_size0])
             cropped_imgs[:, index] = extended_imgs[:, r:r + window_size1, c:c + window_size0].reshape(-1, window_size0*window_size1)
             index += 1
-    print(cropped_imgs.shape)
     return cropped_imgs

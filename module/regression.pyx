@@ -154,7 +154,6 @@ cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0,
                 a_mat[x:x+6, x:x+6] = vals
             b_mat = b_mats.flatten().reshape(-1, 1)
             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
-            #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
         x_matrix = np.array(x_matrix).reshape(-1, 6)
         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
             break
@@ -163,6 +162,11 @@ cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0,
     return coef_vals
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef element_wise_maximum_2d(double [:,::1] array1):
     cdef int row_size, col_size
     cdef Py_ssize_t i, j
@@ -174,6 +178,11 @@ cpdef element_wise_maximum_2d(double [:,::1] array1):
             array1[i][j] = max(1e-2, array1[i][j])
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):
     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
     cdef int row_size, col_size
@@ -186,6 +195,11 @@ cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):
             array1[i][j] = array1[i][j] - array2[i][j]
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True) 
+@cython.profile(False)
 cpdef matrix_pow_2d(double [:,::1] array1, int power):
     cdef int row_size, col_size
     cdef Py_ssize_t i, j, k

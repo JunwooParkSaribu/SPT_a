@@ -2432,9 +2432,6 @@ static PyObject* __Pyx_PyInt_AddObjC(PyObject *op1, PyObject *op2, long intval, 
     (inplace ? PyNumber_InPlaceAdd(op1, op2) : PyNumber_Add(op1, op2))
 #endif
 
-/* BufferIndexError.proto */
-static void __Pyx_RaiseBufferIndexError(int axis);
-
 /* PyObject_GenericGetAttrNoDict.proto */
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
@@ -22245,7 +22242,7 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
  *                 a_mat[x:x+6, x:x+6] = vals
  *             b_mat = b_mats.flatten().reshape(-1, 1)             # <<<<<<<<<<<<<<
  *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
+ *         x_matrix = np.array(x_matrix).reshape(-1, 6)
  */
       __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_b_mats, __pyx_n_s_flatten); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 155, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
@@ -22284,8 +22281,8 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
  *                 a_mat[x:x+6, x:x+6] = vals
  *             b_mat = b_mats.flatten().reshape(-1, 1)
  *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])             # <<<<<<<<<<<<<<
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)
+ *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
  */
       __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_v_x_matrix, __pyx_n_s_extend); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 156, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_14);
@@ -22351,16 +22348,16 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
     }
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "regression.pyx":158
+    /* "regression.pyx":157
+ *             b_mat = b_mats.flatten().reshape(-1, 1)
  *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)             # <<<<<<<<<<<<<<
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
  *             break
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 158, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 157, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_array); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 158, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_array); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 157, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __pyx_t_8 = NULL;
@@ -22381,52 +22378,52 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
       PyObject *__pyx_callargs[2] = {__pyx_t_8, __pyx_v_x_matrix};
       __pyx_t_9 = __Pyx_PyObject_FastCall(__pyx_t_14, __pyx_callargs+1-__pyx_t_6, 1+__pyx_t_6);
       __Pyx_XDECREF(__pyx_t_8); __pyx_t_8 = 0;
-      if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 158, __pyx_L1_error)
+      if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 157, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_9);
       __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     }
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_reshape); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 158, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_reshape); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 157, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_14, __pyx_tuple__17, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 158, __pyx_L1_error)
+    __pyx_t_9 = __Pyx_PyObject_Call(__pyx_t_14, __pyx_tuple__17, NULL); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 157, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_9);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     __Pyx_DECREF_SET(__pyx_v_x_matrix, __pyx_t_9);
     __pyx_t_9 = 0;
 
-    /* "regression.pyx":159
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
+    /* "regression.pyx":158
+ *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):             # <<<<<<<<<<<<<<
  *             break
  *         coef_vals = x_matrix
  */
-    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_np); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 159, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_9, __pyx_n_s_np); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_9);
-    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_allclose); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 159, __pyx_L1_error)
+    __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_9, __pyx_n_s_allclose); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_14);
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-    __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 159, __pyx_L1_error)
+    __pyx_t_9 = PyTuple_New(2); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_9);
     __Pyx_INCREF(__pyx_v_coef_vals);
     __Pyx_GIVEREF(__pyx_v_coef_vals);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_coef_vals)) __PYX_ERR(0, 159, __pyx_L1_error);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 0, __pyx_v_coef_vals)) __PYX_ERR(0, 158, __pyx_L1_error);
     __Pyx_INCREF(__pyx_v_x_matrix);
     __Pyx_GIVEREF(__pyx_v_x_matrix);
-    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_x_matrix)) __PYX_ERR(0, 159, __pyx_L1_error);
-    __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 159, __pyx_L1_error)
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_9, 1, __pyx_v_x_matrix)) __PYX_ERR(0, 158, __pyx_L1_error);
+    __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
-    if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_rtol, __pyx_float_1eneg_7) < 0) __PYX_ERR(0, 159, __pyx_L1_error)
-    __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_14, __pyx_t_9, __pyx_t_8); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 159, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_rtol, __pyx_float_1eneg_7) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
+    __pyx_t_10 = __Pyx_PyObject_Call(__pyx_t_14, __pyx_t_9, __pyx_t_8); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_10);
     __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-    __pyx_t_7 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_7 < 0))) __PYX_ERR(0, 159, __pyx_L1_error)
+    __pyx_t_7 = __Pyx_PyObject_IsTrue(__pyx_t_10); if (unlikely((__pyx_t_7 < 0))) __PYX_ERR(0, 158, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
     if (__pyx_t_7) {
 
-      /* "regression.pyx":160
+      /* "regression.pyx":159
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
  *             break             # <<<<<<<<<<<<<<
@@ -22435,8 +22432,8 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
  */
       goto __pyx_L4_break;
 
-      /* "regression.pyx":159
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
+      /* "regression.pyx":158
+ *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):             # <<<<<<<<<<<<<<
  *             break
@@ -22444,7 +22441,7 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
  */
     }
 
-    /* "regression.pyx":161
+    /* "regression.pyx":160
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
  *             break
  *         coef_vals = x_matrix             # <<<<<<<<<<<<<<
@@ -22454,7 +22451,7 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
     __Pyx_INCREF(__pyx_v_x_matrix);
     __Pyx_DECREF_SET(__pyx_v_coef_vals, __pyx_v_x_matrix);
 
-    /* "regression.pyx":162
+    /* "regression.pyx":161
  *             break
  *         coef_vals = x_matrix
  *         k += 1             # <<<<<<<<<<<<<<
@@ -22465,7 +22462,7 @@ static PyObject *__pyx_f_10regression_guo_algorithm(PyObject *__pyx_v_imgs, PyOb
   }
   __pyx_L4_break:;
 
-  /* "regression.pyx":163
+  /* "regression.pyx":162
  *         coef_vals = x_matrix
  *         k += 1
  *     return coef_vals             # <<<<<<<<<<<<<<
@@ -22792,9 +22789,9 @@ static PyObject *__pyx_pf_10regression_6guo_algorithm(CYTHON_UNUSED PyObject *__
   return __pyx_r;
 }
 
-/* "regression.pyx":166
- * 
- * 
+/* "regression.pyx":170
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_maximum_2d(double [:,::1] array1):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
@@ -22822,17 +22819,13 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
   Py_ssize_t __pyx_t_6;
   Py_ssize_t __pyx_t_7;
   Py_ssize_t __pyx_t_8;
-  int __pyx_t_9;
+  double __pyx_t_9;
   double __pyx_t_10;
   double __pyx_t_11;
-  double __pyx_t_12;
-  int __pyx_t_13;
-  int __pyx_lineno = 0;
-  const char *__pyx_filename = NULL;
-  int __pyx_clineno = 0;
+  int __pyx_t_12;
   __Pyx_RefNannySetupContext("element_wise_maximum_2d", 1);
 
-  /* "regression.pyx":169
+  /* "regression.pyx":173
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
  *     row_size = array1.shape[0]             # <<<<<<<<<<<<<<
@@ -22841,7 +22834,7 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
  */
   __pyx_v_row_size = (__pyx_v_array1.shape[0]);
 
-  /* "regression.pyx":170
+  /* "regression.pyx":174
  *     cdef Py_ssize_t i, j
  *     row_size = array1.shape[0]
  *     col_size = array1.shape[1]             # <<<<<<<<<<<<<<
@@ -22850,7 +22843,7 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
  */
   __pyx_v_col_size = (__pyx_v_array1.shape[1]);
 
-  /* "regression.pyx":172
+  /* "regression.pyx":176
  *     col_size = array1.shape[1]
  * 
  *     for i in range(row_size):             # <<<<<<<<<<<<<<
@@ -22862,7 +22855,7 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "regression.pyx":173
+    /* "regression.pyx":177
  * 
  *     for i in range(row_size):
  *         for j in range(col_size):             # <<<<<<<<<<<<<<
@@ -22874,7 +22867,7 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
     for (__pyx_t_6 = 0; __pyx_t_6 < __pyx_t_5; __pyx_t_6+=1) {
       __pyx_v_j = __pyx_t_6;
 
-      /* "regression.pyx":174
+      /* "regression.pyx":178
  *     for i in range(row_size):
  *         for j in range(col_size):
  *             array1[i][j] = max(1e-2, array1[i][j])             # <<<<<<<<<<<<<<
@@ -22883,49 +22876,23 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
  */
       __pyx_t_7 = __pyx_v_i;
       __pyx_t_8 = __pyx_v_j;
-      __pyx_t_9 = -1;
-      if (__pyx_t_7 < 0) {
-        __pyx_t_7 += __pyx_v_array1.shape[0];
-        if (unlikely(__pyx_t_7 < 0)) __pyx_t_9 = 0;
-      } else if (unlikely(__pyx_t_7 >= __pyx_v_array1.shape[0])) __pyx_t_9 = 0;
-      if (__pyx_t_8 < 0) {
-        __pyx_t_8 += __pyx_v_array1.shape[1];
-        if (unlikely(__pyx_t_8 < 0)) __pyx_t_9 = 1;
-      } else if (unlikely(__pyx_t_8 >= __pyx_v_array1.shape[1])) __pyx_t_9 = 1;
-      if (unlikely(__pyx_t_9 != -1)) {
-        __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 174, __pyx_L1_error)
-      }
-      __pyx_t_10 = (*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_7 * __pyx_v_array1.strides[0]) )) + __pyx_t_8)) )));
-      __pyx_t_11 = 1e-2;
-      __pyx_t_13 = (__pyx_t_10 > __pyx_t_11);
-      if (__pyx_t_13) {
-        __pyx_t_12 = __pyx_t_10;
+      __pyx_t_9 = (*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_7 * __pyx_v_array1.strides[0]) )) + __pyx_t_8)) )));
+      __pyx_t_10 = 1e-2;
+      __pyx_t_12 = (__pyx_t_9 > __pyx_t_10);
+      if (__pyx_t_12) {
+        __pyx_t_11 = __pyx_t_9;
       } else {
-        __pyx_t_12 = __pyx_t_11;
+        __pyx_t_11 = __pyx_t_10;
       }
       __pyx_t_8 = __pyx_v_i;
       __pyx_t_7 = __pyx_v_j;
-      __pyx_t_9 = -1;
-      if (__pyx_t_8 < 0) {
-        __pyx_t_8 += __pyx_v_array1.shape[0];
-        if (unlikely(__pyx_t_8 < 0)) __pyx_t_9 = 0;
-      } else if (unlikely(__pyx_t_8 >= __pyx_v_array1.shape[0])) __pyx_t_9 = 0;
-      if (__pyx_t_7 < 0) {
-        __pyx_t_7 += __pyx_v_array1.shape[1];
-        if (unlikely(__pyx_t_7 < 0)) __pyx_t_9 = 1;
-      } else if (unlikely(__pyx_t_7 >= __pyx_v_array1.shape[1])) __pyx_t_9 = 1;
-      if (unlikely(__pyx_t_9 != -1)) {
-        __Pyx_RaiseBufferIndexError(__pyx_t_9);
-        __PYX_ERR(0, 174, __pyx_L1_error)
-      }
-      *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_8 * __pyx_v_array1.strides[0]) )) + __pyx_t_7)) )) = __pyx_t_12;
+      *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_8 * __pyx_v_array1.strides[0]) )) + __pyx_t_7)) )) = __pyx_t_11;
     }
   }
 
-  /* "regression.pyx":166
- * 
- * 
+  /* "regression.pyx":170
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_maximum_2d(double [:,::1] array1):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
@@ -22933,11 +22900,6 @@ static PyObject *__pyx_f_10regression_element_wise_maximum_2d(__Pyx_memviewslice
 
   /* function exit code */
   __pyx_r = Py_None; __Pyx_INCREF(Py_None);
-  goto __pyx_L0;
-  __pyx_L1_error:;
-  __Pyx_AddTraceback("regression.element_wise_maximum_2d", __pyx_clineno, __pyx_lineno, __pyx_filename);
-  __pyx_r = 0;
-  __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
@@ -22996,23 +22958,23 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 166, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 170, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "element_wise_maximum_2d") < 0)) __PYX_ERR(0, 166, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "element_wise_maximum_2d") < 0)) __PYX_ERR(0, 170, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
     }
-    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 166, __pyx_L3_error)
+    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 170, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("element_wise_maximum_2d", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 166, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("element_wise_maximum_2d", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 170, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -23050,8 +23012,8 @@ static PyObject *__pyx_pf_10regression_8element_wise_maximum_2d(CYTHON_UNUSED Py
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("element_wise_maximum_2d", 1);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 166, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_10regression_element_wise_maximum_2d(__pyx_v_array1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 166, __pyx_L1_error)
+  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 170, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_10regression_element_wise_maximum_2d(__pyx_v_array1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 170, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -23068,9 +23030,9 @@ static PyObject *__pyx_pf_10regression_8element_wise_maximum_2d(CYTHON_UNUSED Py
   return __pyx_r;
 }
 
-/* "regression.pyx":177
- * 
- * 
+/* "regression.pyx":186
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):             # <<<<<<<<<<<<<<
  *     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
  *     cdef int row_size, col_size
@@ -23100,18 +23062,17 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
   Py_ssize_t __pyx_t_8;
   Py_ssize_t __pyx_t_9;
   Py_ssize_t __pyx_t_10;
-  int __pyx_t_11;
+  Py_ssize_t __pyx_t_11;
   Py_ssize_t __pyx_t_12;
   Py_ssize_t __pyx_t_13;
   Py_ssize_t __pyx_t_14;
-  Py_ssize_t __pyx_t_15;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("element_wise_subtraction_2d", 1);
 
-  /* "regression.pyx":178
- * 
+  /* "regression.pyx":187
+ * @cython.profile(False)
  * cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):
  *     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
@@ -23130,14 +23091,14 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
     __pyx_L3_bool_binop_done:;
     if (unlikely(!__pyx_t_1)) {
       __Pyx_Raise(__pyx_builtin_AssertionError, 0, 0, 0);
-      __PYX_ERR(0, 178, __pyx_L1_error)
+      __PYX_ERR(0, 187, __pyx_L1_error)
     }
   }
   #else
-  if ((1)); else __PYX_ERR(0, 178, __pyx_L1_error)
+  if ((1)); else __PYX_ERR(0, 187, __pyx_L1_error)
   #endif
 
-  /* "regression.pyx":181
+  /* "regression.pyx":190
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
  *     row_size = array1.shape[0]             # <<<<<<<<<<<<<<
@@ -23146,7 +23107,7 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
  */
   __pyx_v_row_size = (__pyx_v_array1.shape[0]);
 
-  /* "regression.pyx":182
+  /* "regression.pyx":191
  *     cdef Py_ssize_t i, j
  *     row_size = array1.shape[0]
  *     col_size = array1.shape[1]             # <<<<<<<<<<<<<<
@@ -23155,7 +23116,7 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
  */
   __pyx_v_col_size = (__pyx_v_array1.shape[1]);
 
-  /* "regression.pyx":184
+  /* "regression.pyx":193
  *     col_size = array1.shape[1]
  * 
  *     for i in range(row_size):             # <<<<<<<<<<<<<<
@@ -23167,7 +23128,7 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
   for (__pyx_t_5 = 0; __pyx_t_5 < __pyx_t_4; __pyx_t_5+=1) {
     __pyx_v_i = __pyx_t_5;
 
-    /* "regression.pyx":185
+    /* "regression.pyx":194
  * 
  *     for i in range(row_size):
  *         for j in range(col_size):             # <<<<<<<<<<<<<<
@@ -23179,7 +23140,7 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
     for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
       __pyx_v_j = __pyx_t_8;
 
-      /* "regression.pyx":186
+      /* "regression.pyx":195
  *     for i in range(row_size):
  *         for j in range(col_size):
  *             array1[i][j] = array1[i][j] - array2[i][j]             # <<<<<<<<<<<<<<
@@ -23188,56 +23149,17 @@ static PyObject *__pyx_f_10regression_element_wise_subtraction_2d(__Pyx_memviews
  */
       __pyx_t_9 = __pyx_v_i;
       __pyx_t_10 = __pyx_v_j;
-      __pyx_t_11 = -1;
-      if (__pyx_t_9 < 0) {
-        __pyx_t_9 += __pyx_v_array1.shape[0];
-        if (unlikely(__pyx_t_9 < 0)) __pyx_t_11 = 0;
-      } else if (unlikely(__pyx_t_9 >= __pyx_v_array1.shape[0])) __pyx_t_11 = 0;
-      if (__pyx_t_10 < 0) {
-        __pyx_t_10 += __pyx_v_array1.shape[1];
-        if (unlikely(__pyx_t_10 < 0)) __pyx_t_11 = 1;
-      } else if (unlikely(__pyx_t_10 >= __pyx_v_array1.shape[1])) __pyx_t_11 = 1;
-      if (unlikely(__pyx_t_11 != -1)) {
-        __Pyx_RaiseBufferIndexError(__pyx_t_11);
-        __PYX_ERR(0, 186, __pyx_L1_error)
-      }
-      __pyx_t_12 = __pyx_v_i;
-      __pyx_t_13 = __pyx_v_j;
-      __pyx_t_11 = -1;
-      if (__pyx_t_12 < 0) {
-        __pyx_t_12 += __pyx_v_array2.shape[0];
-        if (unlikely(__pyx_t_12 < 0)) __pyx_t_11 = 0;
-      } else if (unlikely(__pyx_t_12 >= __pyx_v_array2.shape[0])) __pyx_t_11 = 0;
-      if (__pyx_t_13 < 0) {
-        __pyx_t_13 += __pyx_v_array2.shape[1];
-        if (unlikely(__pyx_t_13 < 0)) __pyx_t_11 = 1;
-      } else if (unlikely(__pyx_t_13 >= __pyx_v_array2.shape[1])) __pyx_t_11 = 1;
-      if (unlikely(__pyx_t_11 != -1)) {
-        __Pyx_RaiseBufferIndexError(__pyx_t_11);
-        __PYX_ERR(0, 186, __pyx_L1_error)
-      }
-      __pyx_t_14 = __pyx_v_i;
-      __pyx_t_15 = __pyx_v_j;
-      __pyx_t_11 = -1;
-      if (__pyx_t_14 < 0) {
-        __pyx_t_14 += __pyx_v_array1.shape[0];
-        if (unlikely(__pyx_t_14 < 0)) __pyx_t_11 = 0;
-      } else if (unlikely(__pyx_t_14 >= __pyx_v_array1.shape[0])) __pyx_t_11 = 0;
-      if (__pyx_t_15 < 0) {
-        __pyx_t_15 += __pyx_v_array1.shape[1];
-        if (unlikely(__pyx_t_15 < 0)) __pyx_t_11 = 1;
-      } else if (unlikely(__pyx_t_15 >= __pyx_v_array1.shape[1])) __pyx_t_11 = 1;
-      if (unlikely(__pyx_t_11 != -1)) {
-        __Pyx_RaiseBufferIndexError(__pyx_t_11);
-        __PYX_ERR(0, 186, __pyx_L1_error)
-      }
-      *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_14 * __pyx_v_array1.strides[0]) )) + __pyx_t_15)) )) = ((*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_9 * __pyx_v_array1.strides[0]) )) + __pyx_t_10)) ))) - (*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array2.data + __pyx_t_12 * __pyx_v_array2.strides[0]) )) + __pyx_t_13)) ))));
+      __pyx_t_11 = __pyx_v_i;
+      __pyx_t_12 = __pyx_v_j;
+      __pyx_t_13 = __pyx_v_i;
+      __pyx_t_14 = __pyx_v_j;
+      *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_13 * __pyx_v_array1.strides[0]) )) + __pyx_t_14)) )) = ((*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_9 * __pyx_v_array1.strides[0]) )) + __pyx_t_10)) ))) - (*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array2.data + __pyx_t_11 * __pyx_v_array2.strides[0]) )) + __pyx_t_12)) ))));
     }
   }
 
-  /* "regression.pyx":177
- * 
- * 
+  /* "regression.pyx":186
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):             # <<<<<<<<<<<<<<
  *     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
  *     cdef int row_size, col_size
@@ -23311,7 +23233,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 177, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 186, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
@@ -23319,14 +23241,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[1]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 177, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 186, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("element_wise_subtraction_2d", 1, 2, 2, 1); __PYX_ERR(0, 177, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("element_wise_subtraction_2d", 1, 2, 2, 1); __PYX_ERR(0, 186, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "element_wise_subtraction_2d") < 0)) __PYX_ERR(0, 177, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "element_wise_subtraction_2d") < 0)) __PYX_ERR(0, 186, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -23334,12 +23256,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 177, __pyx_L3_error)
-    __pyx_v_array2 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array2.memview)) __PYX_ERR(0, 177, __pyx_L3_error)
+    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 186, __pyx_L3_error)
+    __pyx_v_array2 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array2.memview)) __PYX_ERR(0, 186, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("element_wise_subtraction_2d", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 177, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("element_wise_subtraction_2d", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 186, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -23379,9 +23301,9 @@ static PyObject *__pyx_pf_10regression_10element_wise_subtraction_2d(CYTHON_UNUS
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("element_wise_subtraction_2d", 1);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 177, __pyx_L1_error) }
-  if (unlikely(!__pyx_v_array2.memview)) { __Pyx_RaiseUnboundLocalError("array2"); __PYX_ERR(0, 177, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_10regression_element_wise_subtraction_2d(__pyx_v_array1, __pyx_v_array2, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 177, __pyx_L1_error)
+  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 186, __pyx_L1_error) }
+  if (unlikely(!__pyx_v_array2.memview)) { __Pyx_RaiseUnboundLocalError("array2"); __PYX_ERR(0, 186, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_10regression_element_wise_subtraction_2d(__pyx_v_array1, __pyx_v_array2, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 186, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -23398,9 +23320,9 @@ static PyObject *__pyx_pf_10regression_10element_wise_subtraction_2d(CYTHON_UNUS
   return __pyx_r;
 }
 
-/* "regression.pyx":189
- * 
- * 
+/* "regression.pyx":203
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef matrix_pow_2d(double [:,::1] array1, int power):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j, k
@@ -23434,15 +23356,14 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
   int __pyx_t_10;
   int __pyx_t_11;
   Py_ssize_t __pyx_t_12;
-  int __pyx_t_13;
+  Py_ssize_t __pyx_t_13;
   Py_ssize_t __pyx_t_14;
-  Py_ssize_t __pyx_t_15;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("matrix_pow_2d", 1);
 
-  /* "regression.pyx":193
+  /* "regression.pyx":207
  *     cdef Py_ssize_t i, j, k
  *     cdef double tmp
  *     row_size = array1.shape[0]             # <<<<<<<<<<<<<<
@@ -23451,7 +23372,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
  */
   __pyx_v_row_size = (__pyx_v_array1.shape[0]);
 
-  /* "regression.pyx":194
+  /* "regression.pyx":208
  *     cdef double tmp
  *     row_size = array1.shape[0]
  *     col_size = array1.shape[1]             # <<<<<<<<<<<<<<
@@ -23460,7 +23381,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
  */
   __pyx_v_col_size = (__pyx_v_array1.shape[1]);
 
-  /* "regression.pyx":195
+  /* "regression.pyx":209
  *     row_size = array1.shape[0]
  *     col_size = array1.shape[1]
  *     assert(power >= 0)             # <<<<<<<<<<<<<<
@@ -23472,14 +23393,14 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
     __pyx_t_1 = (__pyx_v_power >= 0);
     if (unlikely(!__pyx_t_1)) {
       __Pyx_Raise(__pyx_builtin_AssertionError, 0, 0, 0);
-      __PYX_ERR(0, 195, __pyx_L1_error)
+      __PYX_ERR(0, 209, __pyx_L1_error)
     }
   }
   #else
-  if ((1)); else __PYX_ERR(0, 195, __pyx_L1_error)
+  if ((1)); else __PYX_ERR(0, 209, __pyx_L1_error)
   #endif
 
-  /* "regression.pyx":196
+  /* "regression.pyx":210
  *     col_size = array1.shape[1]
  *     assert(power >= 0)
  *     if power == 0:             # <<<<<<<<<<<<<<
@@ -23489,7 +23410,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
   __pyx_t_1 = (__pyx_v_power == 0);
   if (__pyx_t_1) {
 
-    /* "regression.pyx":197
+    /* "regression.pyx":211
  *     assert(power >= 0)
  *     if power == 0:
  *         for i in range(row_size):             # <<<<<<<<<<<<<<
@@ -23501,7 +23422,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
     for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
       __pyx_v_i = __pyx_t_4;
 
-      /* "regression.pyx":198
+      /* "regression.pyx":212
  *     if power == 0:
  *         for i in range(row_size):
  *             for j in range(col_size):             # <<<<<<<<<<<<<<
@@ -23513,7 +23434,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
       for (__pyx_t_7 = 0; __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
         __pyx_v_j = __pyx_t_7;
 
-        /* "regression.pyx":199
+        /* "regression.pyx":213
  *         for i in range(row_size):
  *             for j in range(col_size):
  *                 array1[i][j] = 1.0             # <<<<<<<<<<<<<<
@@ -23522,24 +23443,11 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
  */
         __pyx_t_8 = __pyx_v_i;
         __pyx_t_9 = __pyx_v_j;
-        __pyx_t_10 = -1;
-        if (__pyx_t_8 < 0) {
-          __pyx_t_8 += __pyx_v_array1.shape[0];
-          if (unlikely(__pyx_t_8 < 0)) __pyx_t_10 = 0;
-        } else if (unlikely(__pyx_t_8 >= __pyx_v_array1.shape[0])) __pyx_t_10 = 0;
-        if (__pyx_t_9 < 0) {
-          __pyx_t_9 += __pyx_v_array1.shape[1];
-          if (unlikely(__pyx_t_9 < 0)) __pyx_t_10 = 1;
-        } else if (unlikely(__pyx_t_9 >= __pyx_v_array1.shape[1])) __pyx_t_10 = 1;
-        if (unlikely(__pyx_t_10 != -1)) {
-          __Pyx_RaiseBufferIndexError(__pyx_t_10);
-          __PYX_ERR(0, 199, __pyx_L1_error)
-        }
         *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_8 * __pyx_v_array1.strides[0]) )) + __pyx_t_9)) )) = 1.0;
       }
     }
 
-    /* "regression.pyx":196
+    /* "regression.pyx":210
  *     col_size = array1.shape[1]
  *     assert(power >= 0)
  *     if power == 0:             # <<<<<<<<<<<<<<
@@ -23549,7 +23457,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
     goto __pyx_L3;
   }
 
-  /* "regression.pyx":200
+  /* "regression.pyx":214
  *             for j in range(col_size):
  *                 array1[i][j] = 1.0
  *     elif power >= 2:             # <<<<<<<<<<<<<<
@@ -23559,7 +23467,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
   __pyx_t_1 = (__pyx_v_power >= 2);
   if (__pyx_t_1) {
 
-    /* "regression.pyx":201
+    /* "regression.pyx":215
  *                 array1[i][j] = 1.0
  *     elif power >= 2:
  *         power -= 1             # <<<<<<<<<<<<<<
@@ -23568,7 +23476,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
  */
     __pyx_v_power = (__pyx_v_power - 1);
 
-    /* "regression.pyx":202
+    /* "regression.pyx":216
  *     elif power >= 2:
  *         power -= 1
  *         for i in range(row_size):             # <<<<<<<<<<<<<<
@@ -23580,7 +23488,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
     for (__pyx_t_4 = 0; __pyx_t_4 < __pyx_t_3; __pyx_t_4+=1) {
       __pyx_v_i = __pyx_t_4;
 
-      /* "regression.pyx":203
+      /* "regression.pyx":217
  *         power -= 1
  *         for i in range(row_size):
  *             for j in range(col_size):             # <<<<<<<<<<<<<<
@@ -23592,7 +23500,7 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
       for (__pyx_t_7 = 0; __pyx_t_7 < __pyx_t_6; __pyx_t_7+=1) {
         __pyx_v_j = __pyx_t_7;
 
-        /* "regression.pyx":204
+        /* "regression.pyx":218
  *         for i in range(row_size):
  *             for j in range(col_size):
  *                     tmp = array1[i][j]             # <<<<<<<<<<<<<<
@@ -23601,22 +23509,9 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
  */
         __pyx_t_9 = __pyx_v_i;
         __pyx_t_8 = __pyx_v_j;
-        __pyx_t_10 = -1;
-        if (__pyx_t_9 < 0) {
-          __pyx_t_9 += __pyx_v_array1.shape[0];
-          if (unlikely(__pyx_t_9 < 0)) __pyx_t_10 = 0;
-        } else if (unlikely(__pyx_t_9 >= __pyx_v_array1.shape[0])) __pyx_t_10 = 0;
-        if (__pyx_t_8 < 0) {
-          __pyx_t_8 += __pyx_v_array1.shape[1];
-          if (unlikely(__pyx_t_8 < 0)) __pyx_t_10 = 1;
-        } else if (unlikely(__pyx_t_8 >= __pyx_v_array1.shape[1])) __pyx_t_10 = 1;
-        if (unlikely(__pyx_t_10 != -1)) {
-          __Pyx_RaiseBufferIndexError(__pyx_t_10);
-          __PYX_ERR(0, 204, __pyx_L1_error)
-        }
         __pyx_v_tmp = (*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_9 * __pyx_v_array1.strides[0]) )) + __pyx_t_8)) )));
 
-        /* "regression.pyx":205
+        /* "regression.pyx":219
  *             for j in range(col_size):
  *                     tmp = array1[i][j]
  *                     for k in range(power):             # <<<<<<<<<<<<<<
@@ -23627,47 +23522,21 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
         for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
           __pyx_v_k = __pyx_t_12;
 
-          /* "regression.pyx":206
+          /* "regression.pyx":220
  *                     tmp = array1[i][j]
  *                     for k in range(power):
  *                         array1[i][j] = array1[i][j] * tmp             # <<<<<<<<<<<<<<
  */
           __pyx_t_8 = __pyx_v_i;
           __pyx_t_9 = __pyx_v_j;
-          __pyx_t_13 = -1;
-          if (__pyx_t_8 < 0) {
-            __pyx_t_8 += __pyx_v_array1.shape[0];
-            if (unlikely(__pyx_t_8 < 0)) __pyx_t_13 = 0;
-          } else if (unlikely(__pyx_t_8 >= __pyx_v_array1.shape[0])) __pyx_t_13 = 0;
-          if (__pyx_t_9 < 0) {
-            __pyx_t_9 += __pyx_v_array1.shape[1];
-            if (unlikely(__pyx_t_9 < 0)) __pyx_t_13 = 1;
-          } else if (unlikely(__pyx_t_9 >= __pyx_v_array1.shape[1])) __pyx_t_13 = 1;
-          if (unlikely(__pyx_t_13 != -1)) {
-            __Pyx_RaiseBufferIndexError(__pyx_t_13);
-            __PYX_ERR(0, 206, __pyx_L1_error)
-          }
-          __pyx_t_14 = __pyx_v_i;
-          __pyx_t_15 = __pyx_v_j;
-          __pyx_t_13 = -1;
-          if (__pyx_t_14 < 0) {
-            __pyx_t_14 += __pyx_v_array1.shape[0];
-            if (unlikely(__pyx_t_14 < 0)) __pyx_t_13 = 0;
-          } else if (unlikely(__pyx_t_14 >= __pyx_v_array1.shape[0])) __pyx_t_13 = 0;
-          if (__pyx_t_15 < 0) {
-            __pyx_t_15 += __pyx_v_array1.shape[1];
-            if (unlikely(__pyx_t_15 < 0)) __pyx_t_13 = 1;
-          } else if (unlikely(__pyx_t_15 >= __pyx_v_array1.shape[1])) __pyx_t_13 = 1;
-          if (unlikely(__pyx_t_13 != -1)) {
-            __Pyx_RaiseBufferIndexError(__pyx_t_13);
-            __PYX_ERR(0, 206, __pyx_L1_error)
-          }
-          *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_14 * __pyx_v_array1.strides[0]) )) + __pyx_t_15)) )) = ((*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_8 * __pyx_v_array1.strides[0]) )) + __pyx_t_9)) ))) * __pyx_v_tmp);
+          __pyx_t_13 = __pyx_v_i;
+          __pyx_t_14 = __pyx_v_j;
+          *((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_13 * __pyx_v_array1.strides[0]) )) + __pyx_t_14)) )) = ((*((double *) ( /* dim=1 */ ((char *) (((double *) ( /* dim=0 */ (__pyx_v_array1.data + __pyx_t_8 * __pyx_v_array1.strides[0]) )) + __pyx_t_9)) ))) * __pyx_v_tmp);
         }
       }
     }
 
-    /* "regression.pyx":200
+    /* "regression.pyx":214
  *             for j in range(col_size):
  *                 array1[i][j] = 1.0
  *     elif power >= 2:             # <<<<<<<<<<<<<<
@@ -23677,9 +23546,9 @@ static PyObject *__pyx_f_10regression_matrix_pow_2d(__Pyx_memviewslice __pyx_v_a
   }
   __pyx_L3:;
 
-  /* "regression.pyx":189
- * 
- * 
+  /* "regression.pyx":203
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef matrix_pow_2d(double [:,::1] array1, int power):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j, k
@@ -23753,7 +23622,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[0]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 189, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 203, __pyx_L3_error)
         else goto __pyx_L5_argtuple_error;
         CYTHON_FALLTHROUGH;
         case  1:
@@ -23761,14 +23630,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
           (void)__Pyx_Arg_NewRef_FASTCALL(values[1]);
           kw_args--;
         }
-        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 189, __pyx_L3_error)
+        else if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 203, __pyx_L3_error)
         else {
-          __Pyx_RaiseArgtupleInvalid("matrix_pow_2d", 1, 2, 2, 1); __PYX_ERR(0, 189, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("matrix_pow_2d", 1, 2, 2, 1); __PYX_ERR(0, 203, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "matrix_pow_2d") < 0)) __PYX_ERR(0, 189, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "matrix_pow_2d") < 0)) __PYX_ERR(0, 203, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 2)) {
       goto __pyx_L5_argtuple_error;
@@ -23776,12 +23645,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       values[0] = __Pyx_Arg_FASTCALL(__pyx_args, 0);
       values[1] = __Pyx_Arg_FASTCALL(__pyx_args, 1);
     }
-    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 189, __pyx_L3_error)
-    __pyx_v_power = __Pyx_PyInt_As_int(values[1]); if (unlikely((__pyx_v_power == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 189, __pyx_L3_error)
+    __pyx_v_array1 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_double(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_array1.memview)) __PYX_ERR(0, 203, __pyx_L3_error)
+    __pyx_v_power = __Pyx_PyInt_As_int(values[1]); if (unlikely((__pyx_v_power == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 203, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("matrix_pow_2d", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 189, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("matrix_pow_2d", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 203, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -23819,8 +23688,8 @@ static PyObject *__pyx_pf_10regression_12matrix_pow_2d(CYTHON_UNUSED PyObject *_
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("matrix_pow_2d", 1);
   __Pyx_XDECREF(__pyx_r);
-  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 189, __pyx_L1_error) }
-  __pyx_t_1 = __pyx_f_10regression_matrix_pow_2d(__pyx_v_array1, __pyx_v_power, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 189, __pyx_L1_error)
+  if (unlikely(!__pyx_v_array1.memview)) { __Pyx_RaiseUnboundLocalError("array1"); __PYX_ERR(0, 203, __pyx_L1_error) }
+  __pyx_t_1 = __pyx_f_10regression_matrix_pow_2d(__pyx_v_array1, __pyx_v_power, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -25008,7 +24877,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
   __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 28, __pyx_L1_error)
   __pyx_builtin_enumerate = __Pyx_GetBuiltinName(__pyx_n_s_enumerate); if (!__pyx_builtin_enumerate) __PYX_ERR(0, 63, __pyx_L1_error)
   __pyx_builtin_zip = __Pyx_GetBuiltinName(__pyx_n_s_zip); if (!__pyx_builtin_zip) __PYX_ERR(0, 63, __pyx_L1_error)
-  __pyx_builtin_AssertionError = __Pyx_GetBuiltinName(__pyx_n_s_AssertionError); if (!__pyx_builtin_AssertionError) __PYX_ERR(0, 178, __pyx_L1_error)
+  __pyx_builtin_AssertionError = __Pyx_GetBuiltinName(__pyx_n_s_AssertionError); if (!__pyx_builtin_AssertionError) __PYX_ERR(0, 187, __pyx_L1_error)
   __pyx_builtin___import__ = __Pyx_GetBuiltinName(__pyx_n_s_import); if (!__pyx_builtin___import__) __PYX_ERR(1, 100, __pyx_L1_error)
   __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(1, 141, __pyx_L1_error)
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(1, 156, __pyx_L1_error)
@@ -25126,14 +24995,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__16);
   __Pyx_GIVEREF(__pyx_tuple__16);
 
-  /* "regression.pyx":158
+  /* "regression.pyx":157
+ *             b_mat = b_mats.flatten().reshape(-1, 1)
  *             x_matrix.extend(np.linalg.lstsq(a_mat, b_mat, rcond=None)[0])
- *             #x_matrix.extend(gauss_seidel(a_mat, b_mat, p0=coef_val.ravel(), iter=200))
  *         x_matrix = np.array(x_matrix).reshape(-1, 6)             # <<<<<<<<<<<<<<
  *         if np.allclose(coef_vals, x_matrix, rtol=1e-7):
  *             break
  */
-  __pyx_tuple__17 = PyTuple_Pack(2, __pyx_int_neg_1, __pyx_int_6); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_tuple__17 = PyTuple_Pack(2, __pyx_int_neg_1, __pyx_int_6); if (unlikely(!__pyx_tuple__17)) __PYX_ERR(0, 157, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__17);
   __Pyx_GIVEREF(__pyx_tuple__17);
 
@@ -25300,41 +25169,41 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__38);
   __Pyx_GIVEREF(__pyx_tuple__38);
 
-  /* "regression.pyx":166
- * 
- * 
+  /* "regression.pyx":170
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_maximum_2d(double [:,::1] array1):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
  */
-  __pyx_tuple__39 = PyTuple_Pack(1, __pyx_n_s_array1); if (unlikely(!__pyx_tuple__39)) __PYX_ERR(0, 166, __pyx_L1_error)
+  __pyx_tuple__39 = PyTuple_Pack(1, __pyx_n_s_array1); if (unlikely(!__pyx_tuple__39)) __PYX_ERR(0, 170, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__39);
   __Pyx_GIVEREF(__pyx_tuple__39);
-  __pyx_codeobj__40 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__39, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_element_wise_maximum_2d, 166, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__40)) __PYX_ERR(0, 166, __pyx_L1_error)
+  __pyx_codeobj__40 = (PyObject*)__Pyx_PyCode_New(1, 0, 0, 1, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__39, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_element_wise_maximum_2d, 170, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__40)) __PYX_ERR(0, 170, __pyx_L1_error)
 
-  /* "regression.pyx":177
- * 
- * 
+  /* "regression.pyx":186
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):             # <<<<<<<<<<<<<<
  *     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
  *     cdef int row_size, col_size
  */
-  __pyx_tuple__41 = PyTuple_Pack(2, __pyx_n_s_array1, __pyx_n_s_array2); if (unlikely(!__pyx_tuple__41)) __PYX_ERR(0, 177, __pyx_L1_error)
+  __pyx_tuple__41 = PyTuple_Pack(2, __pyx_n_s_array1, __pyx_n_s_array2); if (unlikely(!__pyx_tuple__41)) __PYX_ERR(0, 186, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__41);
   __Pyx_GIVEREF(__pyx_tuple__41);
-  __pyx_codeobj__42 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__41, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_element_wise_subtraction_2d, 177, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__42)) __PYX_ERR(0, 177, __pyx_L1_error)
+  __pyx_codeobj__42 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__41, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_element_wise_subtraction_2d, 186, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__42)) __PYX_ERR(0, 186, __pyx_L1_error)
 
-  /* "regression.pyx":189
- * 
- * 
+  /* "regression.pyx":203
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef matrix_pow_2d(double [:,::1] array1, int power):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j, k
  */
-  __pyx_tuple__43 = PyTuple_Pack(2, __pyx_n_s_array1, __pyx_n_s_power); if (unlikely(!__pyx_tuple__43)) __PYX_ERR(0, 189, __pyx_L1_error)
+  __pyx_tuple__43 = PyTuple_Pack(2, __pyx_n_s_array1, __pyx_n_s_power); if (unlikely(!__pyx_tuple__43)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__43);
   __Pyx_GIVEREF(__pyx_tuple__43);
-  __pyx_codeobj__44 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__43, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_matrix_pow_2d, 189, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__44)) __PYX_ERR(0, 189, __pyx_L1_error)
+  __pyx_codeobj__44 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__43, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_module_regression_pyx, __pyx_n_s_matrix_pow_2d, 203, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__44)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -26471,40 +26340,40 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_guo_algorithm, __pyx_t_4) < 0) __PYX_ERR(0, 90, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "regression.pyx":166
- * 
- * 
+  /* "regression.pyx":170
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_maximum_2d(double [:,::1] array1):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j
  */
-  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_9element_wise_maximum_2d, 0, __pyx_n_s_element_wise_maximum_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__40)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 166, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_9element_wise_maximum_2d, 0, __pyx_n_s_element_wise_maximum_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__40)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 170, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_element_wise_maximum_2d, __pyx_t_4) < 0) __PYX_ERR(0, 166, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_element_wise_maximum_2d, __pyx_t_4) < 0) __PYX_ERR(0, 170, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "regression.pyx":177
- * 
- * 
+  /* "regression.pyx":186
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):             # <<<<<<<<<<<<<<
  *     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
  *     cdef int row_size, col_size
  */
-  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_11element_wise_subtraction_2d, 0, __pyx_n_s_element_wise_subtraction_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__42)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 177, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_11element_wise_subtraction_2d, 0, __pyx_n_s_element_wise_subtraction_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__42)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 186, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_element_wise_subtraction_2d, __pyx_t_4) < 0) __PYX_ERR(0, 177, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_element_wise_subtraction_2d, __pyx_t_4) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "regression.pyx":189
- * 
- * 
+  /* "regression.pyx":203
+ * @cython.cdivision(True)
+ * @cython.profile(False)
  * cpdef matrix_pow_2d(double [:,::1] array1, int power):             # <<<<<<<<<<<<<<
  *     cdef int row_size, col_size
  *     cdef Py_ssize_t i, j, k
  */
-  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_13matrix_pow_2d, 0, __pyx_n_s_matrix_pow_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__44)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 189, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_CyFunction_New(&__pyx_mdef_10regression_13matrix_pow_2d, 0, __pyx_n_s_matrix_pow_2d, NULL, __pyx_n_s_regression, __pyx_d, ((PyObject *)__pyx_codeobj__44)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_matrix_pow_2d, __pyx_t_4) < 0) __PYX_ERR(0, 189, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_matrix_pow_2d, __pyx_t_4) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
   /* "regression.pyx":1
@@ -29572,12 +29441,6 @@ static PyObject* __Pyx_PyInt_AddObjC(PyObject *op1, PyObject *op2, long intval, 
     return (inplace ? PyNumber_InPlaceAdd : PyNumber_Add)(op1, op2);
 }
 #endif
-
-/* BufferIndexError */
-static void __Pyx_RaiseBufferIndexError(int axis) {
-  PyErr_Format(PyExc_IndexError,
-     "Out of bounds on buffer access (axis %d)", axis);
-}
 
 /* PyObject_GenericGetAttrNoDict */
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000

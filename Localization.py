@@ -87,100 +87,6 @@ def gauss_psf(window_sizes, radiuss):
     return gauss_grid_window
 
 
-def add_block_noise(imgs, extend):
-    gap = int(extend/2)
-    row_indice = range(0, len(imgs[0]), gap)
-    col_indice = range(0, len(imgs[0][0]), gap)
-    for c in col_indice:
-        crop_img = imgs[:, row_indice[1]:row_indice[1]+gap, c: min(len(imgs[0][0]) - gap, c+gap)]
-        if crop_img.shape[2] == 0:
-            break
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]) - gap, c+gap) - c)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, row_indice[0]:row_indice[0] + gap, c: min(len(imgs[0][0]) - gap, c+gap)] = np.array(ret_img_stack)
-    for r in row_indice:
-        crop_img = imgs[:, r:min(len(imgs[0]) - gap, r + gap), len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]
-        if crop_img.shape[1] == 0:
-            break
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0])-gap, r + gap) - r, gap)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, r:min(len(imgs[0])-gap, r + gap), len(imgs[0][0]) - gap: len(imgs[0][0])] = np.array(ret_img_stack)
-    for c in col_indice[::-1]:
-        crop_img = imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c: min(len(imgs[0][0]), c+gap)]
-        if crop_img.shape[2] == 0:
-            continue
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, len(imgs[0]) - gap:len(imgs[0]), c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
-    for r in row_indice:
-        crop_img = imgs[:, r:min(len(imgs[0]), r + gap), col_indice[1]: col_indice[1] + gap]
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, r:min(len(imgs[0]), r + gap), col_indice[0]: col_indice[0] + gap] = np.array(ret_img_stack)
-
-    for c in col_indice[1:-1]:
-        csize = min(len(imgs[0][0]), c + 2 * gap) - c - gap
-        crop_img = (imgs[:, row_indice[0]:row_indice[0]+gap, c-csize: c]
-                    + imgs[:, row_indice[0]:row_indice[0]+gap, c+gap: c+gap+csize]) / 2
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, row_indice[0]:row_indice[0] + gap, c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
-    for r in row_indice[1:-1]:
-        rsize = min(len(imgs[0]), r + 2 * gap) - r - gap
-        crop_img = (imgs[:, r - rsize: r, len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]
-                    + imgs[:, r + gap: r+gap+rsize, len(imgs[0][0]) - 2*gap: len(imgs[0][0]) - gap]) / 2
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, r:min(len(imgs[0]), r + gap), len(imgs[0][0]) - gap: len(imgs[0][0])] = np.array(ret_img_stack)
-    for c in col_indice[1:-1]:
-        csize = min(len(imgs[0][0]), c + 2 * gap) - c - gap
-        crop_img = (imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c-csize: c]
-                    + imgs[:, len(imgs[0]) - 2*gap:len(imgs[0]) - gap, c+gap: c+gap+csize]) / 2
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(gap, min(len(imgs[0][0]), c+gap) - c)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, len(imgs[0]) - gap:len(imgs[0]), c: min(len(imgs[0][0]), c+gap)] = np.array(ret_img_stack)
-    for r in row_indice[1:-1]:
-        rsize = min(len(imgs[0]), r + 2 * gap) - r - gap
-        crop_img = (imgs[:, r - rsize: r, col_indice[0]: col_indice[0] + gap]
-                    + imgs[:, r + gap: r+gap+rsize, col_indice[0]: col_indice[0] + gap]) / 2
-        crop_means = np.mean(crop_img, axis=(1, 2))
-        crop_stds = np.std(crop_img, axis=(1, 2))
-        ret_img_stack = []
-        for m, std in zip(crop_means, crop_stds):
-            ret_img_stack.append(np.random.normal(loc=m, scale=std, size=(min(len(imgs[0]), r + gap) - r, gap)))
-        ret_img_stack = np.array(ret_img_stack)
-        imgs[:, r:min(len(imgs[0]), r + gap), col_indice[0]: col_indice[0] + gap] = np.array(ret_img_stack)
-    return imgs
-
-
 def indice_filtering(indices, window_sizes, img_shape, extend):
     masks = np.zeros(img_shape)
     win_masks = [[[[] for _ in range(img_shape[2])] for _ in range(img_shape[1])] for _ in range(img_shape[0])]
@@ -270,13 +176,8 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs[:, int(extend/2):int(extend/2) + imgs.shape[1], int(extend/2):int(extend/2) + imgs.shape[2]] += imgs
 
     before_time = timer()
-    extended_imgs = add_block_noise(extended_imgs, extend)
+    extended_imgs = image_pad.add_block_noise(extended_imgs, extend)
     print(f'{"Py_block_noise":<35}:{(timer() - before_time):.2f}s')
-    """
-    before_time = timer()
-    extended_imgs = np.array(image_pad.add_block_noise(extended_imgs, extend))
-    print(f'{"C_block_noise":<35}:{(timer() - before_time):.2f}s')
-    """
 
     while 1:
         #print(f'INDEX: {index}')
@@ -398,9 +299,6 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     enumerate(zip(g_grids, window_sizes, radiuss))):
                 h_map = np.zeros_like(imgs)
                 crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=args[7])
-                crop_imgs = crop_imgs.reshape(crop_imgs.shape[0], crop_imgs.shape[1],
-                                                        window_size[0] * window_size[1])
-                crop_imgs = np.moveaxis(crop_imgs, 0, 1)
                 all_crop_imgs[window_size[0]] = crop_imgs
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
                 c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])

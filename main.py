@@ -990,7 +990,7 @@ if __name__ == '__main__':
     output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
     output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
     output_trxyt = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.trxyt'
-    output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tif'
+    output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tiff'
     output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.png'
 
     final_trajectories = []

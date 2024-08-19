@@ -405,7 +405,7 @@ def mapping(c_likelihood, imgs_shape, shift):
         return h_map
 
 
-def quantification(imgs, window_size, amp):
+def quantification(window_size):
     x = np.arange(-(window_size[0]-1)/2, (window_size[0]+1)/2)
     y = np.arange(-(window_size[1]-1)/2, (window_size[1]+1)/2)
     xv, yv = np.meshgrid(x, y, sparse=True)
@@ -430,7 +430,7 @@ def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0, repeat=5):
               .reshape(-1, window_size[0] * window_size[1]))
     y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
               .reshape(-1, window_size[0] * window_size[1]))
-    grid = quantification(imgs, window_size, amp)
+    grid = quantification(window_size)
 
     coefs = regression.guo_algorithm(imgs, bgs, p0=p0, xgrid=x_grid, ygrid=y_grid, 
                                      window_size=window_size, repeat=repeat, decomp_n=decomp_n)

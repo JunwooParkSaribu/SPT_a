@@ -222,7 +222,7 @@ def make_image_seqs(trajectory_list, output_dir, img_stacks, time_steps, cutoff=
                                     color=(traj.get_color()[0],
                                            traj.get_color()[1],
                                            traj.get_color()[2]))
-        img_org[:, -1, :] = 1
+        #img_org[:, -1, :] = 1
         if bright_:
             overlay = img_org + overlay
         else:

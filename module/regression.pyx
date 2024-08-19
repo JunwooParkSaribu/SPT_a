@@ -1,6 +1,5 @@
 #cython: infer_types=True
 #cython: cdivision=True
-from libc.stdlib cimport malloc, free
 from libc.math cimport sqrt, M_PI, log
 import numpy as np
 cimport cython
@@ -87,20 +86,20 @@ cpdef unpack_coefs(coefs, window_size):
 @cython.cdivision(True) 
 @cython.profile(False)
 cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0, 
-                    xgrid, ygrid, window_size=(7, 7), repeat=5, decomp_n=1):
+                    xgrid, ygrid, window_size=(7, 7), repeat=7, decomp_n=1):
     cdef int k, nb_imgs
     cdef double [:,::1] imgs_view, bgs_view
+    cdef double [::1] local_backgrounds
 
     k = 0
     nb_imgs = imgs.shape[0]
     coef_vals = pack_vars(p0, nb_imgs)
     img_view = imgs
     bgs_view = bgs
-
     ## background for each crop image needed rather than background intensity for whole image.
     #imgs = np.maximum(np.zeros(imgs.shape), imgs - bgs.reshape(-1, window_size[0], window_size[1])) + 1e-2
-    element_wise_subtraction_2d(img_view, bgs_view)
-    element_wise_maximum_2d(img_view)
+    local_backgrounds = element_wise_subtraction_2d(img_view, bgs_view)
+    element_wise_maximum_2d(img_view, local_backgrounds)
     yk_2 = imgs.copy()
 
     while k < repeat:
@@ -166,15 +165,15 @@ cpdef guo_algorithm(imgs:np.ndarray, bgs, double[::1] p0,
 @cython.nonecheck(False)
 @cython.cdivision(True) 
 @cython.profile(False)
-cpdef element_wise_maximum_2d(double [:,::1] array1):
-    cdef int row_size, col_size
+cpdef element_wise_maximum_2d(double [:,::1] array1, double[:] local_bgs):
+    cdef int nb_imgs, img_size
     cdef Py_ssize_t i, j
-    row_size = array1.shape[0]
-    col_size = array1.shape[1]
-
-    for i in range(row_size):
-        for j in range(col_size):
-            array1[i][j] = max(1e-2, array1[i][j])
+    nb_imgs = array1.shape[0]
+    img_size = array1.shape[1]
+    
+    for i in range(nb_imgs):
+        for j in range(img_size):
+            array1[i][j] = array1[i][j] - local_bgs[i] + 1e-2
 
 
 @cython.boundscheck(False)
@@ -184,14 +183,21 @@ cpdef element_wise_maximum_2d(double [:,::1] array1):
 @cython.profile(False)
 cpdef element_wise_subtraction_2d(double [:,::1] array1, double [:,::1] array2):
     assert(array1.shape[0] == array2.shape[0] and array1.shape[1] == array2.shape[1])
-    cdef int row_size, col_size
+    cdef int nb_imgs, img_size
+    cdef double local_bg
     cdef Py_ssize_t i, j
-    row_size = array1.shape[0]
-    col_size = array1.shape[1]
+    nb_imgs = array1.shape[0]
+    img_size = array1.shape[1]
+    local_bgs = np.empty(nb_imgs, dtype=np.double)
+    cdef double[:] local_bgs_view = local_bgs
 
-    for i in range(row_size):
-        for j in range(col_size):
+    for i in range(nb_imgs):
+        local_bg = 9999.0
+        for j in range(img_size):
             array1[i][j] = array1[i][j] - array2[i][j]
+            local_bg = min(local_bg, array1[i][j])
+        local_bgs_view[i] = local_bg
+    return local_bgs
 
 
 @cython.boundscheck(False)

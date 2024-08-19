@@ -9,10 +9,15 @@ from ImageModule import draw_cross
 from timeit import default_timer as timer
 
 
-def region_max_filter2(maps, window_size, thresholds):
+def region_max_filter2(maps, window_size, thresholds, detect_range=0):
     indices = []
-    r_start_index = int(window_size[1] // 2)
-    col_start_index = int(window_size[0] // 2)
+    if detect_range == 0:
+        r_start_index = window_size[1] // 2
+        col_start_index = window_size[0] // 2
+    else:
+        r_start_index = 1
+        col_start_index = 1
+
     for _ in range(2):
         args_map = maps > thresholds.reshape(-1, 1, 1)
         maps = maps * args_map
@@ -79,9 +84,9 @@ def subtract_pdf(ext_imgs, pdfs, indices, window_size, bg_means, extend):
     return np.array(ext_imgs)
 
 
-def gauss_psf(window_sizes, radiuss):
+def gauss_psf(window_sizes, radi):
     gauss_grid_window = []
-    for window_size, radius in zip(window_sizes, radiuss):
+    for window_size, radius in zip(window_sizes, radi):
         x_subpixel = np.arange(window_size[0]) + .5
         y_subpixel = np.arange(window_size[1]) + .5
         center_x = window_size[0] / 2.
@@ -163,18 +168,17 @@ def check_masks_overlaps(masks, window_masks, extend, window_sizes):
 
 
 def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
-    index = 0
-    bin_winsizes = args[0]
-    bin_radius = args[1]
-    bin_thresholds = args[2]
+    pass_to_multi = False
+    single_winsizes = args[0]
+    single_thresholds = args[2]
     multi_winsizes = args[3]
-    multi_radius = args[4]
     multi_thresholds = args[5]
+    p0=args[6]
+    shift=args[7]
+    decomp_n=args[8]
     deflation_loop_backward = args[10]
     extend = multi_winsizes[-1][0]*4
 
-    forward_linkage = {i: ws[0] for i, ws in enumerate(bin_winsizes)}
-    backward_linkage = {ws[0]: i for i, ws in enumerate(multi_winsizes)}
     coords = [[] for _ in range(imgs.shape[0])]
     reg_pdfs = [[] for _ in range(imgs.shape[0])]
     reg_infos = [[] for _ in range(imgs.shape[0])]
@@ -186,45 +190,41 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
     extended_imgs = image_pad.add_block_noise(extended_imgs, extend)
     print(f'{"Py_block_noise":<35}:{(timer() - before_time):.2f}s')
 
-    while 1:
-        #print(f'START INDEX: {index}')
-        window_sizes = bin_winsizes[index:]
-        thresholds = bin_thresholds[:, index:]
-        radiuss = bin_radius[index:]
-        g_grids = f_gauss_grids[index:]
-        all_crop_imgs = {ws[0]: None for ws in multi_winsizes}
+    while True:
+        all_crop_imgs = {ws[0]: None for ws in single_winsizes}
         win_s_dict = {}
-        for ws in window_sizes:
+        for ws in single_winsizes:
             win_s_dict[ws[0]] = []
 
-        if index == bin_thresholds.shape[1] - 1:
-            #print(f'BACKWARD PROCESS')
+        if pass_to_multi:
             for df_loop in range(deflation_loop_backward):
                 h_maps = []
-                for step, (g_grid, window_size, radius) in (
-                        enumerate(zip(b_gauss_grids, multi_winsizes, multi_radius))):
-                    crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=1)
+                for g_grid, window_size in zip(b_gauss_grids, multi_winsizes):
+                    crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=shift)
                     bg_squared_sums = window_size[0] * window_size[1] * bg_means ** 2
                     c = np.array(image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1]))
-                    h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]))
+                    h_maps.append(c.reshape(imgs.shape[0], imgs.shape[1], imgs.shape[2]) * (multi_winsizes[0][0]**2 / window_size[0]**2))
                 h_maps = np.array(h_maps)
 
                 """
+                plt.figure()
+                plt.imshow(imgs[0])
                 plt.figure()
                 plt.imshow(extended_imgs[0])
                 for hm in h_maps:
                     plt.figure()
                     plt.imshow(hm[0], vmin=0., vmax=1.)
+                plt.figure()
+                plt.imshow(extended_imgs[0])
                 plt.show()
                 """
 
                 back_indices = [[] for _ in range(multi_thresholds.shape[1])]
                 for backward_index in range(multi_thresholds.shape[1]-1, -1, -1):
                     back_indices[backward_index] = region_max_filter2(h_maps[backward_index], multi_winsizes[backward_index],
-                                                                      multi_thresholds[:, backward_index])
+                                                                      multi_thresholds[:, backward_index], detect_range=1)
                 reregress_indice = indice_filtering(back_indices, multi_winsizes, imgs.shape, int(extend/2))
                 regress_imgs_copy = extended_imgs.copy()
-   
                 for regress_comp_set in reregress_indice:
                     loss_vals = []
                     selected_dt = []
@@ -242,8 +242,15 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         regress_imgs = np.array(regress_imgs)
 
                         if len(regress_imgs) > 0:
+                            ############ FORCE BOUNDARY TO MIN TO HAVE A EFFECT OF BOUNDED REGRESSION #########
+                            min_tmp = np.min(regress_imgs, axis=(1, 2)).reshape(-1, 1)
+                            regress_imgs[:,:,0] = min_tmp
+                            regress_imgs[:,:,-1] = min_tmp
+                            regress_imgs[:,0,:] = min_tmp
+                            regress_imgs[:,-1,:] = min_tmp
+                            ####################################################################################
                             pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
-                                                                                        (ws, ws), p0=args[6], decomp_n=args[8])
+                                                                                        (ws, ws), p0=p0, decomp_n=decomp_n)
 
                             penalty = 0
                             for x_var, y_var, rho, dx, dy in zip(x_vars, y_vars, rhos, xs, ys):
@@ -302,14 +309,13 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
         else:
             h_maps = []
-            for step, (g_grid, window_size, radius) in (
-                    enumerate(zip(g_grids, window_sizes, radiuss))):
-                crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=args[7])
+            for g_grid, window_size in zip(f_gauss_grids, single_winsizes):
+                crop_imgs = image_pad.image_cropping(extended_imgs, extend, window_size[0], window_size[1], shift=shift)
                 all_crop_imgs[window_size[0]] = crop_imgs
                 bg_squared_sums = window_size[0] * window_size[1] * bg_means**2
                 c = image_pad.likelihood(crop_imgs, g_grid, bg_squared_sums, bg_means, window_size[0], window_size[1])
-                h_map = mapping(c, imgs.shape, args[7])
-                h_map = h_map * (window_sizes[0][0]**2 / window_size[0]**2)
+                h_map = mapping(c, imgs.shape, shift)
+                h_map = h_map * (single_winsizes[0][0]**2 / window_size[0]**2)
                 h_maps.append(h_map)
             h_maps = np.array(h_maps)
         
@@ -322,13 +328,13 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
             plt.show()
             """
 
-            indices = region_max_filter(h_maps, window_sizes, thresholds, detect_range=1)
+            indices = region_max_filter(h_maps, single_winsizes, single_thresholds, detect_range=1)
             if len(indices) != 0:
                 for n, r, c, ws in indices:
                     win_s_dict[ws].append([all_crop_imgs[ws][n]
-                                           [int((r//args[7]) * (imgs.shape[2]//args[7]) + (c//args[7]))],
+                                           [int((r//shift) * (imgs.shape[2]//shift) + (c//shift))],
                                            bgs[ws][n], n, r, c])
-                ws = window_sizes[0][0]
+                ws = single_winsizes[0][0]
                 if len(win_s_dict[ws]) != 0:
                     err_indice = []
                     regress_imgs = []
@@ -337,7 +343,7 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                     rs = []
                     cs = []
                     for i1, i2, i3, i4, i5 in win_s_dict[ws]:
-                        ############ FORCE BOUNDART TO MIN TO HAVE A EFFECT OF BOUNDED REGRESSION #########
+                        ############ FORCE BOUNDARY TO MIN TO HAVE A EFFECT OF BOUNDED REGRESSION #########
                         tmp = np.array(i1).reshape(ws, ws)
                         min_tmp = np.min(tmp)
                         tmp[:,0] = min_tmp
@@ -352,14 +358,14 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
                         rs.append(i4)
                         cs.append(i5)
                     pdfs, xs, ys, x_vars, y_vars, amps, rhos = image_regression(regress_imgs, bg_regress,
-                                                                                (ws, ws), p0=args[6], decomp_n=args[8])
+                                                                                (ws, ws), p0=p0, decomp_n=decomp_n)
                     for err_i, (x_var, y_var, rho) in enumerate(zip(x_vars, y_vars, rhos)):
                         if x_var < 0 or y_var < 0 or x_var > 3*ws or y_var > 3*ws or rho > 1 or rho < -1:
                             err_indice.append(err_i)
 
                     if len(err_indice) == len(pdfs):
-                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}, INDEX:{index}')
-                        index += 1
+                        print(f'IMPOSSIBLE REGRESSION(MINUS VAR): {err_indice}\nWindow_size:{ws}')
+                        pass_to_multi = True
                     else:
                         pdfs = np.delete(pdfs, err_indice, 0)
                         xs = np.delete(xs, err_indice, 0)
@@ -381,11 +387,9 @@ def localization(imgs: np.ndarray, bgs, f_gauss_grids, b_gauss_grids, *args):
 
                         extended_imgs_copy = extended_imgs.copy()
                         extended_imgs = subtract_pdf(extended_imgs, pdfs, del_indices, (ws, ws), bg_means, extend)
-                        #if np.sum(extended_imgs_copy) == np.sum(extended_imgs):
-                        #    index += 1
 
-            if np.allclose(extended_imgs_copy, extended_imgs, atol=1e-2) or len(indices) == 0 or forward_linkage[index] not in indices[:, 3]:
-                index += 1
+            if np.allclose(extended_imgs_copy, extended_imgs, atol=1e-2) or len(indices) == 0 or single_winsizes[0][0] not in indices[:, 3]:
+                pass_to_multi = True
 
 
 def mapping(c_likelihood, imgs_shape, shift):
@@ -410,7 +414,7 @@ def quantification(imgs, window_size, amp):
 
 
 def bi_variate_normal_pdf(xy, cov, mu, normalization=True):
-    a = np.ones((cov.shape[0], xy.shape[0], xy.shape[1])) * (xy - mu)
+    a = np.ones((cov.shape[0], xy.shape[0], xy.shape[1]), dtype=np.longdouble) * (xy - mu)
     if normalization:
         return (np.exp((-1./2) * np.sum(a @ np.linalg.inv(cov) * a, axis=2))
                 / (2 * np.pi * np.sqrt(np.linalg.det(cov).reshape(-1, 1))))
@@ -427,6 +431,7 @@ def image_regression(imgs, bgs, window_size, p0, decomp_n, amp=0, repeat=5):
     y_grid = (np.array([[y] * window_size[0] for y in range(-int(window_size[1]/2), int((window_size[1]/2) + 1), 1)])
               .reshape(-1, window_size[0] * window_size[1]))
     grid = quantification(imgs, window_size, amp)
+
     coefs = regression.guo_algorithm(imgs, bgs, p0=p0, xgrid=x_grid, ygrid=y_grid, 
                                      window_size=window_size, repeat=repeat, decomp_n=decomp_n)
     variables, err_indices = regression.unpack_coefs(coefs, window_size)
@@ -467,7 +472,7 @@ def visualilzation(output_dir, images, localized_xys):
     orignal_imgs_3ch = np.ascontiguousarray(np.moveaxis(orignal_imgs_3ch, 0, 3))
     circle_imgs = orignal_imgs_3ch.copy()
     stacked_img = np.array(make_red_circles(orignal_imgs_3ch, circle_imgs, localized_xys))
-    tifffile.imwrite(f'{output_dir}_locvideo.tif', data=(stacked_img * 255).astype(np.uint8), imagej=True)
+    tifffile.imwrite(f'{output_dir}_locvideo.tiff', data=(stacked_img * 255).astype(np.uint8), imagej=True)
 
 
 def background(imgs, window_sizes, alpha):
@@ -532,30 +537,18 @@ def intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=3.5):
     return new_pdfs, new_coords, new_infos
 
 
-def params_gen(lowest, highest):
-    assert type(lowest) is int and type(highest) is int
-    if lowest % 2 == 0:
-        lowest += 1
-    if highest % 2 == 0:
-        highest += 1
-    mid = int((highest + lowest) / 2)
-    if mid % 2 == 0: mid += 1
-    if lowest == highest:
-        bin_winsizes = [(lowest, lowest)]
-        multi_winsizes = [(lowest, lowest)]
-        bin_radius = [(lowest // 2) / 2.]
-        multi_radius = [(lowest // 2) / 2.]
-    elif mid == highest:
-        bin_winsizes = [(lowest, lowest), (highest, highest)]
-        multi_winsizes = [(lowest, lowest), (highest, highest)]
-        bin_radius = [((r[0]//2) / 2.) for r in bin_winsizes]
-        multi_radius = [((r[0]//2) / 2.) for r in multi_winsizes]
-    else:
-        bin_winsizes = [(lowest, lowest), (highest, highest)]
-        multi_winsizes = [(lowest, lowest), (mid, mid), (highest, highest)]
-        bin_radius = [((r[0]//2) / 2.) for r in bin_winsizes]
-        multi_radius = [((r[0]//2) / 2.) for r in multi_winsizes]
-    return bin_winsizes, bin_radius, multi_winsizes, multi_radius
+def params_gen(win_s):
+    assert type(win_s) is int
+    if win_s < 5:
+        win_s = 5
+    if win_s % 2 == 0:
+        win_s += 1
+
+    single_winsizes = [(win_s, win_s)]
+    multi_winsizes = [(win_s-2, win_s-2), (win_s, win_s), (win_s+2, win_s+2)]
+    single_radius = [((r[0]//2) / 2.) for r in single_winsizes]
+    multi_radius = [((r[0]//2) / 2.) for r in multi_winsizes]
+    return single_winsizes, single_radius, multi_winsizes, multi_radius
 
 
 def main_process(imgs, forward_gauss_grids, backward_gauss_grids, *args):
@@ -584,8 +577,7 @@ if __name__ == '__main__':
     OUTPUT_LOC = f'{OUTPUT_DIR}/{params["localization"]["VIDEO"].split("/")[-1].split(".tif")[0]}'
 
     SIGMA = params['localization']['SIGMA']
-    MIN_WIN = params['localization']['MIN_WIN']
-    MAX_WIN = params['localization']['MAX_WIN']
+    WINSIZE = params['localization']['WINSIZE']
     THRES_ALPHA = params['localization']['THRES_ALPHA']
     DEFLATION_LOOP_IN_BACKWARD = params['localization']['DEFLATION_LOOP_IN_BACKWARD']
     BINARY_THRESHOLDS = None
@@ -602,9 +594,9 @@ if __name__ == '__main__':
     xy_coords = []
     reg_pdfs = []
     reg_infos = []
-    BINARY_COMP_WINSIZES, BINARY_RADIUS, MULTI_COMP_WINSIZES, MULTI_RADIUS = params_gen(MIN_WIN, MAX_WIN)
-    forward_gauss_grids = gauss_psf(BINARY_COMP_WINSIZES, BINARY_RADIUS)
-    backward_gauss_grids = gauss_psf(MULTI_COMP_WINSIZES, MULTI_RADIUS)
+    SINGLE_WINSIZES, SINGLE_RADIUS, MULTI_WINSIZES, MULTI_RADIUS = params_gen(WINSIZE)
+    forward_gauss_grids = gauss_psf(SINGLE_WINSIZES, SINGLE_RADIUS)
+    backward_gauss_grids = gauss_psf(MULTI_WINSIZES, MULTI_RADIUS)
 
     start_time = timer()
     if PARALLEL:
@@ -616,8 +608,8 @@ if __name__ == '__main__':
                     if div_q + cc*DIV_Q < len(images):
                         future = executor.submit(main_process, images[div_q + cc*DIV_Q: div_q + cc*DIV_Q + DIV_Q],
                                                  forward_gauss_grids, backward_gauss_grids,
-                                                 BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
-                                                 MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
+                                                 SINGLE_WINSIZES, SINGLE_RADIUS, BINARY_THRESHOLDS,
+                                                 MULTI_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
                                                  P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA, DEFLATION_LOOP_IN_BACKWARD)
                         executors[cc] = future
                 for wait_ in executors:
@@ -630,8 +622,8 @@ if __name__ == '__main__':
         for div_q in range(0, len(images), DIV_Q):
             print(f'{div_q}/{len(images)} frame (non parallelized)')
             xy_coord, pdf, info = main_process(images[div_q:div_q+DIV_Q], forward_gauss_grids, backward_gauss_grids,
-                                               BINARY_COMP_WINSIZES, BINARY_RADIUS, BINARY_THRESHOLDS,
-                                               MULTI_COMP_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
+                                               SINGLE_WINSIZES, SINGLE_RADIUS, BINARY_THRESHOLDS,
+                                               MULTI_WINSIZES, MULTI_RADIUS, MULTI_THRESHOLDS,
                                                P0, SHIFT, GAUSS_SEIDEL_DECOMP, THRES_ALPHA, DEFLATION_LOOP_IN_BACKWARD)
             xy_coords.extend(xy_coord)
             reg_pdfs.extend(pdf)

@@ -303,10 +303,8 @@ def read_parameters(param_file):
                 params['localization']['OUTPUT_DIR'] = line.strip().split('=')[1]
             if 'sigma' in line.lower():
                 params['localization']['SIGMA'] = float(eval(line.strip().split('=')[1]))
-            if 'min_win' in line.lower():
-                params['localization']['MIN_WIN'] = int(eval(line.strip().split('=')[1]))
-            if 'max_win' in line.lower():
-                params['localization']['MAX_WIN'] = int(eval(line.strip().split('=')[1]))
+            if 'window_size' in line.lower():
+                params['localization']['WINSIZE'] = int(eval(line.strip().split('=')[1]))
             if 'threshold_alpha' in line.lower():
                 params['localization']['THRES_ALPHA'] = float(eval(line.strip().split('=')[1]))
             if 'deflation_loop_in_backward' in line.lower():

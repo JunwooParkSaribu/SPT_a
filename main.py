@@ -987,17 +987,17 @@ if __name__ == '__main__':
     pixel_microns = params['tracking']['PIXEL_MICRONS']
     frame_rate = params['tracking']['FRAME_RATE']
 
-    output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.xml'
-    output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.csv'
-    output_trxyt = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.trxyt'
-    output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.tiff'
-    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_track.png'
+    output_xml = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.xml'
+    output_trj = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.csv'
+    output_trxyt = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.trxyt'
+    output_imgstack = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.tiff'
+    output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.png'
 
     final_trajectories = []
     methods = [1, 3, 4]
     confidence = 0.995
 
-    THRESHOLDS = None  #[8, 14.5]
+    THRESHOLDS = [8, 14.5] # None
 
     snr = '7'
     density = 'low'
@@ -1048,7 +1048,7 @@ if __name__ == '__main__':
         for lag in segment_distribution.keys():
             print(f'{lag}_limit_length: {segment_distribution[lag][0]}')
 
-        """
+        plt.figure()
         fig, axs = plt.subplots((blink_lag + 1), 2, figsize=(20, 10))
         show_x_max = 20
         show_y_max = 0.15
@@ -1068,7 +1068,7 @@ if __name__ == '__main__':
             axs[lag][0].set_ylim([0, show_y_max])
             axs[lag][1].set_ylim([0, show_y_max])
         plt.show()
-        """
+        
 
         #loc = create_2d_window(images, loc, time_steps, pixel_size=1, window_size=window_size) ## 1 or 0.16
         #likelihood_graphics(time_steps=time_steps, distrib=segment_distribution, blink_lag=blink_lag, on=methods)

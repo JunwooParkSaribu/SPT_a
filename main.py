@@ -997,7 +997,7 @@ if __name__ == '__main__':
     methods = [1, 3, 4]
     confidence = 0.995
 
-    THRESHOLDS = [8, 14.5] # None
+    THRESHOLDS = None
 
     snr = '7'
     density = 'low'

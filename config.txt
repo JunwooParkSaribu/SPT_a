@@ -1,4 +1,4 @@
-VIDEO=./sample2.tiff
+VIDEO=./vesicle_7_low.tif
 OUTPUT_DIR=.
 
 # LOCALIZATION

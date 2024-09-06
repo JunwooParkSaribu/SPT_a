@@ -994,7 +994,7 @@ if __name__ == '__main__':
     output_img = f'{OUTPUT_DIR}/{input_tif.split("/")[-1].split(".tif")[0]}_traces.png'
 
     final_trajectories = []
-    methods = [1, 3, 4]
+    methods = [1]
     confidence = 0.995
 
     THRESHOLDS = None

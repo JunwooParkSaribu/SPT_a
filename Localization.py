@@ -629,7 +629,7 @@ if __name__ == '__main__':
             reg_pdfs.extend(pdf)
             reg_infos.extend(info)
 
-    #reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
+    reg_pdfs, xy_coords, reg_infos = intensity_distribution(images, reg_pdfs, xy_coords, reg_infos, sigma=SIGMA)
     write_localization(OUTPUT_LOC, xy_coords, reg_pdfs, reg_infos)
 
     if visualization:

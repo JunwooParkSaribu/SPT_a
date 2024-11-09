@@ -1525,6 +1525,8 @@ def run_single_task(exp_nums, track, submit_dir, truth_dir):
                 fov_nums += 1
 
         for fov in range(fov_nums):
+            df_pred_exp = []
+            df_true_exp = []
             # Predictions
             corresponding_submission_file = path_pred+f'fov_{fov}.txt'
             
@@ -1566,11 +1568,11 @@ def run_single_task(exp_nums, track, submit_dir, truth_dir):
                 df_pred_exp = preds_fov
                 df_true_exp = trues_fov
 
-        # Calculate error for each experiment
-        rmse_CP_exp, JI, error_alpha_exp, error_D_exp, error_s_exp = error_SingleTraj_dataset(df_pred_exp, df_true_exp, prints = False, disable_tqdm=True);
+            # Calculate error for each experiment
+            rmse_CP_exp, JI, error_alpha_exp, error_D_exp, error_s_exp = error_SingleTraj_dataset(df_pred_exp, df_true_exp, prints = False, disable_tqdm=True);
 
-        # Save errors and number of trajectories of later doing average
-        data_metrics.append([exp, df_true_exp.shape[0], rmse_CP_exp, JI, error_alpha_exp, error_D_exp, error_s_exp])
+            # Save errors and number of trajectories of later doing average
+            data_metrics.append([exp, df_true_exp.shape[0], rmse_CP_exp, JI, error_alpha_exp, error_D_exp, error_s_exp])
 
     # Put all results in dataframe    
     data_metrics = pandas.DataFrame(data = data_metrics, columns = ['Experiment', 'num_trajs', 'RMSE CP', 'JSC CP', 'alpha', 'D', 'state'])

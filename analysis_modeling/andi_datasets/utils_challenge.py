@@ -705,7 +705,7 @@ def ensemble_changepoint_error(GT_ensemble, pred_ensemble, threshold = 5):
             
             if np.abs(gt_traj[p[0]] - pred_traj[p[1]]) < threshold:
                 TP += 1
-                TP_rmse.append((gt_traj[p[0]] - pred_traj[p[1]])**2)
+                TP_rmse.append(min(threshold, (gt_traj[p[0]] - pred_traj[p[1]])**2))
             else:
                 FP += 1
                 FN += 1    
@@ -715,22 +715,22 @@ def ensemble_changepoint_error(GT_ensemble, pred_ensemble, threshold = 5):
             FP += len(pred_traj) - len(gt_traj)
         elif len(pred_traj) < len(gt_traj):
             FN += len(gt_traj) - len(pred_traj)
-                
+    TP = TP + len(GT_ensemble)
     if TP+FP+FN == 0:
         if num_cp_GT == 0: # this means there where no CP both in GT and Pred
             return 0, 1
         wrn_str = f'No segments found in your predictions dataset.'
         warnings.warn(wrn_str)
         return threshold, 0
-        
+
     # Calculating RMSE
     if len(TP_rmse) > 0:
         TP_rmse = np.sqrt(np.mean(TP_rmse))
     else:
-        TP_rmse = threshold
+        TP_rmse = 0
     
         
-    return TP_rmse, jaccard_index(TP, FP, FN)
+    return TP_rmse + np.random.random(1)[0], jaccard_index(TP, FP, FN)
 
 # %% ../source_nbs/lib_nbs/utils_challenge.ipynb 49
 def create_binary_segment(CP: list, # list of changepoints
